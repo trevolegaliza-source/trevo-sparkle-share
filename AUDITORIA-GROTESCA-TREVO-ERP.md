@@ -271,31 +271,77 @@
 
 ---
 
-## 🎯 PRÓXIMOS ALVOS (ordem sugerida)
+## ✅ CHECKLIST EM ABERTO — ordenado por exequibilidade
 
-### 🔴 Crítico — pode fazer da máquina sem mexer no banco
-- ~~**C42**~~ — saldo pré-pago. **DECISÃO 30/04 noite:** Thales nunca usou e não pretende usar. **Backlog: REMOVER feature inteira** (tela + botão + tabela `saldo_prepago`).
-- ~~**C44**~~ — Gerar Verbas colaborador. **DECISÃO 30/04 noite:** Thales não usa o botão. **Backlog: REMOVER botão.**
-- **C43** — DELETE cascata. **DECISÃO 30/04 noite:** Opção C (master password + lixeira 60 dias). 3 fases:
-  - ✅ Fase 1 (commit `4403bc6`): senha master no botão Excluir Processo da lista (ProcessoEditModal já tinha)
-  - Fase 2: soft delete (`deleted_at`) + tela de Lixeira com Restaurar
-  - Fase 3: cron job 60 dias DELETE definitivo
-- **C45, C48** — outros bugs de hooks financeiros (race condition, validação payload).
+### 📋 Demandas do Thales (usabilidade)
+*Lista preenchida conforme Thales for passando. Tem prioridade sobre auditoria a partir de 30/04 noite.*
 
-### 🔴 Crítico — exige Thales (config Supabase)
-- **C39** — Tirar hardcoded `MASTER_USER` do `trello-guard`, mover pra env var. *(precisa Thales setar secret)*
-- **C28–C35** — RLS `USING(true)` cross-tenant aberto. *(exige rodar migration no Supabase — Thales precisa autorizar/aplicar)*
+- [ ] (vazio — aguardando primeira demanda)
 
-### 🔴 Crítico — bloqueado
-- **C40** — Token Asaas em query string. *(precisa coordenar com Apps Script da Dani — cross-repo)*
-- **C5, C12** — Prompt injection Dani. *(deferido pelo Thales 28/04)*
+---
 
-### 🟠 Importantes (I001–I042)
-- I029, I032 — logs/URL com dado sensível em edge functions.
-- I001, I004, I005, I007 — guards NaN espalhados pelo frontend.
-- I017 — validação de URL de webhook (SSRF).
+### 🔴 Crítico — eu faço sozinho (sem mexer em banco / sem depender do Thales)
+- [ ] **C42** — REMOVER feature saldo pré-pago (frontend + migration `DROP TABLE saldo_prepago, prepago_movimentacoes`). *Decisão: Thales nunca usou.*
+- [ ] **C44** — REMOVER botão Gerar Verbas colaborador (frontend). *Decisão: Thales não usa.*
+- [ ] **C45** — race condition no fallback boas-vindas. `useFinanceiro.ts:415-427`
+- [ ] **C48** — validação de payload em `useContasPagar.create`. `useContasPagar.ts:82-83`
 
-### 🟢 Quick wins (F001–F019)
-- F009 — consolidar `fmt()` BRL helper único (parar de redeclarar 8x).
-- F011 — `staleTime: Infinity` em queries imutáveis (servicos/precos/plano).
-- F016 — índices compostos `(empresa_id, FK)` em processos/lancamentos/documentos.
+### 🔴 Crítico — eu escrevo, Thales aplica no Supabase
+- [ ] **C43 Fase 2** — soft delete (`deleted_at` em processos/lancamentos) + tela de Lixeira com Restaurar
+- [ ] **C43 Fase 3** — cron Supabase de 60 dias pra DELETE definitivo
+- [ ] **C39** — mover `MASTER_USER` hardcoded do trello-guard pra env var
+- [ ] **C28** — RLS `clientes_all` USING(true) cross-tenant
+- [ ] **C29** — RLS `processos_all` USING(true)
+- [ ] **C30** — RLS `lancamentos_all` USING(true)
+- [ ] **C30b** — RLS `documentos`/`valores_adicionais`/`precos_tiers` USING(true)
+- [ ] **C31** — RLS `cobrancas_authenticated_all` USING(true)
+- [ ] **C32** — RLS `extratos`/`orcamentos` authenticated_all USING(true)
+- [ ] **C33** — Storage bucket `documentos` sem filtro tenant
+- [ ] **C34** — FKs sem ON DELETE (extratos, orcamentos, profiles, lancamentos)
+- [ ] **C35** — `handle_new_user()` cria `empresa_id = gen_random_uuid()` (quebra multi-tenant)
+
+### 🔴 Crítico — bloqueado por dependência externa
+- [ ] **C40** — token Asaas em query string *(cross-repo: Apps Script Dani)*
+- [ ] **C5/C12** — prompt injection Dani *(deferido pelo Thales 28/04)*
+- [ ] **C7** — idempotência webhook Asaas em retries
+- [ ] **C11** — atomicidade desconto boas-vindas *(provável: junto com C45)*
+- [ ] **C13** — reconciliação Trello divergências
+- [ ] **C14** — DRE impostos não-modulado
+- [ ] **C15** — fluxo de caixa sem parcelamento
+
+### 🔴 Crítico — agenda própria (decisão de produto)
+- [ ] **C18** — telemetria de erros (Sentry/equivalente)
+- [ ] **C22** — TS strict mode (~250 erros previsíveis, lote dedicado)
+- [ ] **C24** — test coverage baseline
+
+### 🟠 Importantes (42 itens — lotes recomendados)
+- [ ] **Lote NaN frontend:** I001, I004, I005, I007
+- [ ] **Lote Edge Functions:** I026 (retry backoff), I027/I028 (timeout), I029/I032 (PII em logs), I030 (rate limit create-user), I033 (service_role desnecessário)
+- [ ] **Lote Banco:** I034/I035/I036 (CHECK em TEXT), I037 (NUMERIC 14,2), I038/I039 (migrations duplicadas)
+- [ ] **I017** — validação URL de webhook (SSRF)
+- [ ] **Resto:** I002, I003, I006, I008–I016, I018–I025, I031, I040–I042 (sem agrupamento óbvio)
+
+### 🟡 Atenção (30 itens — dívida arquitetural)
+- [ ] **A001–A013** — componentes/migrations/edge functions gigantes (refactor em helpers)
+- [ ] **A014–A019** — magic numbers / strategy faltante
+- [ ] **A020–A024** — UX/a11y (skeleton, aria-label, datas)
+- [ ] **A025–A030** — banco / multi-tenant inconsistente
+
+### 🟢 Quick wins / features (19 itens)
+- [ ] **F009** — consolidar `fmt()` BRL helper (parar de redeclarar 8x)
+- [ ] **F011** — `staleTime: Infinity` em queries imutáveis
+- [ ] **F016** — índices compostos `(empresa_id, FK)`
+- [ ] **F001** — dark mode toggle (CSS já suporta)
+- [ ] **F002** — busca global Cmd+K
+- [ ] **F003** — atalhos Esc/Ctrl+S
+- [ ] **Resto:** F004–F008, F010, F012–F015, F017–F019
+
+---
+
+## 📐 Regra de trabalho (firmada 30/04 noite)
+
+1. **Demandas do Thales têm prioridade** sobre o resto da auditoria.
+2. **Antes de cada demanda nova**, eu consulto este checklist e te aviso se:
+   - Tem algo da auditoria que **deve ser feito ANTES** (ex: um RLS aberto que afeta a tela que você quer mexer).
+   - Tem algo da auditoria que **dá pra fazer junto** (ex: você pediu mudar a tela X e tem um item que vive na tela X).
+3. **Ao fechar qualquer item** (demanda do Thales OU auditoria), atualizo este `.md` e abro o **Preview no chat** pra você bater olho.
