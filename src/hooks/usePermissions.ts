@@ -39,6 +39,7 @@ export function usePermissions(): UsePermissionsReturn {
     // Antes: load 1x no mount, sem refetch. Admin aprovava usuário e
     // ele continuava vendo "Aguardando Aprovação" até F5.
     let cancelled = false;
+    const channelSuffix = crypto.randomUUID();
 
     const load = async () => {
       const { data: profile } = await supabase
@@ -112,7 +113,7 @@ export function usePermissions(): UsePermissionsReturn {
     // Realtime: reage a mudanças no profile do user (role/ativo) e em
     // user_permissions (admin alterou permissão pontual). Refetch instantâneo.
     const profileChannel = supabase
-      .channel(`perm-profile-${user.id}`)
+      .channel(`perm-profile-${user.id}-${channelSuffix}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
@@ -121,7 +122,7 @@ export function usePermissions(): UsePermissionsReturn {
       .subscribe();
 
     const permsChannel = supabase
-      .channel(`perm-userperms-${user.id}`)
+      .channel(`perm-userperms-${user.id}-${channelSuffix}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'user_permissions', filter: `user_id=eq.${user.id}` },

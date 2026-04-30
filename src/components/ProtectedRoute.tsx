@@ -39,6 +39,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     // Antes: setInterval(check, 10000) deixava callback em voo após unmount,
     // permitindo render brevíssimo do child com auth stale.
     let cancelled = false;
+    const channelSuffix = crypto.randomUUID();
 
     const check = async () => {
       const { data: profile } = await supabase
@@ -86,7 +87,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     // aprovou usuário, mudou role, etc). Antes: precisava F5 manual ou aguardar
     // setInterval(10s). Agora: instantâneo.
     const channel = supabase
-      .channel(`profile-watch-${session.user.id}`)
+      .channel(`profile-watch-${session.user.id}-${channelSuffix}`)
       .on(
         'postgres_changes',
         {
