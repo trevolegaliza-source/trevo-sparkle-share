@@ -1,8 +1,27 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Colaborador } from '@/hooks/useColaboradores';
-import { getBusinessDaysInMonth, getLastBusinessDay, calcularAdiantamento } from '@/lib/business-days';
+import { getBusinessDaysInMonth, getLastBusinessDay, calcularAdiantamento, getBrazilianHolidays } from '@/lib/business-days';
 import { fetchFeriadosNacionais, proximoDiaUtil } from '@/lib/brasil-api';
 import type { FeriadoNacional } from '@/lib/brasil-api';
+
+/**
+ * Mescla feriados hardcoded (business-days.ts) com lista da BrasilAPI.
+ * Garante cobertura mesmo quando API falha (timeout 5s → retorna []).
+ * Demanda Thales 30/04: 1/5/2026 (Dia do Trabalho) precisa shiftar p/ 4/5.
+ */
+function mesclarFeriados(years: number[], apiFeriados: FeriadoNacional[]): FeriadoNacional[] {
+  const seen = new Set(apiFeriados.map(f => f.date));
+  const merged = [...apiFeriados];
+  for (const y of years) {
+    for (const date of getBrazilianHolidays(y)) {
+      if (!seen.has(date)) {
+        seen.add(date);
+        merged.push({ date, name: 'Feriado Nacional', type: 'national' });
+      }
+    }
+  }
+  return merged;
+}
 import { toast } from 'sonner';
 
 const fmtDate = (d: Date) => d.toISOString().split('T')[0];
@@ -319,7 +338,9 @@ export async function gerarVerbasDoMes(colaboradores: Colaborador[], year: numbe
     fetchFeriadosNacionais(year),
     month >= 10 ? fetchFeriadosNacionais(year + 1) : Promise.resolve([]),
   ]);
-  const todosOsFeriados = [...feriadosAno, ...feriadosProx];
+  // Mesclar com hardcoded — garante cobertura se API falhar
+  const yearsNeeded = month >= 10 ? [year, year + 1] : [year];
+  const todosOsFeriados = mesclarFeriados(yearsNeeded, [...feriadosAno, ...feriadosProx]);
 
   let total = 0;
   for (const colab of ativos) {
@@ -359,9 +380,10 @@ export async function corrigirDatasExistentes(): Promise<number> {
   });
   await Promise.all(fetches);
 
-  // Build combined feriados list
-  const allFeriados: FeriadoNacional[] = [];
-  feriadosByYear.forEach(f => allFeriados.push(...f));
+  // Build combined feriados list + mesclar hardcoded como fallback
+  const apiFeriados: FeriadoNacional[] = [];
+  feriadosByYear.forEach(f => apiFeriados.push(...f));
+  const allFeriados = mesclarFeriados(Array.from(yearsNeeded), apiFeriados);
 
   let corrected = 0;
 

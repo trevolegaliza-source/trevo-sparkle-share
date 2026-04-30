@@ -1,8 +1,9 @@
 /**
  * Brazilian national holidays (fixed + movable for common years).
  * Movable holidays (Carnival, Corpus Christi, Good Friday) are approximated.
+ * Exportada para servir de fallback quando BrasilAPI falha (timeout/offline).
  */
-function getBrazilianHolidays(year: number): Set<string> {
+export function getBrazilianHolidays(year: number): Set<string> {
   const holidays = new Set<string>();
   const add = (m: number, d: number) =>
     holidays.add(`${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);

@@ -47,6 +47,7 @@ import {
   useMarcarPagoBulk,
   gerarLancamentosRecorrentes,
 } from '@/hooks/useContasPagar';
+import { corrigirDatasExistentes } from '@/lib/gerar-verbas';
 import { useColaboradores } from '@/hooks/useColaboradores';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -113,6 +114,25 @@ export default function ContasPagar() {
       })
       .catch(() => { /* silent */ });
   }, [viewMonth, viewYear, gerado, queryClient]);
+
+  // Demanda Thales 30/04: corrigir vencimentos pendentes que caíram em
+  // feriado/fim-de-semana (ex: 1/5/2026 — Dia do Trabalho). Roda uma vez
+  // por sessão. Usa fallback hardcoded em business-days.ts caso BrasilAPI
+  // falhe. Idempotente — só shifta pendente/atrasado, nunca toca pago.
+  const [datasCorrigidas, setDatasCorrigidas] = useState(false);
+  useEffect(() => {
+    if (datasCorrigidas) return;
+    setDatasCorrigidas(true);
+    corrigirDatasExistentes()
+      .then(count => {
+        if (count > 0) {
+          toast.success(`${count} vencimento(s) reagendado(s) por feriado/fim-de-semana`);
+          queryClient.invalidateQueries({ queryKey: ['lancamentos_pagar'] });
+          queryClient.invalidateQueries({ queryKey: ['lancamentos_pagar_date'] });
+        }
+      })
+      .catch(() => { /* silent */ });
+  }, [datasCorrigidas, queryClient]);
 
   // Modal states
   const [despesaModal, setDespesaModal] = useState(false);
