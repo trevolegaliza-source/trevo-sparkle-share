@@ -161,6 +161,10 @@ export default function DespesaFormModal({ open, onClose, onSave, editData, defa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!valor) return;
+    if (!fornecedor.trim()) {
+      toast.error('Fornecedor é obrigatório');
+      return;
+    }
     if (parcelado && !editData) {
       if (!dataPrimeiraParcela || numParcelas < 1) return;
     } else {
@@ -413,8 +417,14 @@ export default function DespesaFormModal({ open, onClose, onSave, editData, defa
 
           {/* Fornecedor */}
           <div className="grid gap-2">
-            <Label>Fornecedor</Label>
-            <Input value={fornecedor} onChange={e => setFornecedor(e.target.value)} placeholder="Quem recebe o pagamento..." />
+            <Label>Fornecedor <span className="text-destructive">*</span></Label>
+            <Input
+              value={fornecedor}
+              onChange={e => setFornecedor(e.target.value)}
+              placeholder="Quem recebe o pagamento..."
+              required
+              aria-required="true"
+            />
           </div>
 
           {/* Conta Contábil + Centro de Custo */}
