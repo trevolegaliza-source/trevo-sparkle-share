@@ -1,6 +1,6 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 30/04/2026.
+> **Doc vivo.** Atualizado a cada commit. Última atualização: 30/04/2026 (Lote E).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
 
 ---
@@ -9,7 +9,7 @@
 
 | Categoria | Total identificado | Resolvido | Pendente |
 |---|---|---|---|
-| 🔴 Crítico (C1-C27) | 27 | 9 | 18 |
+| 🔴 Crítico (C1-C27) | 27 | 11 | 16 |
 | 🟠 Importante | ~80* | 0 | ~80 |
 | 🟡 Atenção | ~50* | 0 | ~50 |
 | 🟢 Features sugeridas | ~18* | 0 | ~18 |
@@ -35,8 +35,11 @@ sessão dedicada (ver bloco "Reconstruir auditoria completa" no fim).*
 | C23 | ESLint `no-unused-vars` `off` → `warn` | [`75504d3`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/75504d3) |
 | C25 | README real (stack, scripts, estrutura, deploy) | [`6f10352`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6f10352) |
 | C26 | GitHub Actions CI (lint+typecheck+test+build) | [`6f10352`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6f10352) |
+| C17 | Error Boundary global (class component PT-BR + reset/home) | [`9a8e215`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/9a8e215) |
+| C27 | Code splitting por rota (React.lazy) — já existia, confirmado em `App.tsx` | [`9a8e215`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/9a8e215) |
 
-**11 itens fechados** (alguns originalmente listados como C-único cobriam múltiplos sub-itens).
+**13 itens fechados** (alguns originalmente listados como C-único cobriam múltiplos sub-itens).
+**Bônus do Lote E (`9a8e215`):** limpeza de imports não usados em ~30 arquivos (sem mudança funcional).
 
 ---
 
@@ -60,11 +63,9 @@ sessão dedicada (ver bloco "Reconstruir auditoria completa" no fim).*
 - **C15** — Fluxo de caixa: projeções não consideram parcelamento.
 
 ### UX / repo / TS
-- **C17** — Error boundaries por rota (hoje só StrictMode).
 - **C18** — Telemetria de erros (Sentry/equivalente).
 - **C22** — TS strict mode (~250 erros previsíveis, lote dedicado).
 - **C24** — Test coverage baseline (hoje só 1 teste exemplo + cnpj.test).
-- **C27** — Bundle size analysis + code splitting por rota.
 
 ### `confirm()` ainda nativos (4 arquivos)
 - `src/components/financeiro/DetalhesCobrancaModal.tsx`
@@ -136,3 +137,4 @@ Eu:
 | Data | Sessão | Commits | Itens fechados |
 |---|---|---|---|
 | 30/04/2026 madrugada | Lotes A/B/C/D + ESLint + relatório | 5 | C6, C8, C9, C10, C16, C19, C20, C21, C23, C25, C26 |
+| 30/04/2026 madrugada | Lote E — ErrorBoundary + limpeza imports + confirmação C27 | 1 (`9a8e215`) | C17, C27 |
