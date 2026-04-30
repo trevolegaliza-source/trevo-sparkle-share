@@ -14,7 +14,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
 import { useProcessosDB, useUpdateProcessoEtapa, useDeleteProcesso, type ProcessoDB } from '@/hooks/useProcessos';
 import { gerarFaturamentoDeferimento } from '@/hooks/useFinanceiro';
 import { useProcessosFinanceiro, type ProcessoFinanceiro } from '@/hooks/useProcessosFinanceiro';
@@ -681,22 +681,15 @@ export default function Processos() {
         clienteApelido={(selectedFinanceiroProcess?.cliente as any)?.apelido || (selectedFinanceiroProcess?.cliente as any)?.nome || '-'}
       />
 
-      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Processo</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deseja realmente excluir este processo? Esta ação é irreversível.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* C43 Fase 1 — exige senha master pra deletar processo. */}
+      {/* Antes: AlertDialog simples; funcionária distraída apagava histórico financeiro sem volta. */}
+      <PasswordConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+        onConfirm={confirmDelete}
+        title="Excluir Processo"
+        description="Esta ação é irreversível e apaga lançamentos financeiros vinculados. Confirme a senha master."
+      />
     </>
   );
 }
