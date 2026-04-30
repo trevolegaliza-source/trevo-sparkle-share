@@ -10,7 +10,7 @@
 | Categoria | Total identificado | Resolvido | Pendente |
 |---|---|---|---|
 | 🔴 Crítico (C1–C27 originais) | 27 | 13 | 14 |
-| 🔴 Crítico novo (C28+) — descoberto na re-auditoria 30/04 | 22 | 0 | 22 |
+| 🔴 Crítico novo (C28+) — descoberto na re-auditoria 30/04 | 23 | 0 | 23 |
 | 🟠 Importante (I001+) | 42 | 0 | 42 |
 | 🟡 Atenção (A001+) | 30 | 0 | 30 |
 | 🟢 Features sugeridas (F001+) | 19 | 0 | 19 |
@@ -78,6 +78,7 @@
 - **C28** — RLS `clientes_all` USING(true) WITH CHECK(true) — cross-tenant aberto. `supabase/migrations/20260319023436_*.sql:51`
 - **C29** — RLS `processos_all` USING(true) — idem. `…20260319023436_*.sql:70`
 - **C30** — RLS `lancamentos_all` USING(true). `…20260319023436_*.sql:124`
+- **C30b** — Mesmo pattern em `documentos` (linha 83), `valores_adicionais` (linha 138), `precos_tiers` (linha 153). `supabase/migrations/20260319023436_*.sql`
 - **C31** — RLS `cobrancas_authenticated_all` USING(true). `…20260420202106_*.sql:12`
 - **C32** — RLS `extratos_authenticated_all` + `orcamentos_authenticated_all` USING(true). `…20260327191243_*.sql:22`, `…20260328193418_*.sql:35`
 - **C33** — Storage bucket `documentos` policies só checam `bucket_id`, **sem filtrar tenant**. `…20260319023436_*.sql:228-235`
