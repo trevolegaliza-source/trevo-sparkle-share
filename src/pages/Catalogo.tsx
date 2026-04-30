@@ -8,6 +8,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Plus, DollarSign, Trash2, BookOpen, Loader2, Save, ArrowLeft, ArrowRight, ChevronRight, Settings, Pencil, Link2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -87,6 +97,7 @@ export default function Catalogo() {
   const [precosServicoId, setPrecosServicoId] = useState<string | null>(null);
   const [animKey, setAnimKey] = useState(0);
   const [adminMode, setAdminMode] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function handleCopyLink() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -103,11 +114,17 @@ export default function Catalogo() {
   }
 
   function handleDeleteServico(id: string) {
-    if (!confirm('Tem certeza que deseja excluir este serviço? Esta ação não pode ser desfeita.')) return;
+    setPendingDeleteId(id);
+  }
+
+  function confirmDeleteServico() {
+    const id = pendingDeleteId;
+    if (!id) return;
     deleteMut.mutate(id);
     if (path.length > 0 && path[path.length - 1] === id) {
       setPath(path.slice(0, -1));
     }
+    setPendingDeleteId(null);
   }
 
   function navigate(newPath: string[]) {
@@ -318,6 +335,23 @@ export default function Catalogo() {
           onClose={() => setPrecosServicoId(null)}
         />
       )}
+
+      <AlertDialog open={!!pendingDeleteId} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir serviço?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O serviço e todos os preços associados serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteServico} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -773,6 +807,7 @@ function ServicoFormModal({ open, servico, onClose }: { open: boolean; servico: 
   const isEdit = !!servico;
 
   const [lastId, setLastId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   if (open && servico && servico.id !== lastId) {
     setNome(servico.nome);
     setCategoria(servico.categoria);
@@ -799,8 +834,18 @@ function ServicoFormModal({ open, servico, onClose }: { open: boolean; servico: 
 
   function handleDelete() {
     if (!servico) return;
-    if (!confirm('Excluir este serviço e todos os preços associados?')) return;
-    deleteMut.mutate(servico.id, { onSuccess: () => { onClose(); setLastId(null); } });
+    setConfirmDelete(true);
+  }
+
+  function doDelete() {
+    if (!servico) return;
+    deleteMut.mutate(servico.id, {
+      onSuccess: () => {
+        setConfirmDelete(false);
+        onClose();
+        setLastId(null);
+      },
+    });
   }
 
   const loading = createMut.isPending || updateMut.isPending;
@@ -849,6 +894,24 @@ function ServicoFormModal({ open, servico, onClose }: { open: boolean; servico: 
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir este serviço?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Todos os preços associados também serão removidos. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={doDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteMut.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
