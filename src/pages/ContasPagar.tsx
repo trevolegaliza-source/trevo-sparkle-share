@@ -300,6 +300,14 @@ export default function ContasPagar() {
     }
   }, []);
 
+  // Demanda Thales 30/04 (3.1): pagar VT+VR agregado abre o modal bulk
+  // pré-selecionado com os 2 IDs. UM PIX, UMA confirmação, mantém histórico
+  // contábil separado VT/VR no banco.
+  const handlePagarMerged = useCallback((merged: any) => {
+    setSelectedIds(new Set(merged.ids));
+    setShowBulkPayModal(true);
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Fluxo 15 dias */}
@@ -400,6 +408,7 @@ export default function ContasPagar() {
               items={urgencyGroups.vencidas}
               variant="destructive"
               onPagar={podeAprovar('contas_pagar') ? (l: any) => setPagoModal(l) : undefined}
+              onPagarMerged={podeAprovar('contas_pagar') ? handlePagarMerged : undefined}
               onEdit={podeEditar('contas_pagar') ? (l: any) => { setEditDespesa(l); setDespesaModal(true); } : undefined}
               onDelete={podeExcluir('contas_pagar') ? handleDelete : undefined}
             />
@@ -410,6 +419,7 @@ export default function ContasPagar() {
               items={urgencyGroups.hojeItems}
               variant="warning"
               onPagar={podeAprovar('contas_pagar') ? (l: any) => setPagoModal(l) : undefined}
+              onPagarMerged={podeAprovar('contas_pagar') ? handlePagarMerged : undefined}
               onEdit={podeEditar('contas_pagar') ? (l: any) => { setEditDespesa(l); setDespesaModal(true); } : undefined}
               onDelete={podeExcluir('contas_pagar') ? handleDelete : undefined}
               alwaysShow
@@ -422,6 +432,7 @@ export default function ContasPagar() {
                 items={urgencyGroups.proximas}
                 variant="warning"
                 onPagar={podeAprovar('contas_pagar') ? (l: any) => setPagoModal(l) : undefined}
+                onPagarMerged={podeAprovar('contas_pagar') ? handlePagarMerged : undefined}
                 onEdit={podeEditar('contas_pagar') ? (l: any) => { setEditDespesa(l); setDespesaModal(true); } : undefined}
                 onDelete={podeExcluir('contas_pagar') ? handleDelete : undefined}
               />
@@ -434,6 +445,7 @@ export default function ContasPagar() {
                 items={urgencyGroups.futuras}
                 variant="default"
                 onPagar={podeAprovar('contas_pagar') ? (l: any) => setPagoModal(l) : undefined}
+                onPagarMerged={podeAprovar('contas_pagar') ? handlePagarMerged : undefined}
                 onEdit={podeEditar('contas_pagar') ? (l: any) => { setEditDespesa(l); setDespesaModal(true); } : undefined}
                 onDelete={podeExcluir('contas_pagar') ? handleDelete : undefined}
               />
@@ -615,12 +627,63 @@ export default function ContasPagar() {
   );
 }
 
+/**
+ * Demanda Thales 30/04 (3.1): VT+VR pagos como UM PIX único por colaborador.
+ * Agrega VT (Vale Transporte) + VR (Vale Refeição) do mesmo colaborador na
+ * mesma data de vencimento em uma linha única "BENEFÍCIOS — VT+VR". Se só
+ * um existir, passa direto sem agregar. Não mexe no DB — agregação apenas
+ * visual; pagar marca os 2 IDs simultaneamente via bulk modal.
+ */
+function mergeVtVr(items: any[]): any[] {
+  const out: any[] = [];
+  // Map: `${colab_id}::${data_vencimento}` → { vt?, vr? }
+  const benefMap = new Map<string, { vt?: any; vr?: any }>();
+  for (const l of items) {
+    const isVt = l.subcategoria === 'Vale Transporte (VT)';
+    const isVr = l.subcategoria === 'Vale Refeição (VR)';
+    if ((isVt || isVr) && l.colaborador_id) {
+      const key = `${l.colaborador_id}::${l.data_vencimento}`;
+      const entry = benefMap.get(key) || {};
+      if (isVt) entry.vt = l; else entry.vr = l;
+      benefMap.set(key, entry);
+    } else {
+      out.push(l);
+    }
+  }
+  benefMap.forEach((pair, key) => {
+    if (pair.vt && pair.vr) {
+      const allPago = pair.vt.status === 'pago' && pair.vr.status === 'pago';
+      out.push({
+        __merged: true,
+        id: `merged-${key}`,
+        ids: [pair.vt.id, pair.vr.id],
+        colaborador_id: pair.vt.colaborador_id,
+        colaborador_nome: pair.vt.colaborador_nome || pair.vr.colaborador_nome,
+        valor: Number(pair.vt.valor) + Number(pair.vr.valor),
+        vtValor: Number(pair.vt.valor),
+        vrValor: Number(pair.vr.valor),
+        data_vencimento: pair.vt.data_vencimento,
+        data_pagamento: allPago ? (pair.vt.data_pagamento || pair.vr.data_pagamento) : null,
+        status: allPago ? 'pago' : 'pendente',
+        categoria: 'folha',
+        items: [pair.vt, pair.vr],
+      });
+    } else {
+      // Apenas um lado existe — passa direto
+      if (pair.vt) out.push(pair.vt);
+      if (pair.vr) out.push(pair.vr);
+    }
+  });
+  return out;
+}
+
 // ── Urgency Section with day grouping ──
-function UrgencySection({ title, items, variant, onPagar, onEdit, onDelete, alwaysShow, groupByDate = true }: {
+function UrgencySection({ title, items, variant, onPagar, onPagarMerged, onEdit, onDelete, alwaysShow, groupByDate = true }: {
   title: string;
   items: any[];
   variant: 'destructive' | 'warning' | 'default' | 'success';
   onPagar?: (l: any) => void;
+  onPagarMerged?: (merged: any) => void;
   onEdit?: (l: any) => void;
   onDelete?: (l: any) => void;
   alwaysShow?: boolean;
@@ -640,11 +703,14 @@ function UrgencySection({ title, items, variant, onPagar, onEdit, onDelete, alwa
     success: 'bg-primary/5',
   }[variant];
 
+  // Aplica agregação VT+VR antes de qualquer agrupamento
+  const mergedItems = useMemo(() => mergeVtVr(items), [items]);
+
   // Group items by date
   const dayGroups = useMemo(() => {
     if (!groupByDate) return null;
     const groups = new Map<string, any[]>();
-    items.forEach(l => {
+    mergedItems.forEach(l => {
       const key = l.data_vencimento;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(l);
@@ -654,7 +720,7 @@ function UrgencySection({ title, items, variant, onPagar, onEdit, onDelete, alwa
       items,
       total: items.reduce((s: number, l: any) => s + Number(l.valor), 0),
     }));
-  }, [items, groupByDate]);
+  }, [mergedItems, groupByDate]);
 
   if (!alwaysShow && items.length === 0) return null;
 
@@ -685,7 +751,7 @@ function UrgencySection({ title, items, variant, onPagar, onEdit, onDelete, alwa
                 </div>
                 <div className="space-y-1.5">
                   {group.items.map((l: any) => (
-                    <LancamentoRow key={l.id} l={l} variant={variant} borderClass={borderClass} bgClass={bgClass} onPagar={onPagar} onEdit={onEdit} onDelete={onDelete} />
+                    <LancamentoRow key={l.id} l={l} variant={variant} borderClass={borderClass} bgClass={bgClass} onPagar={onPagar} onPagarMerged={onPagarMerged} onEdit={onEdit} onDelete={onDelete} />
                   ))}
                 </div>
               </div>
@@ -694,8 +760,8 @@ function UrgencySection({ title, items, variant, onPagar, onEdit, onDelete, alwa
         </div>
       ) : (
         <div className="space-y-1.5">
-          {items.map(l => (
-            <LancamentoRow key={l.id} l={l} variant={variant} borderClass={borderClass} bgClass={bgClass} onPagar={onPagar} onEdit={onEdit} onDelete={onDelete} />
+          {mergedItems.map(l => (
+            <LancamentoRow key={l.id} l={l} variant={variant} borderClass={borderClass} bgClass={bgClass} onPagar={onPagar} onPagarMerged={onPagarMerged} onEdit={onEdit} onDelete={onDelete} />
           ))}
         </div>
       )}
@@ -704,12 +770,13 @@ function UrgencySection({ title, items, variant, onPagar, onEdit, onDelete, alwa
 }
 
 // ── Single row inside urgency section ──
-function LancamentoRow({ l, variant, borderClass, bgClass, onPagar, onEdit, onDelete }: {
+function LancamentoRow({ l, variant, borderClass, bgClass, onPagar, onPagarMerged, onEdit, onDelete }: {
   l: any;
   variant: string;
   borderClass: string;
   bgClass: string;
   onPagar?: (l: any) => void;
+  onPagarMerged?: (merged: any) => void;
   onEdit?: (l: any) => void;
   onDelete?: (l: any) => void;
 }) {
@@ -717,19 +784,25 @@ function LancamentoRow({ l, variant, borderClass, bgClass, onPagar, onEdit, onDe
   const venc = new Date(l.data_vencimento + 'T00:00:00');
   const diasAte = Math.ceil((venc.getTime() - hojeDate.getTime()) / 86400000);
   const pago = l.status === 'pago';
+  const merged = l.__merged === true;
 
   const catEmojis: Record<string, string> = {
     folha: '💰', infraestrutura: '🏢', software: '💻', impostos: '📋',
     servicos: '🔧', marketing: '📢', outros: '📌',
   };
 
+  // Title customizado para agregado VT+VR
+  const titulo = merged
+    ? `BENEFÍCIOS — VT + VR`
+    : (l.subcategoria || l.descricao);
+
   return (
     <div className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${borderClass} ${bgClass}`}>
       <div className="flex items-center gap-3 min-w-0">
-        <span className="text-base">{catEmojis[l.categoria] || '📌'}</span>
+        <span className="text-base">{merged ? '🍱' : (catEmojis[l.categoria] || '📌')}</span>
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">
-            {l.subcategoria || l.descricao}
+            {titulo}
             {l.colaborador_nome && (
               <span className="text-muted-foreground font-normal"> — {l.colaborador_nome}</span>
             )}
@@ -743,7 +816,10 @@ function LancamentoRow({ l, variant, borderClass, bgClass, onPagar, onEdit, onDe
                   ? `Vence HOJE`
                   : `Vence em ${diasAte} dia${diasAte > 1 ? 's' : ''}`
             }
-            {l.categoria && ` · ${l.categoria}`}
+            {merged
+              ? ` · VT ${fmt(l.vtValor)} + VR ${fmt(l.vrValor)}`
+              : (l.categoria && ` · ${l.categoria}`)
+            }
           </p>
           {l.observacoes_financeiro && <p className="text-xs text-muted-foreground mt-0.5">💬 {l.observacoes_financeiro}</p>}
         </div>
@@ -756,10 +832,17 @@ function LancamentoRow({ l, variant, borderClass, bgClass, onPagar, onEdit, onDe
           {fmt(Number(l.valor))}
         </span>
 
-        {onPagar && !pago && (
-          <Button size="sm" variant="outline" onClick={() => onPagar(l)} className="h-7 text-xs">
-            <Check className="h-3 w-3 mr-1" /> Pagar
-          </Button>
+        {!pago && (merged
+          ? (onPagarMerged && (
+              <Button size="sm" variant="outline" onClick={() => onPagarMerged(l)} className="h-7 text-xs">
+                <Check className="h-3 w-3 mr-1" /> Pagar VT+VR
+              </Button>
+            ))
+          : (onPagar && (
+              <Button size="sm" variant="outline" onClick={() => onPagar(l)} className="h-7 text-xs">
+                <Check className="h-3 w-3 mr-1" /> Pagar
+              </Button>
+            ))
         )}
 
         <DropdownMenu>
@@ -767,8 +850,17 @@ function LancamentoRow({ l, variant, borderClass, bgClass, onPagar, onEdit, onDe
             <Button size="sm" variant="ghost" className="h-7 w-7 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            {onEdit && <DropdownMenuItem onClick={() => onEdit(l)}>Editar</DropdownMenuItem>}
-            {onDelete && <DropdownMenuItem onClick={() => onDelete(l)} className="text-destructive">Excluir</DropdownMenuItem>}
+            {merged ? (
+              <>
+                {onEdit && <DropdownMenuItem onClick={() => onEdit(l.items[0])}>Editar VT</DropdownMenuItem>}
+                {onEdit && <DropdownMenuItem onClick={() => onEdit(l.items[1])}>Editar VR</DropdownMenuItem>}
+              </>
+            ) : (
+              <>
+                {onEdit && <DropdownMenuItem onClick={() => onEdit(l)}>Editar</DropdownMenuItem>}
+                {onDelete && <DropdownMenuItem onClick={() => onDelete(l)} className="text-destructive">Excluir</DropdownMenuItem>}
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
