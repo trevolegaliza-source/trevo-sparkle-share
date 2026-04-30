@@ -64,8 +64,11 @@ export function AppLayout() {
       <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <CommandPalette />
 
-      {/* Main content */}
-      <div className="lg:ml-60 flex min-h-screen flex-col">
+      {/* Main content
+         Demanda Thales 30/04 (item 2.5): sidebar colapsa em w-16 quando
+         sem hover. Margem desktop fixa em 16 — sidebar expande em overlay
+         (z-40), conteúdo não reflowa quando expande. */}
+      <div className="lg:ml-16 flex min-h-screen flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-sm px-4 gap-3">
           {/* Hamburger (mobile only) */}
           <Button

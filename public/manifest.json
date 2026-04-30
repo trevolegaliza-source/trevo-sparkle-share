@@ -2,7 +2,7 @@
   "name": "Trevo Legaliza - ERP",
   "short_name": "Trevo ERP",
   "description": "Sistema de Gestão Societária - Trevo Legaliza",
-  "start_url": "/",
+  "start_url": "/processos",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0f0a",
