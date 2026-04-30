@@ -1,6 +1,6 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 30/04/2026 (Lote E + Re-auditoria).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: 30/04/2026 (Lote F).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
 
 ---
@@ -10,7 +10,7 @@
 | Categoria | Total identificado | Resolvido | Pendente |
 |---|---|---|---|
 | 🔴 Crítico (C1–C27 originais) | 27 | 13 | 14 |
-| 🔴 Crítico novo (C28+) — descoberto na re-auditoria 30/04 | 23 | 0 | 23 |
+| 🔴 Crítico novo (C28+) — descoberto na re-auditoria 30/04 | 23 | 4 | 19 |
 | 🟠 Importante (I001+) | 42 | 0 | 42 |
 | 🟡 Atenção (A001+) | 30 | 0 | 30 |
 | 🟢 Features sugeridas (F001+) | 19 | 0 | 19 |
@@ -34,8 +34,12 @@
 | C26 | GitHub Actions CI (lint+typecheck+test+build) | [`6f10352`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6f10352) |
 | C17 | Error Boundary global (class component PT-BR + reset/home) | [`9a8e215`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/9a8e215) |
 | C27 | Code splitting por rota (React.lazy) — já existia, confirmado em `App.tsx` | [`9a8e215`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/9a8e215) |
+| C36 | timing-safe compare em verify-master-password — **já estava** no worktree TREVO-ENGINE/hungry-tu (audit fix #2 anterior). Agente auditou main desatualizado. | (pré-existente) |
+| C37 | CORS allowlist em `asaas-webhook` — **já estava** no worktree (audit fix #21 anterior, via `_shared/cors.ts`) | (pré-existente) |
+| C38 | CORS allowlist em `verify-master-password` — **já estava** no worktree (audit fix #21) | (pré-existente) |
+| C41 | Validação de payload (UUID + ISO date) em `asaas-gerar-cobranca` | [`c5d4d39`](https://github.com/trevolegaliza-source/v10-erp-trevo-legaliza/commit/c5d4d39) (TREVO-ENGINE / claude/hungry-tu) |
 
-**13 itens fechados.**
+**17 itens fechados** (4 do Lote F: 3 já estavam no worktree + C41 novo).
 **Bônus do Lote E (`9a8e215`):** limpeza de imports não usados em ~30 arquivos.
 
 ---
@@ -86,12 +90,12 @@
 - **C35** — `handle_new_user()` cria profile com `empresa_id = gen_random_uuid()` → cada user em tenant próprio (quebra multi-tenant intencional). `…20260331114056_*.sql:27-35`
 
 ### Edge functions (estende C4)
-- **C36** — Comparação não-timing-safe de master password (`password === masterPassword`). `supabase/functions/verify-master-password/index.ts:73`
-- **C37** — CORS `Access-Control-Allow-Origin: "*"` em endpoint de pagamento. `…/asaas-webhook/index.ts:27`
-- **C38** — CORS `*` em verify-master-password (auth crítica). `…/verify-master-password/index.ts:4-6`
-- **C39** — Hardcoded master user `MASTER_USER = "trevolegaliza"`. `…/trello-guard/index.ts:9`
-- **C40** — Token Asaas em query string (`?token=`) — vai pra logs/referer. `…/dani-webhook-proxy/index.ts:69`
-- **C41** — Sem validação Zod do payload em `asaas-gerar-cobranca`. `…/asaas-gerar-cobranca/index.ts:217-220`
+- ~~**C36**~~ ✅ FECHADO (já estava no worktree).
+- ~~**C37**~~ ✅ FECHADO (CORS allowlist no worktree).
+- ~~**C38**~~ ✅ FECHADO (CORS allowlist no worktree).
+- **C39** — Hardcoded master user `MASTER_USER = "trevolegaliza"`. `…/trello-guard/index.ts:9` *(precisa Thales setar env var no Supabase)*
+- **C40** — Token Asaas em query string (`?token=`). `…/dani-webhook-proxy/index.ts:69` *(BLOQUEADO: Apps Script strippa headers customizados; mover pro body exige mexer também no handler Apps Script — cross-repo)*
+- ~~**C41**~~ ✅ FECHADO em [`c5d4d39`](https://github.com/trevolegaliza-source/v10-erp-trevo-legaliza/commit/c5d4d39).
 
 ### Hooks / lógica financeira (estende C7, C11)
 - **C42** — UPDATE saldo_prepago + INSERT prepago_movimentacoes sem transação. `src/hooks/useFinanceiro.ts:509-519`
@@ -260,3 +264,4 @@
 | 30/04/2026 madrugada | Lotes A/B/C/D + ESLint + relatório | 5 | C6, C8, C9, C10, C16, C19, C20, C21, C23, C25, C26 |
 | 30/04/2026 madrugada | Lote E — ErrorBoundary + limpeza imports + confirmação C27 | 1 (`9a8e215`) | C17, C27 |
 | 30/04/2026 manhã | Re-auditoria 4 agentes paralelos (Frontend/Hooks/Edge/SQL) | 1 (doc) | — descoberto: 22 críticos novos (C28–C49), 42 importantes, 30 atenção, 19 features |
+| 30/04/2026 tarde | Lote F — patches em edge functions (TREVO-ENGINE, branch `claude/hungry-tu`) | 1 (`c5d4d39`) | C41 (+ confirmado C36/C37/C38 já estavam no worktree) |
