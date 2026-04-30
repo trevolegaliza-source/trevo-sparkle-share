@@ -240,17 +240,27 @@ export function calcularDescontoProgressivo(
   processosNoMes: number,
   valorLimite: number | null,
 ): { valorFinal: number; descontoAcumulado: number; processoNumero: number } {
-  let valor = valorBase;
-  const processoNumero = processosNoMes + 1; // this will be the Nth process
-  for (let i = 0; i < processosNoMes; i++) {
-    valor = valor * (1 - descontoPercent / 100);
+  // Guarda contra NaN/negativos: entradas inválidas ⇒ valor final 0
+  const baseSafe = Number.isFinite(valorBase) && valorBase > 0 ? valorBase : 0;
+  const descSafe = Number.isFinite(descontoPercent) ? Math.min(Math.max(descontoPercent, 0), 100) : 0;
+  const nSafe = Number.isFinite(processosNoMes) && processosNoMes >= 0 ? Math.floor(processosNoMes) : 0;
+
+  let valor = baseSafe;
+  const processoNumero = nSafe + 1; // this will be the Nth process
+  for (let i = 0; i < nSafe; i++) {
+    valor = valor * (1 - descSafe / 100);
   }
-  if (valorLimite != null && valor < valorLimite) {
+  if (valorLimite != null && Number.isFinite(valorLimite) && valor < valorLimite) {
     valor = valorLimite;
   }
   valor = Math.max(valor, 0);
-  const descontoAcumulado = valorBase - valor;
-  return { valorFinal: Math.round(valor * 100) / 100, descontoAcumulado: Math.round(descontoAcumulado * 100) / 100, processoNumero };
+  if (!Number.isFinite(valor)) valor = 0;
+  const descontoAcumulado = baseSafe - valor;
+  return {
+    valorFinal: Math.round(valor * 100) / 100,
+    descontoAcumulado: Math.round(descontoAcumulado * 100) / 100,
+    processoNumero,
+  };
 }
 
 export function useCreateProcesso() {
@@ -498,6 +508,11 @@ export function useCreateProcesso() {
       if (isPrePago && valorFinal > 0) {
         const saldoAtual = Number(cliente.saldo_prepago ?? 0);
         const novoSaldo = saldoAtual - valorFinal;
+        if (novoSaldo < 0) {
+          throw new Error(
+            `Saldo pré-pago insuficiente. Disponível: R$ ${saldoAtual.toFixed(2)} • Necessário: R$ ${valorFinal.toFixed(2)}. Faça uma recarga antes de criar este processo.`
+          );
+        }
         await supabase
           .from('clientes')
           .update({ saldo_prepago: novoSaldo, updated_at: new Date().toISOString() } as any)

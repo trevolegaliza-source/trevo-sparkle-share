@@ -108,10 +108,13 @@ export function isLancamentoVencidoReal(l: LancamentoFinanceiro): boolean {
   if (l.etapa_financeiro !== 'cobranca_enviada') return false;
   if (l.status === 'pago') return false;
   if (!l.data_vencimento) return false;
+  // data_vencimento já vem como 'YYYY-MM-DD'. Comparamos como string de data
+  // local — evita ambiguidade entre UTC e local (browsers em UTC-3 marcavam
+  // vencimentos como atrasados ao final do dia).
   const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  const venc = new Date(l.data_vencimento + 'T00:00:00');
-  return venc < hoje;
+  const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+  const vencStr = l.data_vencimento.slice(0, 10);
+  return vencStr < hojeStr;
 }
 
 /** Invalidate all financial queries across screens */

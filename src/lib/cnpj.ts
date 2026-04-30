@@ -39,9 +39,39 @@ export function maskCNPJ(value: string): string {
 }
 
 /**
- * Validate CNPJ has 14 digits
+ * Validate CNPJ: 14 dígitos + algoritmo mod-11 dos dígitos verificadores.
+ * Rejeita também sequências repetidas (00000000000000, 11111111111111, ...).
  */
 export function isValidCNPJ(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const digits = value.replace(/\D/g, '');
+  if (digits.length !== 14) return false;
+  // Sequências repetidas são inválidas (passariam no mod-11)
+  if (/^(\d)\1{13}$/.test(digits)) return false;
+
+  const calcDigit = (base: string, weights: number[]): number => {
+    const sum = weights.reduce((acc, w, i) => acc + Number(base[i]) * w, 0);
+    const mod = sum % 11;
+    return mod < 2 ? 0 : 11 - mod;
+  };
+
+  const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+  const d1 = calcDigit(digits.slice(0, 12), weights1);
+  if (d1 !== Number(digits[12])) return false;
+
+  const d2 = calcDigit(digits.slice(0, 13), weights2);
+  if (d2 !== Number(digits[13])) return false;
+
+  return true;
+}
+
+/**
+ * Validação só de comprimento — útil para máscara em digitação progressiva,
+ * onde ainda não dá pra exigir DV. Use isValidCNPJ no submit.
+ */
+export function hasCNPJLength(value: string | null | undefined): boolean {
   if (!value) return false;
   return value.replace(/\D/g, '').length === 14;
 }
