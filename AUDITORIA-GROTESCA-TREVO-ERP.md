@@ -265,3 +265,32 @@
 | 30/04/2026 madrugada | Lote E — ErrorBoundary + limpeza imports + confirmação C27 | 1 (`9a8e215`) | C17, C27 |
 | 30/04/2026 manhã | Re-auditoria 4 agentes paralelos (Frontend/Hooks/Edge/SQL) | 1 (doc) | — descoberto: 22 críticos novos (C28–C49), 42 importantes, 30 atenção, 19 features |
 | 30/04/2026 tarde | Lote F — patches em edge functions (TREVO-ENGINE, branch `claude/hungry-tu`) | 1 (`c5d4d39`) | C41 (+ confirmado C36/C37/C38 já estavam no worktree) |
+| 30/04/2026 noite | Cherry-pick C41 → `main` TREVO-ENGINE (sem arrastar Dani v7.10–v7.12.6 da hungry-tu) + verificação compatibilidade frontend (UUID + `<input type=date>` casam com regex) | 1 (`7eea73d`) | C41 em produção pendente deploy do Thales |
+
+---
+
+## 🎯 PRÓXIMOS ALVOS (ordem sugerida)
+
+### 🔴 Crítico — pode fazer da máquina sem mexer no banco
+- **C42** — UPDATE saldo_prepago + INSERT prepago_movimentacoes sem transação. `src/hooks/useFinanceiro.ts:509-519` → fix: mover pra RPC Postgres atômica.
+- **C43** — DELETE cascata `lancamentos` apaga histórico financeiro irreversível. `src/hooks/useProcessos.ts:64-74` → fix: soft delete + confirm dialog.
+- **C44–C49** — Bugs de hooks financeiros (NaN guards, race conditions, validação payload). Pacote de patches frontend.
+- **4 `confirm()` nativos restantes** — DetalhesCobrancaModal, ClienteAccordionFinanceiro, MarcarPagoModal, PlanoContasTab → AlertDialog.
+
+### 🔴 Crítico — exige Thales (config Supabase)
+- **C39** — Tirar hardcoded `MASTER_USER` do `trello-guard`, mover pra env var. *(precisa Thales setar secret)*
+- **C28–C35** — RLS `USING(true)` cross-tenant aberto. *(exige rodar migration no Supabase — Thales precisa autorizar/aplicar)*
+
+### 🔴 Crítico — bloqueado
+- **C40** — Token Asaas em query string. *(precisa coordenar com Apps Script da Dani — cross-repo)*
+- **C5, C12** — Prompt injection Dani. *(deferido pelo Thales 28/04)*
+
+### 🟠 Importantes (I001–I042)
+- I029, I032 — logs/URL com dado sensível em edge functions.
+- I001, I004, I005, I007 — guards NaN espalhados pelo frontend.
+- I017 — validação de URL de webhook (SSRF).
+
+### 🟢 Quick wins (F001–F019)
+- F009 — consolidar `fmt()` BRL helper único (parar de redeclarar 8x).
+- F011 — `staleTime: Infinity` em queries imutáveis (servicos/precos/plano).
+- F016 — índices compostos `(empresa_id, FK)` em processos/lancamentos/documentos.
