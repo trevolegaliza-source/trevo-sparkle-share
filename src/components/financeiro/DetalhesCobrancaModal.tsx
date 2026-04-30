@@ -6,6 +6,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Copy,
@@ -43,6 +53,8 @@ export default function DetalhesCobrancaModal({
   const [loadingToken, setLoadingToken] = useState(false);
   const [rotatingToken, setRotatingToken] = useState(false);
   const [asaasModalOpen, setAsaasModalOpen] = useState(false);
+  // C19/C20 — confirm() nativo bloqueia main thread + UX inconsistente
+  const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
   const { data: asaasInfo, isLoading: loadingAsaas } = useCobrancaAsaas(cobrancaId);
 
   useEffect(() => {
@@ -89,12 +101,7 @@ export default function DetalhesCobrancaModal({
 
   const rotacionarToken = async () => {
     if (!cobrancaId) return;
-    const confirm = window.confirm(
-      'Isso vai invalidar o link atual e gerar um novo.\n\n' +
-      'Qualquer pessoa que tenha o link antigo perderá acesso.\n' +
-      'Deseja continuar?'
-    );
-    if (!confirm) return;
+    setRotateConfirmOpen(false);
 
     setRotatingToken(true);
     try {
@@ -186,7 +193,7 @@ export default function DetalhesCobrancaModal({
                       <span className="text-zinc-500">Sem expiração definida</span>
                     )}
                     <button
-                      onClick={rotacionarToken}
+                      onClick={() => setRotateConfirmOpen(true)}
                       disabled={rotatingToken}
                       className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-200 disabled:opacity-50"
                       title="Invalidar link atual e gerar um novo"
@@ -306,6 +313,24 @@ export default function DetalhesCobrancaModal({
         total={total}
         vencimentoSugerido={asaasInfo?.data_vencimento || undefined}
       />
+
+      <AlertDialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Invalidar link atual?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai invalidar o link atual e gerar um novo. Qualquer pessoa
+              que tenha o link antigo perderá acesso.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={rotacionarToken}>
+              Invalidar e gerar novo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

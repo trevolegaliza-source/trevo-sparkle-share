@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +39,8 @@ export default function MarcarPagoModal({ lancamento, open, onClose, onConfirm }
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [comprovanteAtual, setComprovanteAtual] = useState<string | null>(null);
+  // C19/C20 — confirm() nativo bloqueia o thread + UX inconsistente
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
 
   // Sincroniza com lancamento ao abrir
   useEffect(() => {
@@ -67,7 +79,7 @@ export default function MarcarPagoModal({ lancamento, open, onClose, onConfirm }
   // Remove comprovante (apenas no banco — arquivo no storage permanece;
   // upsert=true vai sobrescrever na próxima vez se o path bater)
   const handleRemoveComprovante = async () => {
-    if (!confirm('Remover comprovante deste pagamento?')) return;
+    setRemoveConfirmOpen(false);
     setSubmitting(true);
     try {
       const { error } = await supabase
@@ -85,6 +97,7 @@ export default function MarcarPagoModal({ lancamento, open, onClose, onConfirm }
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
@@ -138,7 +151,7 @@ export default function MarcarPagoModal({ lancamento, open, onClose, onConfirm }
                   variant="ghost"
                   size="sm"
                   className="h-7 px-2 text-destructive hover:text-destructive"
-                  onClick={handleRemoveComprovante}
+                  onClick={() => setRemoveConfirmOpen(true)}
                   disabled={submitting}
                   title="Remover comprovante"
                 >
@@ -184,5 +197,27 @@ export default function MarcarPagoModal({ lancamento, open, onClose, onConfirm }
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remover comprovante?</AlertDialogTitle>
+          <AlertDialogDescription>
+            O comprovante atual será desvinculado deste pagamento. O arquivo
+            permanece no storage e pode ser substituído anexando outro.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleRemoveComprovante}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Remover
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

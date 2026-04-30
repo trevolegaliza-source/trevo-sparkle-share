@@ -84,7 +84,9 @@ export function useOrcamentoKPIs() {
       const convertidos = all.filter(o => o.status === 'convertido').length;
       const recusados = all.filter(o => o.status === 'recusado').length;
       const taxa = total > 0 ? Math.round(((aprovados + aguardandoPgto + convertidos) / total) * 100) : 0;
-      const valorTotal = all.reduce((s, o) => s + Number(o.valor_final), 0);
+      // C47 — guard contra NULL/undefined; antes Number(undefined) = NaN
+      // contaminava o reduce e zerava o KPI inteiro silenciosamente.
+      const valorTotal = all.reduce((s, o) => s + Number(o.valor_final ?? 0), 0);
       return { total, enviados, aprovados, aguardandoPgto, convertidos, recusados, taxa, valorTotal };
     },
   });

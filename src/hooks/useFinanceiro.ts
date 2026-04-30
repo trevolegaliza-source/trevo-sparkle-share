@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Cliente } from '@/types/supabase';
 import type { ClienteDB, ProcessoDB, Lancamento, TipoProcesso } from '@/types/financial';
 import { toast } from 'sonner';
+import { invalidateFinanceiro } from '@/hooks/useFinanceiroClientes';
 
 const normalizeNullableText = (value: string | null | undefined) => {
   const trimmed = value?.trim();
@@ -616,7 +617,13 @@ export function useCreateLancamento() {
       return data as Lancamento;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['lancamentos'] });
+      // C49 — antes só invalidava 'lancamentos'; agora também recalcula
+      // dashboard, financeiro_clientes e queries de contas a pagar/receber.
+      invalidateFinanceiro(qc);
+      qc.invalidateQueries({ queryKey: ['lancamentos_pagar'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos_pagar_date'] });
+      qc.invalidateQueries({ queryKey: ['cobrancas'] });
+      qc.invalidateQueries({ queryKey: ['processos_financeiro'] });
       toast.success('Lançamento criado!');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -637,7 +644,13 @@ export function useUpdateLancamento() {
       return data as Lancamento;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['lancamentos'] });
+      // C49 — mesmo motivo do useCreateLancamento (atualizar afeta as
+      // mesmas telas que criar/excluir).
+      invalidateFinanceiro(qc);
+      qc.invalidateQueries({ queryKey: ['lancamentos_pagar'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos_pagar_date'] });
+      qc.invalidateQueries({ queryKey: ['cobrancas'] });
+      qc.invalidateQueries({ queryKey: ['processos_financeiro'] });
       toast.success('Lançamento atualizado!');
     },
     onError: (e: Error) => toast.error(e.message),
@@ -652,7 +665,12 @@ export function useDeleteLancamento() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['lancamentos'] });
+      // C49 — mesmo motivo do useCreateLancamento.
+      invalidateFinanceiro(qc);
+      qc.invalidateQueries({ queryKey: ['lancamentos_pagar'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos_pagar_date'] });
+      qc.invalidateQueries({ queryKey: ['cobrancas'] });
+      qc.invalidateQueries({ queryKey: ['processos_financeiro'] });
       toast.success('Lançamento excluído!');
     },
     onError: (e: Error) => toast.error(e.message),

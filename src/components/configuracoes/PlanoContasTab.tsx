@@ -5,6 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
@@ -30,6 +40,8 @@ export default function PlanoContasTab() {
   const deleteMutation = useDeleteConta();
   const [editConta, setEditConta] = useState<PlanoContas | null>(null);
   const [showForm, setShowForm] = useState(false);
+  // C19/C20 — confirm() nativo bloqueia main thread + UX inconsistente
+  const [pendingDelete, setPendingDelete] = useState<PlanoContas | null>(null);
 
   const [codigo, setCodigo] = useState('');
   const [nome, setNome] = useState('');
@@ -142,11 +154,7 @@ export default function PlanoContasTab() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 text-destructive"
-                                onClick={() => {
-                                  if (confirm(`Excluir "${conta.codigo} — ${conta.nome}"?`)) {
-                                    deleteMutation.mutate(conta.id);
-                                  }
-                                }}
+                                onClick={() => setPendingDelete(conta)}
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -216,6 +224,31 @@ export default function PlanoContasTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete && `"${pendingDelete.codigo} — ${pendingDelete.nome}" será removida do plano de contas.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingDelete) {
+                  deleteMutation.mutate(pendingDelete.id);
+                  setPendingDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

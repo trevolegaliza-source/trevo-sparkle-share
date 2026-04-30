@@ -197,6 +197,8 @@ export function useAlterarValorLancamento() {
       qc.invalidateQueries({ queryKey: ['processos_financeiro'] });
       toast.success('Valor alterado com sucesso!');
     },
+    // C46 — antes não tinha onError; falha silenciava no console.
+    onError: (e: Error) => toast.error('Erro ao alterar valor: ' + e.message),
   });
 }
 
