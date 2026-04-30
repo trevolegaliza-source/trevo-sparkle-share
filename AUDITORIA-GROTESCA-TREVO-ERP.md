@@ -268,6 +268,7 @@
 | 30/04/2026 noite | Cherry-pick C41 → `main` TREVO-ENGINE (sem arrastar Dani v7.10–v7.12.6 da hungry-tu) + verificação compatibilidade frontend (UUID + `<input type=date>` casam com regex) | 1 (`7eea73d`) | C41 em produção pendente deploy do Thales |
 | 30/04/2026 noite | Lote G — frontend (trevo-sparkle-share) patches mecânicos | 1 (`4d2205e`) | C46, C47, C19/C20 (6 confirm), C49 |
 | 30/04/2026 noite | C43 Fase 1 — Processos.tsx exige senha master pra excluir | 1 (`4403bc6`) | C43 Fase 1 (Fases 2+3 pendentes) |
+| 30/04/2026 madrugada | Lote I — Contas a Pagar (VT/VR feriado, Visão 2 colunas, agregação BENEFÍCIOS) | 3 (`75c25d8`, `245ed59`, `7c7d6f9`) | Demandas Thales Cap. 4 |
 
 ---
 
@@ -283,9 +284,13 @@
 - [x] **2.3** — sidebar enxuta (escondidos: Dashboard, Relatórios DRE, Fluxo de Caixa, Intel. Geográfica, Portfólio & Preços, Trello ↔ ERP). Rotas mantidas pra acesso por URL. [`6ec34d9`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6ec34d9)
 - [x] **2.5** — sidebar desktop colapsa (w-16 só ícones) e expande no hover (w-60). Mobile mantém hambúrguer. [`6ec34d9`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6ec34d9)
 - [x] **1.1** — manifest PWA `start_url` agora aponta pra `/processos` (em vez de Dashboard). [`6ec34d9`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6ec34d9)
+- [x] **4.x** — Contas a Pagar VT/VR vencendo em feriado nacional (1/5/2026 → shifta pra 4/5). Mescla feriados hardcoded + BrasilAPI. [`75c25d8`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/75c25d8)
+- [x] **4.x** — Contas a Pagar fundiu Urgência+Categoria em "Visão" 2 colunas (Opção C). Aba Lista removida do menu (acessível só via Selecionar/KPI). [`245ed59`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/245ed59)
+- [x] **4.x** — VT+VR agregados em uma linha "BENEFÍCIOS" por colaborador (UM PIX). Pagar marca os 2 IDs via bulk modal — DB mantém histórico contábil separado. [`7c7d6f9`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/7c7d6f9)
 - [ ] **1.2** — fallback do 2FA: códigos de backup + reset por email *(plano técnico pendente — nova tabela + edge function)*
 - [ ] **1.3** — reCAPTCHA *(deferido pelo Thales: só quando abrir portal pra clientes)*
-- [ ] **3.0 + 4.0** — auditoria funcional dos módulos Financeiro e Contas a Pagar (Thales pediu análise crítica antes de listar itens)
+- [ ] **3.0 + 4.0 (resto)** — auditoria funcional dos módulos Financeiro e Contas a Pagar (Thales pediu análise crítica antes de listar itens)
+- [ ] **logo** — atual ainda não agrada o Thales (30/04 noite). Aguardando nova arte ou direcionamento.
 
 ---
 
