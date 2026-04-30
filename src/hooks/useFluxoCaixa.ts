@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { addDays, startOfDay, endOfDay, format, startOfWeek, endOfWeek, isWithinInterval, eachWeekOfInterval } from 'date-fns';
+import { addDays, startOfDay, endOfDay, format, endOfWeek, isWithinInterval, eachWeekOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export interface SemanaFluxo {

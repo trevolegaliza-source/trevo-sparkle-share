@@ -1,11 +1,10 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { ValorProtegido } from '@/components/auth/ValorProtegido';
-import { usePermissions } from '@/hooks/usePermissions';
 import { KANBAN_STAGES, PROCESS_TYPE_LABELS, type KanbanStage } from '@/types/process';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, Filter, GripVertical, LayoutGrid, List, MoreHorizontal, Receipt, EyeOff, Trash2, Pencil, Download, ChevronDown, ChevronRight, Tags } from 'lucide-react';
-import { EtiquetasDisplay, EtiquetasEdit } from '@/components/EtiquetasBadges';
+import { Plus, Filter, GripVertical, LayoutGrid, List, MoreHorizontal, Receipt, EyeOff, Trash2, Pencil, Download, ChevronDown, ChevronRight } from 'lucide-react';
+import { EtiquetasDisplay } from '@/components/EtiquetasBadges';
 import { ETIQUETAS_PROCESSO, type EtiquetaProcesso } from '@/constants/etiquetas';
 import { cn } from '@/lib/utils';
 import {

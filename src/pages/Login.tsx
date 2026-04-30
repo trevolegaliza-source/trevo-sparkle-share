@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { LogIn, Loader2, UserPlus, ArrowLeft, Camera, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Loader2, UserPlus, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import logoTrevo from '@/assets/logo-trevo.png';
 
 function formatCPF(value: string): string {

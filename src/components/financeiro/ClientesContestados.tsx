@@ -7,7 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { AlertTriangle, ChevronDown, ExternalLink, CheckCircle, RotateCcw, Loader2 } from 'lucide-react';
 import type { ClienteFinanceiro, LancamentoFinanceiro } from '@/hooks/useFinanceiroClientes';
 import { TIPO_PROCESSO_LABELS } from '@/types/financial';
-import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 

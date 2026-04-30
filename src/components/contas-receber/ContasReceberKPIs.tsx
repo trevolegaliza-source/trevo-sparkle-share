@@ -1,8 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { DollarSign, TrendingUp, Clock, AlertTriangle, BarChart3 } from 'lucide-react';
 import type { LancamentoReceber } from '@/hooks/useContasReceber';
-import { diasAtraso } from '@/hooks/useContasReceber';
 
 interface Props {
   lancamentos: LancamentoReceber[];

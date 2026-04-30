@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2, CheckCircle, XCircle, Lock, Download, FileText, Lock as LockIcon } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Download, FileText, Lock as LockIcon } from 'lucide-react';
 import { normalizeItem, type OrcamentoItem, type CenarioOrcamento } from '@/components/orcamentos/types';
 import DOMPurify from 'dompurify';
 

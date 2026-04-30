@@ -1,5 +1,4 @@
 import { usePermissions } from '@/hooks/usePermissions';
-import { Navigate } from 'react-router-dom';
 import { ShieldX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

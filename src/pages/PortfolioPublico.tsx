@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, BookOpen, Loader2, ArrowLeft, ArrowRight, ChevronRight, DollarSign, AlertCircle } from 'lucide-react';
-import { CATALOG_HIERARCHY, type HierarchyGroup, type HierarchyChild } from '@/constants/catalogo-hierarchy';
+import { CATALOG_HIERARCHY, type HierarchyGroup } from '@/constants/catalogo-hierarchy';
 import { UFS_BRASIL, UF_NOMES } from '@/constants/estados-brasil';
 import { CATEGORIAS_SERVICO } from '@/hooks/useCatalogo';
 

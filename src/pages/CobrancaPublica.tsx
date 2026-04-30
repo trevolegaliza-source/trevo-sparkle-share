@@ -20,7 +20,6 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
-  FileText,
   Calendar,
   ChevronRight,
 } from 'lucide-react';

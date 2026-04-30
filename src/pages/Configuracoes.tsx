@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Users, Webhook, UserCog, Loader2, CheckCircle2, Palette, BookOpen, Lock } from 'lucide-react';
+import { Shield, Webhook, Loader2, CheckCircle2, Palette, BookOpen, Lock } from 'lucide-react';
 import PlanoContasTab from '@/components/configuracoes/PlanoContasTab';
 import GestaoUsuarios from '@/components/configuracoes/GestaoUsuarios';
 import { MfaEnroll } from '@/components/auth/MfaEnroll';

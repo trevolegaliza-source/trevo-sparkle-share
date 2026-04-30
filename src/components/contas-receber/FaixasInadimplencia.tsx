@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import type { LancamentoReceber } from '@/hooks/useContasReceber';
 import { diasAtraso } from '@/hooks/useContasReceber';
 

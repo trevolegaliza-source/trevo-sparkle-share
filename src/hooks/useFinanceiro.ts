@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { Cliente, ClienteInsert, ClienteUpdate } from '@/types/supabase';
+import type { Cliente } from '@/types/supabase';
 import type { ClienteDB, ProcessoDB, Lancamento, TipoProcesso } from '@/types/financial';
 import { toast } from 'sonner';
 

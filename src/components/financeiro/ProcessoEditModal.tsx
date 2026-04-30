@@ -7,9 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import {
-  FileText, Upload, CheckCircle2, Trash2, PlusCircle, Download, Eye, Loader2, Save,
-} from 'lucide-react';
+import { Trash2, PlusCircle, Loader2, Save } from 'lucide-react';
 import type { ProcessoFinanceiro } from '@/hooks/useProcessosFinanceiro';
 import { useUpdateLancamentoFinanceiro } from '@/hooks/useProcessosFinanceiro';
 import { useValoresAdicionais } from '@/hooks/useValoresAdicionais';
