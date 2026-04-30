@@ -267,6 +267,7 @@
 | 30/04/2026 tarde | Lote F — patches em edge functions (TREVO-ENGINE, branch `claude/hungry-tu`) | 1 (`c5d4d39`) | C41 (+ confirmado C36/C37/C38 já estavam no worktree) |
 | 30/04/2026 noite | Cherry-pick C41 → `main` TREVO-ENGINE (sem arrastar Dani v7.10–v7.12.6 da hungry-tu) + verificação compatibilidade frontend (UUID + `<input type=date>` casam com regex) | 1 (`7eea73d`) | C41 em produção pendente deploy do Thales |
 | 30/04/2026 noite | Lote G — frontend (trevo-sparkle-share) patches mecânicos | 1 (`4d2205e`) | C46, C47, C19/C20 (6 confirm), C49 |
+| 30/04/2026 noite | C43 Fase 1 — Processos.tsx exige senha master pra excluir | 1 (`4403bc6`) | C43 Fase 1 (Fases 2+3 pendentes) |
 
 ---
 
@@ -276,7 +277,7 @@
 - ~~**C42**~~ — saldo pré-pago. **DECISÃO 30/04 noite:** Thales nunca usou e não pretende usar. **Backlog: REMOVER feature inteira** (tela + botão + tabela `saldo_prepago`).
 - ~~**C44**~~ — Gerar Verbas colaborador. **DECISÃO 30/04 noite:** Thales não usa o botão. **Backlog: REMOVER botão.**
 - **C43** — DELETE cascata. **DECISÃO 30/04 noite:** Opção C (master password + lixeira 60 dias). 3 fases:
-  - Fase 1 (próxima sessão): AlertDialog com master password no botão Excluir
+  - ✅ Fase 1 (commit `4403bc6`): senha master no botão Excluir Processo da lista (ProcessoEditModal já tinha)
   - Fase 2: soft delete (`deleted_at`) + tela de Lixeira com Restaurar
   - Fase 3: cron job 60 dias DELETE definitivo
 - **C45, C48** — outros bugs de hooks financeiros (race condition, validação payload).
