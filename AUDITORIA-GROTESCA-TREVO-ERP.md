@@ -1,6 +1,6 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 30/04/2026 (Lote F).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: 30/04/2026 noite (Lote H — UI/UX).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
 
 ---
@@ -276,7 +276,16 @@
 ### 📋 Demandas do Thales (usabilidade)
 *Lista preenchida conforme Thales for passando. Tem prioridade sobre auditoria a partir de 30/04 noite.*
 
-- [ ] (vazio — aguardando primeira demanda)
+**Análise ERP NOVO entregue 30/04 — `~/ANALISE Thales - ERP NOVO.rtfd`**
+
+- [x] **1.4 / 2.1 / 2.4** — logo Trevo Legaliza atualizado, favicon novo + ícones PWA (16/32/180/192/512). [`6ec34d9`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6ec34d9)
+- [x] **2.2** — badges acumulando (95/11/46) removidos da sidebar. [`6ec34d9`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6ec34d9)
+- [x] **2.3** — sidebar enxuta (escondidos: Dashboard, Relatórios DRE, Fluxo de Caixa, Intel. Geográfica, Portfólio & Preços, Trello ↔ ERP). Rotas mantidas pra acesso por URL. [`6ec34d9`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6ec34d9)
+- [x] **2.5** — sidebar desktop colapsa (w-16 só ícones) e expande no hover (w-60). Mobile mantém hambúrguer. [`6ec34d9`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6ec34d9)
+- [x] **1.1** — manifest PWA `start_url` agora aponta pra `/processos` (em vez de Dashboard). [`6ec34d9`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6ec34d9)
+- [ ] **1.2** — fallback do 2FA: códigos de backup + reset por email *(plano técnico pendente — nova tabela + edge function)*
+- [ ] **1.3** — reCAPTCHA *(deferido pelo Thales: só quando abrir portal pra clientes)*
+- [ ] **3.0 + 4.0** — auditoria funcional dos módulos Financeiro e Contas a Pagar (Thales pediu análise crítica antes de listar itens)
 
 ---
 
