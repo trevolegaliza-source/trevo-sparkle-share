@@ -151,7 +151,7 @@ export default function ContasPagar() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkPayModal, setShowBulkPayModal] = useState(false);
   const marcarPagoBulk = useMarcarPagoBulk();
-  const [activeTab, setActiveTab] = useState('urgencia');
+  const [activeTab, setActiveTab] = useState('visao');
   const [diasAlerta, setDiasAlerta] = useState(() => parseInt(localStorage.getItem('trevo_dias_alerta_pagar') || '7'));
   const [kpiFilter, setKpiFilter] = useState<KpiFilter>('total');
 
@@ -177,6 +177,8 @@ export default function ContasPagar() {
   const exitSelectionMode = useCallback(() => {
     setSelectionMode(false);
     setSelectedIds(new Set());
+    // Volta pra Visão se estava em Lista (Lista some do menu sem seleção/filtro)
+    setActiveTab(prev => prev === 'lista' ? 'visao' : prev);
   }, []);
 
   const handleBulkDelete = useCallback(async () => {
@@ -292,6 +294,9 @@ export default function ContasPagar() {
     setKpiFilter(filter);
     if (filter !== 'total') {
       setActiveTab('lista');
+    } else {
+      // Limpou filtro → volta pra Visão
+      setActiveTab(prev => prev === 'lista' ? 'visao' : prev);
     }
   }, []);
 
@@ -370,18 +375,25 @@ export default function ContasPagar() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs
+         Demanda Thales 30/04 (4.1+4.2): aba "Lista" removida do menu (acessada
+         só via Selecionar/KPI por código). Urgência+Categoria fundidas em
+         "Visão" com 2 colunas lado a lado (Opção C). */}
       <Tabs value={activeTab} onValueChange={v => { setActiveTab(v); if (v !== 'lista') { exitSelectionMode(); setKpiFilter('total'); } }} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="urgencia">Urgência</TabsTrigger>
-          <TabsTrigger value="categoria">Categoria</TabsTrigger>
-          <TabsTrigger value="lista">Lista</TabsTrigger>
+          <TabsTrigger value="visao">Visão</TabsTrigger>
+          {/* Aba Lista só aparece quando user entra em modo Seleção ou aplica filtro KPI */}
+          {(selectionMode || kpiFilter !== 'total') && (
+            <TabsTrigger value="lista">Lista</TabsTrigger>
+          )}
           <TabsTrigger value="recorrentes">Recorrentes</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="urgencia">
-          <div className="space-y-6">
+        <TabsContent value="visao">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Coluna esquerda: Urgência cronológica */}
+            <div className="space-y-6">
             {/* VENCIDAS */}
             <UrgencySection
               title={`⚠️ VENCIDAS (${urgencyGroups.vencidas.length})`}
@@ -445,15 +457,18 @@ export default function ContasPagar() {
                 <p>Nenhuma despesa neste período</p>
               </div>
             )}
-          </div>
-        </TabsContent>
+            </div>
 
-        <TabsContent value="categoria">
-          <CategoriaAccordion
-            lancamentos={lancamentos}
-            onEdit={podeEditar('contas_pagar') ? (l => { setEditDespesa(l); setDespesaModal(true); }) : undefined}
-            onMarcarPago={podeAprovar('contas_pagar') ? (l => setPagoModal(l)) : undefined}
-          />
+            {/* Coluna direita: Categoria */}
+            <div>
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">📂 POR CATEGORIA</h3>
+              <CategoriaAccordion
+                lancamentos={lancamentos}
+                onEdit={podeEditar('contas_pagar') ? (l => { setEditDespesa(l); setDespesaModal(true); }) : undefined}
+                onMarcarPago={podeAprovar('contas_pagar') ? (l => setPagoModal(l)) : undefined}
+              />
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="lista">
