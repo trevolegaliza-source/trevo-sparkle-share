@@ -46,7 +46,8 @@ import {
   useMarcarPagoBulk,
   gerarLancamentosRecorrentes,
 } from '@/hooks/useContasPagar';
-import { corrigirDatasExistentes } from '@/lib/gerar-verbas';
+import { corrigirDatasExistentes, gerarVerbasDoMes } from '@/lib/gerar-verbas';
+import { getBusinessDaysInMonth } from '@/lib/business-days';
 import { useColaboradores } from '@/hooks/useColaboradores';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -110,6 +111,32 @@ export default function ContasPagar() {
       })
       .catch(() => { /* silent */ });
   }, [viewMonth, viewYear, gerado, queryClient]);
+
+  // Demanda Thales 04/05 — Auto-importa folha (salário, adiantamento, VT,
+  // VR, DAS, FGTS, INSS, provisão 13º + férias) ao abrir o mês. Antes só
+  // rodava se clicasse "Importar Folha" manualmente em Colaboradores.
+  // gerarVerbasDoMes é idempotente (upsert: atualiza pendente, pula pago,
+  // insere novo), então é seguro chamar toda vez que muda mês.
+  // Modal manual continua disponível em Colaboradores como override.
+  const [folhaGerada, setFolhaGerada] = useState<string>('');
+  useEffect(() => {
+    const key = `${viewMonth}-${viewYear}`;
+    if (folhaGerada === key) return;
+    if (!colaboradores || colaboradores.length === 0) return; // ainda carregando
+    const ativos = colaboradores.filter((c: any) => c.status === 'ativo');
+    setFolhaGerada(key); // marca antes pra evitar re-trigger
+    if (ativos.length === 0) return;
+    const diasUteis = getBusinessDaysInMonth(viewYear, viewMonth);
+    gerarVerbasDoMes(ativos, viewYear, viewMonth, diasUteis)
+      .then(count => {
+        if (count > 0) {
+          toast.success(`${count} lançamento(s) de folha gerado(s) para ${ativos.length} colaborador(es)`);
+          queryClient.invalidateQueries({ queryKey: ['lancamentos_pagar'] });
+          queryClient.invalidateQueries({ queryKey: ['lancamentos_pagar_date'] });
+        }
+      })
+      .catch(() => { /* silent */ });
+  }, [viewMonth, viewYear, folhaGerada, colaboradores, queryClient]);
 
   // Demanda Thales 30/04: corrigir vencimentos pendentes que caíram em
   // feriado/fim-de-semana (ex: 1/5/2026 — Dia do Trabalho). Roda uma vez
