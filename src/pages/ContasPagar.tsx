@@ -20,7 +20,7 @@ import {
 
 import FluxoProximos15Dias from '@/components/contas-pagar/FluxoProximos15Dias';
 import ContasPagarKPIs, { type KpiFilter } from '@/components/contas-pagar/ContasPagarKPIs';
-import CategoriaAccordion from '@/components/contas-pagar/CategoriaAccordion';
+import CategoriaAccordion, { PixInfo } from '@/components/contas-pagar/CategoriaAccordion';
 import ContasPagarLista from '@/components/contas-pagar/ContasPagarLista';
 import RecorrentesTab from '@/components/contas-pagar/RecorrentesTab';
 import HistoricoPagamentos from '@/components/contas-pagar/HistoricoPagamentos';
@@ -74,6 +74,15 @@ export default function ContasPagar() {
   const colabMap = useMemo(() => {
     const m = new Map<string, string>();
     colaboradores.forEach((c: any) => m.set(c.id, c.nome));
+    return m;
+  }, [colaboradores]);
+
+  // Map completo (objeto colaborador) — usado pra exibir PIX nas linhas
+  // de Urgência. Atualizar Cadastro de Colaboradores reflete aqui na hora
+  // (React Query invalida o cache).
+  const colabFullMap = useMemo(() => {
+    const m = new Map<string, any>();
+    colaboradores.forEach((c: any) => m.set(c.id, c));
     return m;
   }, [colaboradores]);
 
@@ -416,6 +425,7 @@ export default function ContasPagar() {
               onPagarMerged={podeAprovar('contas_pagar') ? handlePagarMerged : undefined}
               onEdit={podeEditar('contas_pagar') ? (l: any) => { setEditDespesa(l); setDespesaModal(true); } : undefined}
               onDelete={podeExcluir('contas_pagar') ? handleDelete : undefined}
+              colabFullMap={colabFullMap}
             />
 
             {/* HOJE */}
@@ -427,6 +437,7 @@ export default function ContasPagar() {
               onPagarMerged={podeAprovar('contas_pagar') ? handlePagarMerged : undefined}
               onEdit={podeEditar('contas_pagar') ? (l: any) => { setEditDespesa(l); setDespesaModal(true); } : undefined}
               onDelete={podeExcluir('contas_pagar') ? handleDelete : undefined}
+              colabFullMap={colabFullMap}
               alwaysShow
             />
 
@@ -465,6 +476,7 @@ export default function ContasPagar() {
                 onPagar={undefined}
                 onEdit={podeEditar('contas_pagar') ? (l: any) => { setEditDespesa(l); setDespesaModal(true); } : undefined}
                 onDelete={podeExcluir('contas_pagar') ? handleDelete : undefined}
+                colabFullMap={colabFullMap}
                 groupByDate={false}
               />
             )}
@@ -683,7 +695,7 @@ function mergeVtVr(items: any[]): any[] {
 }
 
 // ── Urgency Section with day grouping ──
-function UrgencySection({ title, items, variant, onPagar, onPagarMerged, onEdit, onDelete, alwaysShow, groupByDate = true }: {
+function UrgencySection({ title, items, variant, onPagar, onPagarMerged, onEdit, onDelete, alwaysShow, groupByDate = true, colabFullMap }: {
   title: string;
   items: any[];
   variant: 'destructive' | 'warning' | 'default' | 'success';
@@ -693,6 +705,7 @@ function UrgencySection({ title, items, variant, onPagar, onPagarMerged, onEdit,
   onDelete?: (l: any) => void;
   alwaysShow?: boolean;
   groupByDate?: boolean;
+  colabFullMap?: Map<string, any>;
 }) {
   const borderClass = {
     destructive: 'border-destructive/30',
@@ -754,7 +767,7 @@ function UrgencySection({ title, items, variant, onPagar, onPagarMerged, onEdit,
                 </div>
                 <div className="space-y-1.5">
                   {group.items.map((l: any) => (
-                    <LancamentoRow key={l.id} l={l} variant={variant} borderClass={borderClass} bgClass={bgClass} onPagar={onPagar} onPagarMerged={onPagarMerged} onEdit={onEdit} onDelete={onDelete} />
+                    <LancamentoRow key={l.id} l={l} variant={variant} borderClass={borderClass} bgClass={bgClass} onPagar={onPagar} onPagarMerged={onPagarMerged} onEdit={onEdit} onDelete={onDelete} colabFullMap={colabFullMap} />
                   ))}
                 </div>
               </div>
@@ -764,7 +777,7 @@ function UrgencySection({ title, items, variant, onPagar, onPagarMerged, onEdit,
       ) : (
         <div className="space-y-1.5">
           {items.map(l => (
-            <LancamentoRow key={l.id} l={l} variant={variant} borderClass={borderClass} bgClass={bgClass} onPagar={onPagar} onPagarMerged={onPagarMerged} onEdit={onEdit} onDelete={onDelete} />
+            <LancamentoRow key={l.id} l={l} variant={variant} borderClass={borderClass} bgClass={bgClass} onPagar={onPagar} onPagarMerged={onPagarMerged} onEdit={onEdit} onDelete={onDelete} colabFullMap={colabFullMap} />
           ))}
         </div>
       )}
@@ -773,7 +786,7 @@ function UrgencySection({ title, items, variant, onPagar, onPagarMerged, onEdit,
 }
 
 // ── Single row inside urgency section ──
-function LancamentoRow({ l, variant, borderClass, bgClass, onPagar, onPagarMerged, onEdit, onDelete }: {
+function LancamentoRow({ l, variant, borderClass, bgClass, onPagar, onPagarMerged, onEdit, onDelete, colabFullMap }: {
   l: any;
   variant: string;
   borderClass: string;
@@ -782,12 +795,14 @@ function LancamentoRow({ l, variant, borderClass, bgClass, onPagar, onPagarMerge
   onPagarMerged?: (merged: any) => void;
   onEdit?: (l: any) => void;
   onDelete?: (l: any) => void;
+  colabFullMap?: Map<string, any>;
 }) {
   const hojeDate = new Date(); hojeDate.setHours(0, 0, 0, 0);
   const venc = new Date(l.data_vencimento + 'T00:00:00');
   const diasAte = Math.ceil((venc.getTime() - hojeDate.getTime()) / 86400000);
   const pago = l.status === 'pago';
   const merged = l.__merged === true;
+  const colaborador = l.colaborador_id && colabFullMap ? colabFullMap.get(l.colaborador_id) : null;
 
   const catEmojis: Record<string, string> = {
     folha: '💰', infraestrutura: '🏢', software: '💻', impostos: '📋',
@@ -824,6 +839,13 @@ function LancamentoRow({ l, variant, borderClass, bgClass, onPagar, onPagarMerge
               : (l.categoria && ` · ${l.categoria}`)
             }
           </p>
+          {/* PIX do colaborador — só mostra se pendente e colaborador identificado.
+              Reativo: alterar a chave em Colaboradores reflete aqui na hora. */}
+          {!pago && colaborador && (
+            <div className="text-xs text-muted-foreground mt-0.5">
+              <PixInfo colaborador={colaborador} />
+            </div>
+          )}
           {l.observacoes_financeiro && <p className="text-xs text-muted-foreground mt-0.5">💬 {l.observacoes_financeiro}</p>}
         </div>
       </div>

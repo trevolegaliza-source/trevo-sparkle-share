@@ -59,7 +59,7 @@ function StatusIcon({ urgencia }: { urgencia: Urgencia }) {
   return null;
 }
 
-function PixInfo({ colaborador }: { colaborador: any | null }) {
+export function PixInfo({ colaborador }: { colaborador: any | null }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
