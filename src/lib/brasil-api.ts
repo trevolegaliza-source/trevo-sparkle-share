@@ -59,6 +59,34 @@ export function feriadosDoMes(
 }
 
 /**
+ * Get the N-th business day of a given month, considering BrasilAPI holidays.
+ * Useful for "5º dia útil" CLT salary rule.
+ * If N exceeds business days available, returns the last business day.
+ */
+export function getNthDiaUtil(
+  year: number,
+  month: number, // 0-indexed
+  n: number,
+  feriados: FeriadoNacional[],
+): Date {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const feriadoSet = new Set(feriados.map(f => f.date));
+  let count = 0;
+  let lastBiz: Date | null = null;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    if (feriadoSet.has(iso)) continue;
+    count++;
+    lastBiz = date;
+    if (count === n) return date;
+  }
+  return lastBiz ?? new Date(year, month, daysInMonth);
+}
+
+/**
  * Advance a date to the next business day if it falls on a weekend or national holiday.
  * Keeps advancing until a valid business day is found.
  */

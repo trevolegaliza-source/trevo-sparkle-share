@@ -795,6 +795,7 @@ export type Database = {
           regime: string
           salario_base: number
           status: string
+          tipo_dia_salario: string | null
           tipo_transporte: string
           trello_username: string | null
           updated_at: string | null
@@ -831,6 +832,7 @@ export type Database = {
           regime?: string
           salario_base?: number
           status?: string
+          tipo_dia_salario?: string | null
           tipo_transporte?: string
           trello_username?: string | null
           updated_at?: string | null
@@ -867,6 +869,7 @@ export type Database = {
           regime?: string
           salario_base?: number
           status?: string
+          tipo_dia_salario?: string | null
           tipo_transporte?: string
           trello_username?: string | null
           updated_at?: string | null

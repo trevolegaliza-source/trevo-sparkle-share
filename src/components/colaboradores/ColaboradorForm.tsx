@@ -32,6 +32,9 @@ export interface ColaboradorFormData {
   // New fields
   dia_adiantamento: string;
   dia_salario: string;
+  // 'calendario' = dia X do mês (legado, default).
+  // 'util'       = N-ésimo dia útil (CLT — recomendado).
+  tipo_dia_salario: 'calendario' | 'util';
   dia_vt_vr: string;
   dia_das: string;
   tipo_transporte: 'vt' | 'auxilio_combustivel';
@@ -51,7 +54,7 @@ export const EMPTY_FORM: ColaboradorFormData = {
   pix_tipo: '', pix_chave: '', valor_das: '',
   aumento_previsto_valor: '', aumento_previsto_data: '',
   data_inicio: '', aniversario: '',
-  dia_adiantamento: '20', dia_salario: '5', dia_vt_vr: '0', dia_das: '20',
+  dia_adiantamento: '20', dia_salario: '5', tipo_dia_salario: 'util', dia_vt_vr: '0', dia_das: '20',
   tipo_transporte: 'vt', auxilio_combustivel_valor: '',
   trello_username: '',
   fgts_percentual: '8', inss_patronal_percentual: '20',
@@ -271,12 +274,35 @@ export default function ColaboradorForm({ form, setForm, onSubmit, isPending, is
             </div>
           </>
         ) : null}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-2">
-            <Label className="text-xs text-foreground">Dia do Salário {form.possui_adiantamento ? '(Restante)' : ''}</Label>
-            <Input className="h-8" type="number" min="1" max="31" value={form.dia_salario}
-              onChange={e => setForm(f => ({ ...f, dia_salario: e.target.value }))} />
+        <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+            <div className="grid gap-2">
+              <Label className="text-xs text-foreground">
+                {form.tipo_dia_salario === 'util'
+                  ? `Salário ${form.possui_adiantamento ? '(Restante) ' : ''}— Nº-ésimo dia útil`
+                  : `Dia do Salário ${form.possui_adiantamento ? '(Restante)' : ''}`}
+              </Label>
+              <Input className="h-8" type="number"
+                min="1"
+                max={form.tipo_dia_salario === 'util' ? 23 : 31}
+                value={form.dia_salario}
+                onChange={e => setForm(f => ({ ...f, dia_salario: e.target.value }))} />
+            </div>
+            <Select value={form.tipo_dia_salario} onValueChange={(v: 'calendario' | 'util') => setForm(f => ({ ...f, tipo_dia_salario: v }))}>
+              <SelectTrigger className="h-8 w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="util">Dia útil (CLT)</SelectItem>
+                <SelectItem value="calendario">Dia do mês</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+          <p className="text-[10px] text-muted-foreground -mt-1">
+            {form.tipo_dia_salario === 'util'
+              ? `Pula fim de semana e feriados. Ex.: "5" em Maio/2026 = 8/5 (1/5 é feriado).`
+              : `Dia fixo do calendário. Apenas ajusta se cair em feriado/fim de semana.`}
+          </p>
           {(Number(form.vt_diario) > 0 || Number(form.vr_diario) > 0) && (
             <div className="grid gap-2">
               <Label className="text-xs text-foreground">Dia VT/VR (0=último útil)</Label>

@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Colaborador } from '@/hooks/useColaboradores';
 import { getBusinessDaysInMonth, getLastBusinessDay, calcularAdiantamento, getBrazilianHolidays } from '@/lib/business-days';
-import { fetchFeriadosNacionais, proximoDiaUtil } from '@/lib/brasil-api';
+import { fetchFeriadosNacionais, proximoDiaUtil, getNthDiaUtil } from '@/lib/brasil-api';
 import type { FeriadoNacional } from '@/lib/brasil-api';
 
 /**
@@ -95,10 +95,19 @@ function buildVerbas(colab: Colaborador, year: number, month: number, diasUteisO
       label = `Salário (Restante) - ${colab.nome}`;
     }
     if (valorSalario > 0) {
+      // Demanda Thales 04/05/2026: tipo_dia_salario controla interpretação.
+      //   'util'       → diaSalario é Nº-ésimo dia útil (CLT manda até 5º útil).
+      //   'calendario' → diaSalario é dia do calendário (legado, default).
+      // Se coluna ainda não existir no banco (migration pendente), cai no
+      // default 'calendario' → comportamento idêntico ao anterior.
+      const tipoDiaSal = (colab as any).tipo_dia_salario || 'calendario';
+      const dataVencSalario = tipoDiaSal === 'util'
+        ? getNthDiaUtil(year, month, diaSalario, fer)
+        : safeDateUtil(year, month, diaSalario, fer);
       entries.push({
         descricao: label,
         valor: valorSalario,
-        data_vencimento: fmtDate(safeDateUtil(year, month, diaSalario, fer)),
+        data_vencimento: fmtDate(dataVencSalario),
         categoria: 'folha',
         subcategoria: 'Salário',
       });

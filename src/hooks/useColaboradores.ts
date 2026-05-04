@@ -25,6 +25,9 @@ export interface Colaborador {
   // Payment rule fields
   dia_adiantamento: number;
   dia_salario: number;
+  // 'calendario' = dia X do mês (legado, default).
+  // 'util'       = N-ésimo dia útil (CLT — recomendado).
+  tipo_dia_salario?: 'calendario' | 'util' | null;
   dia_vt_vr: number;
   dia_das: number;
   fgts_percentual: number;
