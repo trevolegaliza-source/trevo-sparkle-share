@@ -22,6 +22,8 @@ export interface Cartao {
   updated_at: string;
 }
 
+export type CompraTipo = 'avista' | 'parcelado' | 'assinatura';
+
 export interface CartaoCompra {
   id: string;
   empresa_id: string | null;
@@ -39,6 +41,7 @@ export interface CartaoCompra {
   observacoes: string | null;
   compra_grupo_id: string | null;
   cartao_fatura_id: string | null;
+  tipo: CompraTipo;
   created_at: string;
   updated_at: string;
 }
@@ -214,6 +217,45 @@ export function useDeleteCompra() {
       toast.success('Compra removida.');
     },
     onError: (e: any) => toast.error('Erro ao remover: ' + e.message),
+  });
+}
+
+/**
+ * Atualiza TODAS as rows de uma compra parcelada/assinatura,
+ * opcionalmente só a partir de uma data de fatura (rows futuras).
+ * Útil pra "alterar valor da assinatura a partir de tal mês" ou
+ * "renomear todas as parcelas de uma vez".
+ *
+ * NÃO toca em rows que já estão em fatura fechada (cartao_fatura_id != null) —
+ * essas faturas já viraram lançamento em Contas a Pagar e mexer no valor
+ * causa divergência. Pra isso, usuário precisa reabrir a fatura primeiro.
+ */
+export function useUpdateCompraGrupo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      compraGrupoId: string;
+      values: Partial<CartaoCompra>;
+      apenasAPartirDe?: string | null; // fatura_vencimento ISO; null = todos abertos
+    }) => {
+      const { compraGrupoId, values, apenasAPartirDe } = params;
+      let q = supabase
+        .from('cartao_compras')
+        .update(values as any)
+        .eq('compra_grupo_id', compraGrupoId)
+        .is('cartao_fatura_id', null); // só rows ainda não em fatura fechada
+      if (apenasAPartirDe) {
+        q = q.gte('fatura_vencimento', apenasAPartirDe);
+      }
+      const { error } = await q;
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cartao_compras'] });
+      qc.invalidateQueries({ queryKey: ['cartao_faturas'] });
+      toast.success('Parcelas/assinatura atualizadas.');
+    },
+    onError: (e: any) => toast.error('Erro ao atualizar grupo: ' + e.message),
   });
 }
 

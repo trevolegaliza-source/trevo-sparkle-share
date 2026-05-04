@@ -578,6 +578,7 @@ export type Database = {
           observacoes: string | null
           parcela_numero: number
           parcelas_total: number
+          tipo: string
           updated_at: string
           valor_parcela: number
           valor_total: number
@@ -598,6 +599,7 @@ export type Database = {
           observacoes?: string | null
           parcela_numero?: number
           parcelas_total?: number
+          tipo?: string
           updated_at?: string
           valor_parcela: number
           valor_total: number
@@ -618,6 +620,7 @@ export type Database = {
           observacoes?: string | null
           parcela_numero?: number
           parcelas_total?: number
+          tipo?: string
           updated_at?: string
           valor_parcela?: number
           valor_total?: number

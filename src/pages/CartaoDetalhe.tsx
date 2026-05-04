@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   ChevronLeft, ChevronRight, Plus, ArrowLeft, Trash2, CreditCard,
-  Lock, Unlock, CheckCircle2,
+  Lock, Unlock, CheckCircle2, Pencil, Repeat,
 } from 'lucide-react';
 import {
   useCartoes,
@@ -24,6 +24,7 @@ import {
   type CartaoCompra,
 } from '@/hooks/useCartoes';
 import { CompraFormModal } from '@/components/cartao/CompraFormModal';
+import { CompraEditModal } from '@/components/cartao/CompraEditModal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,6 +76,7 @@ export default function CartaoDetalhe() {
   const [faturaMes, setFaturaMes] = useState(mesAtualISO);
   const [novaCompraOpen, setNovaCompraOpen] = useState(false);
   const [deleteCompra, setDeleteCompra] = useState<CartaoCompra | null>(null);
+  const [editCompra, setEditCompra] = useState<CartaoCompra | null>(null);
 
   const { data: todasCompras = [], isLoading } = useCartaoCompras(id ?? null);
   const { data: comprasFatura = [] } = useCartaoCompras(id ?? null, faturaMes);
@@ -287,7 +289,13 @@ export default function CartaoDetalhe() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm truncate">{c.descricao}</p>
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                      {c.parcelas_total > 1 && (
+                      {c.tipo === 'assinatura' && c.parcelas_total > 1 && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-1">
+                          <Repeat className="h-2.5 w-2.5" />
+                          Mês {c.parcela_numero}/{c.parcelas_total}
+                        </Badge>
+                      )}
+                      {c.tipo === 'parcelado' && c.parcelas_total > 1 && (
                         <Badge variant="outline" className="text-[10px] h-4 px-1.5">
                           {c.parcela_numero}/{c.parcelas_total}
                         </Badge>
@@ -302,21 +310,35 @@ export default function CartaoDetalhe() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-semibold text-sm tabular-nums">{fmtBRL(Number(c.valor_parcela))}</p>
-                    {c.parcelas_total > 1 && (
+                    {c.tipo === 'parcelado' && c.parcelas_total > 1 && (
                       <p className="text-[10px] text-muted-foreground">
                         de {fmtBRL(Number(c.valor_total))}
                       </p>
                     )}
+                    {c.tipo === 'assinatura' && (
+                      <p className="text-[10px] text-muted-foreground">/mês</p>
+                    )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => setDeleteCompra(c)}
-                    aria-label="Excluir compra"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      onClick={() => setEditCompra(c)}
+                      aria-label="Editar compra"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteCompra(c)}
+                      aria-label="Excluir compra"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -346,6 +368,12 @@ export default function CartaoDetalhe() {
         open={novaCompraOpen}
         onOpenChange={setNovaCompraOpen}
         cartao={cartao}
+      />
+
+      <CompraEditModal
+        open={!!editCompra}
+        onOpenChange={(o) => !o && setEditCompra(null)}
+        compra={editCompra}
       />
 
       {/* Confirmar fechar fatura */}
@@ -428,12 +456,22 @@ export default function CartaoDetalhe() {
                 <>
                   <strong>{deleteCompra.descricao}</strong>
                   {deleteCompra.parcelas_total > 1 ? (
-                    <>
-                      <br /><br />
-                      Esta compra tem <strong>{deleteCompra.parcelas_total} parcelas</strong>.
-                      Você pode excluir só esta parcela ({deleteCompra.parcela_numero}/{deleteCompra.parcelas_total})
-                      ou a compra inteira (todas as parcelas).
-                    </>
+                    deleteCompra.tipo === 'assinatura' ? (
+                      <>
+                        <br /><br />
+                        Esta é uma <strong>assinatura</strong> que cai em{' '}
+                        <strong>{deleteCompra.parcelas_total} faturas</strong>.
+                        Você pode excluir só este mês ({deleteCompra.parcela_numero}/{deleteCompra.parcelas_total})
+                        ou cancelar a assinatura inteira (todos os meses).
+                      </>
+                    ) : (
+                      <>
+                        <br /><br />
+                        Esta compra tem <strong>{deleteCompra.parcelas_total} parcelas</strong>.
+                        Você pode excluir só esta parcela ({deleteCompra.parcela_numero}/{deleteCompra.parcelas_total})
+                        ou a compra inteira (todas as parcelas).
+                      </>
+                    )
                   ) : (
                     <>
                       <br /><br />
@@ -455,7 +493,9 @@ export default function CartaoDetalhe() {
                   setDeleteCompra(null);
                 }}
               >
-                Excluir todas as parcelas
+                {deleteCompra.tipo === 'assinatura'
+                  ? 'Cancelar assinatura inteira'
+                  : 'Excluir todas as parcelas'}
               </Button>
             )}
             <AlertDialogAction
@@ -466,7 +506,9 @@ export default function CartaoDetalhe() {
                 setDeleteCompra(null);
               }}
             >
-              {deleteCompra && deleteCompra.parcelas_total > 1 ? 'Só esta parcela' : 'Excluir'}
+              {deleteCompra && deleteCompra.parcelas_total > 1
+                ? (deleteCompra.tipo === 'assinatura' ? 'Só este mês' : 'Só esta parcela')
+                : 'Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

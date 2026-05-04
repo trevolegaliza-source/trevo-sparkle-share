@@ -1,6 +1,9 @@
 // ===========================================================================
 // Modal de lançamento de compra no cartão.
-// Suporta compra à vista (parcelas=1) e parcelada (até 24x).
+// 3 tipos:
+//   - À vista: 1 row, valor cheio
+//   - Parcelado: N rows, valor_total / N (TV em 6x)
+//   - Assinatura: N rows, valor cheio em CADA fatura (SaaS R$ X/mês × N meses)
 // Cada parcela vira uma row em cartao_compras com mesmo compra_grupo_id.
 // ===========================================================================
 
@@ -19,7 +22,12 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
-import { useCreateCompra, type Cartao, type CartaoCompra } from '@/hooks/useCartoes';
+import {
+  useCreateCompra,
+  type Cartao,
+  type CartaoCompra,
+  type CompraTipo,
+} from '@/hooks/useCartoes';
 import {
   calcularVencimentoFatura,
   somarMesesAoVencimento,
@@ -52,7 +60,9 @@ const EMPTY = {
   descricao: '',
   fornecedor: '',
   valor_total: '' as string | number,
+  tipo: 'avista' as CompraTipo,
   parcelas_total: 1,
+  meses_assinatura: 12,
   categoria: '',
   subcategoria: '',
   centro_custo: '',
@@ -67,8 +77,23 @@ export function CompraFormModal({ open, onOpenChange, cartao }: Props) {
     if (open) setForm({ ...EMPTY, data_compra: todayISO() });
   }, [open]);
 
-  const valorNum = typeof form.valor_total === 'number' ? form.valor_total : Number(form.valor_total) || 0;
-  const parcelasNum = Math.max(1, Math.min(24, Number(form.parcelas_total) || 1));
+  const valorNum =
+    typeof form.valor_total === 'number' ? form.valor_total : Number(form.valor_total) || 0;
+
+  // Quantas rows vão ser criadas
+  const numRows = useMemo(() => {
+    if (form.tipo === 'avista') return 1;
+    if (form.tipo === 'parcelado') return Math.max(1, Math.min(24, Number(form.parcelas_total) || 1));
+    return Math.max(1, Math.min(120, Number(form.meses_assinatura) || 1));
+  }, [form.tipo, form.parcelas_total, form.meses_assinatura]);
+
+  // Valores de cada row (depende do tipo)
+  const valoresPorRow = useMemo(() => {
+    if (valorNum <= 0) return [];
+    if (form.tipo === 'parcelado') return calcularValoresParcelas(valorNum, numRows);
+    // avista (1) ou assinatura (cada mês = valor cheio)
+    return Array.from({ length: numRows }, () => valorNum);
+  }, [form.tipo, valorNum, numRows]);
 
   // Preview de em quais faturas a compra vai cair
   const preview = useMemo(() => {
@@ -78,13 +103,17 @@ export function CompraFormModal({ open, onOpenChange, cartao }: Props) {
       cartao.dia_fechamento,
       cartao.dia_vencimento
     );
-    const valores = calcularValoresParcelas(valorNum, parcelasNum);
-    return Array.from({ length: parcelasNum }, (_, i) => ({
-      parcela: i + 1,
+    return Array.from({ length: numRows }, (_, i) => ({
+      indice: i + 1,
       vencimento: somarMesesAoVencimento(venc1, i),
-      valor: valores[i],
+      valor: valoresPorRow[i] ?? 0,
     }));
-  }, [form.data_compra, valorNum, parcelasNum, cartao.dia_fechamento, cartao.dia_vencimento]);
+  }, [form.data_compra, valorNum, numRows, valoresPorRow, cartao.dia_fechamento, cartao.dia_vencimento]);
+
+  const totalSerie = useMemo(
+    () => valoresPorRow.reduce((acc, v) => acc + v, 0),
+    [valoresPorRow]
+  );
 
   const subcategorias = form.categoria
     ? CATEGORIAS_DESPESAS[form.categoria as keyof typeof CATEGORIAS_DESPESAS]?.subcategorias ?? []
@@ -94,30 +123,35 @@ export function CompraFormModal({ open, onOpenChange, cartao }: Props) {
     if (!form.data_compra) return toast.error('Data da compra é obrigatória.');
     if (!form.descricao.trim()) return toast.error('Descrição é obrigatória.');
     if (valorNum <= 0) return toast.error('Valor deve ser maior que zero.');
-    if (parcelasNum < 1 || parcelasNum > 24) return toast.error('Parcelas deve ser entre 1 e 24.');
+    if (form.tipo === 'parcelado' && (numRows < 2 || numRows > 24)) {
+      return toast.error('Parcelas deve ser entre 2 e 24.');
+    }
+    if (form.tipo === 'assinatura' && (numRows < 1 || numRows > 120)) {
+      return toast.error('Meses de assinatura deve ser entre 1 e 120.');
+    }
 
-    const grupoId = crypto.randomUUID();
+    const grupoId = numRows > 1 ? crypto.randomUUID() : null;
     const venc1 = calcularVencimentoFatura(
       form.data_compra,
       cartao.dia_fechamento,
       cartao.dia_vencimento
     );
-    const valores = calcularValoresParcelas(valorNum, parcelasNum);
 
-    const rows: Partial<CartaoCompra>[] = Array.from({ length: parcelasNum }, (_, i) => ({
+    const rows: Partial<CartaoCompra>[] = Array.from({ length: numRows }, (_, i) => ({
       cartao_id: cartao.id,
       data_compra: form.data_compra,
       descricao: form.descricao.trim(),
       fornecedor: form.fornecedor.trim() || null,
       valor_total: valorNum,
-      parcelas_total: parcelasNum,
+      parcelas_total: numRows,
       parcela_numero: i + 1,
-      valor_parcela: valores[i],
+      valor_parcela: valoresPorRow[i],
       fatura_vencimento: somarMesesAoVencimento(venc1, i),
       categoria: form.subcategoria || null,
       centro_custo: form.centro_custo.trim() || null,
       observacoes: form.observacoes.trim() || null,
       compra_grupo_id: grupoId,
+      tipo: form.tipo,
     }));
 
     try {
@@ -125,6 +159,9 @@ export function CompraFormModal({ open, onOpenChange, cartao }: Props) {
       onOpenChange(false);
     } catch {}
   };
+
+  const labelValor =
+    form.tipo === 'assinatura' ? 'Valor por mês (R$) *' : 'Valor total (R$) *';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -134,6 +171,32 @@ export function CompraFormModal({ open, onOpenChange, cartao }: Props) {
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Tipo de compra */}
+          <div className="space-y-2">
+            <Label>Tipo de compra</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { v: 'avista', label: 'À vista', hint: '1 fatura' },
+                { v: 'parcelado', label: 'Parcelado', hint: 'TV em 6x' },
+                { v: 'assinatura', label: 'Assinatura', hint: 'SaaS/mês' },
+              ] as { v: CompraTipo; label: string; hint: string }[]).map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setForm({ ...form, tipo: opt.v })}
+                  className={`rounded-md border p-2.5 text-left transition-colors ${
+                    form.tipo === opt.v
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      : 'border-border hover:bg-muted/50'
+                  }`}
+                >
+                  <p className="text-sm font-medium">{opt.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{opt.hint}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="data_compra">Data da compra *</Label>
@@ -145,7 +208,7 @@ export function CompraFormModal({ open, onOpenChange, cartao }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="valor">Valor total (R$) *</Label>
+              <Label htmlFor="valor">{labelValor}</Label>
               <Input
                 id="valor"
                 type="number"
@@ -164,7 +227,11 @@ export function CompraFormModal({ open, onOpenChange, cartao }: Props) {
             <Label htmlFor="descricao">Descrição *</Label>
             <Input
               id="descricao"
-              placeholder="Ex.: Anuidade Adobe"
+              placeholder={
+                form.tipo === 'assinatura'
+                  ? 'Ex.: Z-API.IO (assinatura mensal)'
+                  : 'Ex.: Anuidade Adobe'
+              }
               value={form.descricao}
               onChange={(e) => setForm({ ...form, descricao: e.target.value })}
             />
@@ -180,29 +247,60 @@ export function CompraFormModal({ open, onOpenChange, cartao }: Props) {
                 onChange={(e) => setForm({ ...form, fornecedor: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="parcelas">Parcelas</Label>
-              <Input
-                id="parcelas"
-                type="number"
-                min={1}
-                max={24}
-                value={form.parcelas_total}
-                onChange={(e) =>
-                  setForm({ ...form, parcelas_total: Math.max(1, Math.min(24, Number(e.target.value) || 1)) })
-                }
-              />
-            </div>
+            {form.tipo === 'parcelado' && (
+              <div className="space-y-2">
+                <Label htmlFor="parcelas">Parcelas</Label>
+                <Input
+                  id="parcelas"
+                  type="number"
+                  min={2}
+                  max={24}
+                  value={form.parcelas_total}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      parcelas_total: Math.max(2, Math.min(24, Number(e.target.value) || 2)),
+                    })
+                  }
+                />
+              </div>
+            )}
+            {form.tipo === 'assinatura' && (
+              <div className="space-y-2">
+                <Label htmlFor="meses">Por quantos meses?</Label>
+                <Input
+                  id="meses"
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={form.meses_assinatura}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      meses_assinatura: Math.max(1, Math.min(120, Number(e.target.value) || 12)),
+                    })
+                  }
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Padrão 12. Você recebe um aviso 2 meses antes de expirar.
+                </p>
+              </div>
+            )}
           </div>
 
           {preview && preview.length > 0 && (
             <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
               <p className="font-medium text-foreground">
-                Cai em {preview.length} fatura{preview.length > 1 ? 's' : ''}:
+                {form.tipo === 'avista' && 'Cai em 1 fatura:'}
+                {form.tipo === 'parcelado' &&
+                  `Parcelado em ${numRows}x · total ${fmtBRL(totalSerie)}`}
+                {form.tipo === 'assinatura' &&
+                  `Assinatura: ${numRows}× ${fmtBRL(valorNum)} · total ${fmtBRL(totalSerie)}`}
               </p>
               {preview.slice(0, 3).map((p) => (
-                <p key={p.parcela} className="text-muted-foreground">
-                  {parcelasNum > 1 ? `${p.parcela}/${parcelasNum} · ` : ''}
+                <p key={p.indice} className="text-muted-foreground">
+                  {form.tipo === 'parcelado' && `${p.indice}/${numRows} · `}
+                  {form.tipo === 'assinatura' && `Mês ${p.indice}/${numRows} · `}
                   {fmtMesAno(p.vencimento)} · {fmtBRL(p.valor)}
                 </p>
               ))}
