@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Upload, CreditCard } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Upload, CreditCard, ChevronDown } from 'lucide-react';
 import { CATEGORIAS_DESPESAS, type CategoriaKey } from '@/constants/categorias-despesas';
 import { useColaboradores } from '@/hooks/useColaboradores';
 import { usePlanoContas } from '@/hooks/usePlanoContas';
@@ -427,33 +428,45 @@ export default function DespesaFormModal({ open, onClose, onSave, editData, defa
             />
           </div>
 
-          {/* Conta Contábil + Centro de Custo */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label>Conta Contábil</Label>
-              <Select value={contaId} onValueChange={setContaId}>
-                <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
-                <SelectContent>
-                  {contasDespesa.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.codigo} — {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Centro de Custo</Label>
-              <Select value={centroCusto} onValueChange={setCentroCusto}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="operacional">Operacional</SelectItem>
-                  <SelectItem value="administrativo">Administrativo</SelectItem>
-                  <SelectItem value="comercial">Comercial</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          {/* Conta Contábil + Centro de Custo
+             Demanda Thales 04/05/2026 (B1): Thales nunca usou esses campos
+             e atrapalhavam o cadastro. Escondidos atrás de Collapsible
+             "Avançado" — abre só se precisar. Cadastros antigos com valor
+             continuam funcionando (preserva editData). */}
+          <Collapsible defaultOpen={!!(contaId || centroCusto)}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group">
+              <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]:rotate-180" />
+              Classificação contábil (opcional)
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Conta Contábil</Label>
+                  <Select value={contaId} onValueChange={setContaId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
+                    <SelectContent>
+                      {contasDespesa.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.codigo} — {c.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Centro de Custo</Label>
+                  <Select value={centroCusto} onValueChange={setCentroCusto}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="operacional">Operacional</SelectItem>
+                      <SelectItem value="administrativo">Administrativo</SelectItem>
+                      <SelectItem value="comercial">Comercial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           {/* Vincular Colaborador */}
           <div className="rounded-lg border border-border/60 p-3 space-y-3">
