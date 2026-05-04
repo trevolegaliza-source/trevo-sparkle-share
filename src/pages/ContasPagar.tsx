@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Plus, ChevronLeft, ChevronRight, Users, CheckSquare, X, CheckCircle } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -198,6 +200,37 @@ export default function ContasPagar() {
   // Demanda Thales 04/05 (PP5): bloquear edição de lançamento já pago
   // sem confirmação. Risco: quebrar rastreio histórico/contábil.
   const [editPagoConfirm, setEditPagoConfirm] = useState<any>(null);
+  // Demanda Thales 04/05/2026 noite (PP1): desfazer pagamento.
+  // Spec: só admin (podeAprovar), janela 24h, motivo opcional, sem histórico.
+  // Janela: usa updated_at como proxy de "marcou pago há X horas". Não é
+  // perfeito (qualquer update extende a janela) mas atende o caso comum
+  // de "apertou errado e percebeu logo".
+  const [desfazerConfirm, setDesfazerConfirm] = useState<any>(null);
+  const [desfazerMotivo, setDesfazerMotivo] = useState('');
+  const dentroJanelaDesfazer = useCallback((l: any) => {
+    if (!l || l.status !== 'pago') return false;
+    if (!podeAprovar('contas_pagar')) return false;
+    const ts = l.updated_at ? new Date(l.updated_at).getTime() : 0;
+    if (!ts) return false;
+    return (Date.now() - ts) <= 24 * 60 * 60 * 1000;
+  }, [podeAprovar]);
+  const handleConfirmDesfazer = useCallback(async () => {
+    if (!desfazerConfirm) return;
+    const id = desfazerConfirm.id;
+    setDesfazerConfirm(null);
+    setDesfazerMotivo('');
+    try {
+      await updateDespesa.mutateAsync({
+        id,
+        status: 'pendente',
+        data_pagamento: null,
+        comprovante_url: null,
+      });
+      toast.success('Pagamento desfeito. Lançamento voltou para pendente.');
+    } catch (e: any) {
+      toast.error('Erro ao desfazer: ' + e.message);
+    }
+  }, [desfazerConfirm, updateDespesa]);
   const handleClickEdit = useCallback((l: any) => {
     if (l.status === 'pago') {
       setEditPagoConfirm(l);
@@ -637,18 +670,56 @@ export default function ContasPagar() {
             <AlertDialogDescription>
               <strong>{editPagoConfirm?.descricao}</strong> está marcado como <strong>pago</strong>.
               <br /><br />
-              Editar pode quebrar o rastreio histórico/contábil. Se foi pagamento errado, o caminho correto é <strong>desfazer pagamento</strong> primeiro (round futuro PP1).
-              <br /><br />
-              Tem certeza que quer editar mesmo assim?
+              Editar pode quebrar o rastreio histórico/contábil. Se foi pagamento errado, o caminho correto é <strong>desfazer pagamento</strong>{dentroJanelaDesfazer(editPagoConfirm) ? '' : ' (disponível só nas primeiras 24h após marcar pago)'}.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="sm:mr-auto">Cancelar</AlertDialogCancel>
+            {dentroJanelaDesfazer(editPagoConfirm) && (
+              <Button
+                variant="outline"
+                onClick={() => { const l = editPagoConfirm; setEditPagoConfirm(null); setDesfazerConfirm(l); }}
+              >
+                Desfazer pagamento
+              </Button>
+            )}
             <AlertDialogAction
               onClick={() => { const l = editPagoConfirm; setEditPagoConfirm(null); setEditDespesa(l); setDespesaModal(true); }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Editar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Desfazer pagamento (PP1) — janela 24h, motivo opcional, sem histórico */}
+      <AlertDialog open={!!desfazerConfirm} onOpenChange={(o) => { if (!o) { setDesfazerConfirm(null); setDesfazerMotivo(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desfazer pagamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{desfazerConfirm?.descricao}</strong> ({desfazerConfirm && new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(desfazerConfirm.valor))}) volta para <strong>pendente</strong>.
+              <br /><br />
+              Comprovante anexado e data de pagamento serão removidos. Você pode marcar pago de novo depois.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 my-2">
+            <Label className="text-xs text-muted-foreground">Motivo (opcional)</Label>
+            <Textarea
+              className="min-h-[60px]"
+              value={desfazerMotivo}
+              onChange={(e) => setDesfazerMotivo(e.target.value)}
+              placeholder="Ex.: marquei errado, valor diferente, etc."
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDesfazer}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Desfazer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
