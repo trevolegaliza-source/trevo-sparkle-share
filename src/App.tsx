@@ -19,6 +19,7 @@ const Clientes = lazy(() => import("./pages/Clientes"));
 const ClienteDetalhe = lazy(() => import("./pages/ClienteDetalhe"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const ContasPagar = lazy(() => import("./pages/ContasPagar"));
+const Cartao = lazy(() => import("./pages/Cartao"));
 const Colaboradores = lazy(() => import("./pages/Colaboradores"));
 const CadastroRapido = lazy(() => import("./pages/CadastroRapido"));
 const Documentos = lazy(() => import("./pages/Documentos"));
@@ -123,6 +124,11 @@ const App = () => (
                   <Route path="/contas-pagar" element={
                     <RequirePermission modulo="contas_pagar">
                       <ContasPagar />
+                    </RequirePermission>
+                  } />
+                  <Route path="/cartao" element={
+                    <RequirePermission modulo="contas_pagar">
+                      <Cartao />
                     </RequirePermission>
                   } />
                   <Route path="/colaboradores" element={

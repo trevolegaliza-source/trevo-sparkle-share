@@ -561,6 +561,153 @@ export type Database = {
         }
         Relationships: []
       }
+      cartao_compras: {
+        Row: {
+          cartao_fatura_id: string | null
+          cartao_id: string
+          categoria: string | null
+          centro_custo: string | null
+          compra_grupo_id: string | null
+          created_at: string
+          data_compra: string
+          descricao: string
+          empresa_id: string | null
+          fatura_vencimento: string
+          fornecedor: string | null
+          id: string
+          observacoes: string | null
+          parcela_numero: number
+          parcelas_total: number
+          updated_at: string
+          valor_parcela: number
+          valor_total: number
+        }
+        Insert: {
+          cartao_fatura_id?: string | null
+          cartao_id: string
+          categoria?: string | null
+          centro_custo?: string | null
+          compra_grupo_id?: string | null
+          created_at?: string
+          data_compra: string
+          descricao: string
+          empresa_id?: string | null
+          fatura_vencimento: string
+          fornecedor?: string | null
+          id?: string
+          observacoes?: string | null
+          parcela_numero?: number
+          parcelas_total?: number
+          updated_at?: string
+          valor_parcela: number
+          valor_total: number
+        }
+        Update: {
+          cartao_fatura_id?: string | null
+          cartao_id?: string
+          categoria?: string | null
+          centro_custo?: string | null
+          compra_grupo_id?: string | null
+          created_at?: string
+          data_compra?: string
+          descricao?: string
+          empresa_id?: string | null
+          fatura_vencimento?: string
+          fornecedor?: string | null
+          id?: string
+          observacoes?: string | null
+          parcela_numero?: number
+          parcelas_total?: number
+          updated_at?: string
+          valor_parcela?: number
+          valor_total?: number
+        }
+        Relationships: []
+      }
+      cartao_faturas: {
+        Row: {
+          cartao_id: string
+          created_at: string
+          data_fechamento: string
+          data_vencimento: string
+          empresa_id: string | null
+          id: string
+          lancamento_id: string | null
+          status: string
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          cartao_id: string
+          created_at?: string
+          data_fechamento: string
+          data_vencimento: string
+          empresa_id?: string | null
+          id?: string
+          lancamento_id?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Update: {
+          cartao_id?: string
+          created_at?: string
+          data_fechamento?: string
+          data_vencimento?: string
+          empresa_id?: string | null
+          id?: string
+          lancamento_id?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: []
+      }
+      cartoes: {
+        Row: {
+          ativo: boolean
+          bandeira: string | null
+          created_at: string
+          dia_fechamento: number
+          dia_vencimento: number
+          empresa_id: string | null
+          id: string
+          limite: number | null
+          nome: string
+          observacoes: string | null
+          ultimos_4: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          bandeira?: string | null
+          created_at?: string
+          dia_fechamento: number
+          dia_vencimento: number
+          empresa_id?: string | null
+          id?: string
+          limite?: number | null
+          nome: string
+          observacoes?: string | null
+          ultimos_4?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          bandeira?: string | null
+          created_at?: string
+          dia_fechamento?: number
+          dia_vencimento?: number
+          empresa_id?: string | null
+          id?: string
+          limite?: number | null
+          nome?: string
+          observacoes?: string | null
+          ultimos_4?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cobrancas: {
         Row: {
           asaas_boleto_barcode: string | null
