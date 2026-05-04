@@ -1614,6 +1614,16 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
               <label className="text-xs font-medium">Data do pagamento</label>
               <Input type="date" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} />
             </div>
+            {/* R2.7 — pagamento alto pede dupla confirmação pra reduzir clique acidental */}
+            {(() => {
+              const totalConfirmar = selectedPagar.size > 0 ? valorSelecionado : cliente.total_faturado;
+              return totalConfirmar >= 3000 ? (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
+                  <strong>Atenção:</strong> valor alto ({fmt(totalConfirmar)}). Confira data
+                  e processos antes de confirmar — depois só dá pra reverter manualmente.
+                </div>
+              ) : null;
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPago(false)}>Cancelar</Button>

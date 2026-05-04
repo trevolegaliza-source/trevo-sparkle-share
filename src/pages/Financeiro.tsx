@@ -157,6 +157,11 @@ export default function Financeiro() {
     };
   }, [clientes, metricas, inadimplenciaCalc, periodo]);
 
+  // Busca livre nas abas A Fazer / Em Andamento (R1.1).
+  // Filtra clientes por apelido/nome ou por razão social de algum processo.
+  const [searchAFazer, setSearchAFazer] = useState('');
+  const [searchEmAndamento, setSearchEmAndamento] = useState('');
+
   const todosLancamentos = useMemo(() => {
     const all: Array<LancamentoFinanceiro & { cliente_nome: string; cliente_apelido: string | null }> = [];
     for (const c of clientes) {
@@ -175,9 +180,161 @@ export default function Financeiro() {
     return all;
   }, [clientes, searchTodos]);
 
+  // R1.5 — Projeção dos próximos 30 dias.
+  // Lança que estão pendentes E têm vencimento entre hoje e hoje+30 (inclusive).
+  // Não é "Falta receber" (que olha cobrado-recebido no período do filtro);
+  // é o que vai entrar nos próximos 30 dias se ninguém atrasar.
+  const projecao30d = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const limite = new Date(hoje);
+    limite.setDate(limite.getDate() + 30);
+    const limiteStr = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`;
+    const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+
+    const porCliente = new Map<string, { nome: string; valor: number; qtd: number }>();
+    let total = 0;
+    let qtdLancs = 0;
+    for (const c of clientes) {
+      const nome = c.cliente_apelido || c.cliente_nome;
+      let valorCli = 0;
+      let qtdCli = 0;
+      for (const l of c.lancamentos) {
+        if (l.status === 'pago') continue;
+        if (!l.data_vencimento) continue;
+        const venc = l.data_vencimento.slice(0, 10);
+        if (venc < hojeStr || venc > limiteStr) continue;
+        valorCli += l.valor;
+        qtdCli++;
+      }
+      if (qtdCli > 0) {
+        porCliente.set(c.cliente_id, { nome, valor: valorCli, qtd: qtdCli });
+        total += valorCli;
+        qtdLancs += qtdCli;
+      }
+    }
+    const top = Array.from(porCliente.values()).sort((a, b) => b.valor - a.valor).slice(0, 3);
+    return { total, qtdLancs, qtdClientes: porCliente.size, top };
+  }, [clientes]);
+
+  // R0.2 — CSV respeita aba ativa + filtros, em vez de exportar tudo cru.
+  // R1.1 — Helper de filtro por nome/apelido do cliente ou razão social do processo.
+  const matchClienteSearch = (
+    c: import('@/hooks/useFinanceiroClientes').ClienteFinanceiro,
+    q: string
+  ) => {
+    if (!q) return true;
+    const ql = q.toLowerCase();
+    const nome = (c.cliente_apelido || c.cliente_nome).toLowerCase();
+    if (nome.includes(ql)) return true;
+    return c.lancamentos.some(l =>
+      (l.processo_razao_social || '').toLowerCase().includes(ql)
+    );
+  };
+
+  const filterMensalista = (
+    m: import('@/hooks/useFinanceiroClientes').MensalistaSemFatura,
+    q: string
+  ) => {
+    if (!q) return true;
+    const ql = q.toLowerCase();
+    return (m.apelido || m.nome).toLowerCase().includes(ql);
+  };
+
+  const clientesAguardandoAuditoriaFiltered = useMemo(
+    () => clientesAguardandoAuditoria.filter(c => matchClienteSearch(c, searchAFazer)),
+    [clientesAguardandoAuditoria, searchAFazer]
+  );
+  const clientesCobrarFiltered = useMemo(
+    () => clientesCobrar.filter(c => matchClienteSearch(c, searchAFazer)),
+    [clientesCobrar, searchAFazer]
+  );
+  const mensalistasSemFaturaFiltered = useMemo(
+    () => mensalistasSemFatura.filter(m => filterMensalista(m, searchAFazer)),
+    [mensalistasSemFatura, searchAFazer]
+  );
+  const clientesFuturaFaturaFiltered = useMemo(
+    () => clientesFuturaFatura.filter(c => matchClienteSearch(c, searchAFazer)),
+    [clientesFuturaFatura, searchAFazer]
+  );
+  const clientesAguardandoFiltered = useMemo(
+    () => clientesAguardando.filter(c => matchClienteSearch(c, searchEmAndamento)),
+    [clientesAguardando, searchEmAndamento]
+  );
+  const clientesContestadosFiltered = useMemo(
+    () => clientesContestados.filter(c => matchClienteSearch(c, searchEmAndamento)),
+    [clientesContestados, searchEmAndamento]
+  );
+
+  // R2.4 — Ranking dos top pagadores no período do filtro.
+  // Considera só lançamentos pagos. Computa total recebido e atraso médio
+  // (data_pagamento - data_vencimento). Atraso negativo = pagou adiantado.
+  const rankingPagadores = useMemo(() => {
+    const ranking = clientesPagos.map(c => {
+      const lancsPagos = c.lancamentos.filter(l => l.status === 'pago' && l.data_pagamento);
+      const total = lancsPagos.reduce((s, l) => s + l.valor, 0);
+      let somaAtraso = 0;
+      let qtdComAtraso = 0;
+      for (const l of lancsPagos) {
+        if (!l.data_pagamento || !l.data_vencimento) continue;
+        const venc = new Date(l.data_vencimento + 'T00:00:00').getTime();
+        const pago = new Date(l.data_pagamento + 'T00:00:00').getTime();
+        const dias = Math.round((pago - venc) / (1000 * 60 * 60 * 24));
+        somaAtraso += dias;
+        qtdComAtraso++;
+      }
+      const atrasoMedio = qtdComAtraso > 0 ? Math.round(somaAtraso / qtdComAtraso) : 0;
+      return {
+        cliente_id: c.cliente_id,
+        nome: c.cliente_apelido || c.cliente_nome,
+        total,
+        qtd: lancsPagos.length,
+        atrasoMedio,
+      };
+    });
+    ranking.sort((a, b) => b.total - a.total);
+    return ranking.slice(0, 5);
+  }, [clientesPagos]);
+
+  const lancamentosParaExport = useMemo(() => {
+    const enriquecer = (lancs: LancamentoFinanceiro[], cliNome: string, cliApelido: string | null) =>
+      lancs.map(l => ({ ...l, cliente_nome: cliNome, cliente_apelido: cliApelido }));
+
+    if (activeTab === 'a_fazer') {
+      const out: typeof todosLancamentos = [];
+      const baseClientes = [
+        ...clientesAguardandoAuditoria,
+        ...clientesCobrar,
+      ];
+      for (const c of baseClientes) {
+        out.push(...enriquecer(c.lancamentos, c.cliente_nome, c.cliente_apelido));
+      }
+      const q = searchAFazer.toLowerCase();
+      return q
+        ? out.filter(l => (l.cliente_apelido || l.cliente_nome).toLowerCase().includes(q) ||
+            l.processo_razao_social.toLowerCase().includes(q))
+        : out;
+    }
+    if (activeTab === 'em_andamento') {
+      const out: typeof todosLancamentos = [];
+      const baseClientes = [...clientesAguardando, ...clientesContestados];
+      for (const c of baseClientes) {
+        out.push(...enriquecer(c.lancamentos, c.cliente_nome, c.cliente_apelido));
+      }
+      const q = searchEmAndamento.toLowerCase();
+      return q
+        ? out.filter(l => (l.cliente_apelido || l.cliente_nome).toLowerCase().includes(q) ||
+            l.processo_razao_social.toLowerCase().includes(q))
+        : out;
+    }
+    // historico
+    return todosLancamentos;
+  }, [activeTab, clientesAguardandoAuditoria, clientesCobrar, clientesAguardando, clientesContestados,
+      todosLancamentos, searchAFazer, searchEmAndamento]);
+
   const handleExportCSV = () => {
-    if (todosLancamentos.length === 0) { toast.info('Sem dados para exportar'); return; }
-    const rows = todosLancamentos.map(l => ({
+    if (lancamentosParaExport.length === 0) { toast.info('Sem dados para exportar'); return; }
+    const rows = lancamentosParaExport.map(l => ({
       Cliente: l.cliente_apelido || l.cliente_nome,
       'Razão Social': l.processo_razao_social,
       Tipo: l.processo_tipo,
@@ -187,8 +344,11 @@ export default function Financeiro() {
       Status: l.status,
       Pagamento: formatDateBR(l.data_pagamento),
     }));
-    downloadCSV(rows, `financeiro_${new Date().toISOString().split('T')[0]}.csv`);
-    toast.success('Relatório exportado!');
+    const sufixo = activeTab === 'a_fazer' ? 'a_fazer'
+      : activeTab === 'em_andamento' ? 'em_andamento'
+      : 'historico';
+    downloadCSV(rows, `financeiro_${sufixo}_${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success(`Relatório exportado (${rows.length} lançamentos da aba ${sufixo.replace('_', ' ')}).`);
   };
 
   const periodoLabel = periodo === 'este_mes' ? 'Este Mês'
@@ -320,15 +480,9 @@ export default function Financeiro() {
                     )}
                   </p>
                 </div>
+                {/* R1.2 — antes mostrava Faturado + Recebido + Falta cobrar + Falta receber.
+                    Faturado e Recebido já aparecem nos KPIs em cima; aqui só os 2 deltas. */}
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-6 text-left sm:text-right">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Faturado</p>
-                    <p className="text-sm font-bold">{formatBRL(metricas.totalFaturado)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Recebido</p>
-                    <p className="text-sm font-bold text-emerald-500">{formatBRL(metricas.totalRecebido)}</p>
-                  </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Falta cobrar</p>
                     <p className="text-sm font-bold text-amber-500">{formatBRL(resumoMes.faltaCobrar)}</p>
@@ -341,6 +495,41 @@ export default function Financeiro() {
               </div>
             </CardContent>
           </Card>
+
+          {/* R1.5 — Projeção dos próximos 30 dias.
+              Não substitui "Falta receber" (que olha o mês escolhido); este olha pra frente. */}
+          {projecao30d.qtdLancs > 0 && (
+            <Card className="bg-blue-500/5 border-blue-500/30">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-blue-400" />
+                      Projeção · próximos 30 dias
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {projecao30d.qtdLancs} lançamento{projecao30d.qtdLancs > 1 ? 's' : ''} pendente{projecao30d.qtdLancs > 1 ? 's' : ''} ·{' '}
+                      {projecao30d.qtdClientes} cliente{projecao30d.qtdClientes > 1 ? 's' : ''}
+                      {projecao30d.top.length > 0 && (
+                        <>
+                          {' · top: '}
+                          {projecao30d.top.map((t, i) => (
+                            <span key={i} className="text-muted-foreground/90">
+                              {i > 0 ? ', ' : ''}{t.nome} <span className="text-foreground/70">({formatBRL(t.valor)})</span>
+                            </span>
+                          ))}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-left sm:text-right shrink-0">
+                    <p className="text-xs text-muted-foreground">Total previsto</p>
+                    <p className="text-lg font-bold text-blue-400">{formatBRL(projecao30d.total)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Tabs — 3 abas principais com sub-seções colapsáveis */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -375,7 +564,17 @@ export default function Financeiro() {
             </TabsList>
 
             {/* ABA 1 — A FAZER */}
-            <TabsContent value="a_fazer" className="mt-4">
+            <TabsContent value="a_fazer" className="mt-4 space-y-3">
+              {/* R1.1 — busca livre por cliente/razão social */}
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar cliente ou processo..."
+                  value={searchAFazer}
+                  onChange={e => setSearchAFazer(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
               <Accordion
                 type="multiple"
                 defaultValue={[
@@ -397,10 +596,12 @@ export default function Financeiro() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
-                      {clientesAguardandoAuditoria.length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-4 text-center">Nada por aqui ✨</p>
+                      {clientesAguardandoAuditoriaFiltered.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          {searchAFazer ? 'Nenhum cliente bate com a busca.' : 'Nada por aqui ✨'}
+                        </p>
                       ) : (
-                        <ClientesAuditoria clientes={clientesAguardandoAuditoria} />
+                        <ClientesAuditoria clientes={clientesAguardandoAuditoriaFiltered} />
                       )}
                     </AccordionContent>
                   </AccordionItem>
@@ -418,12 +619,14 @@ export default function Financeiro() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="px-4 pb-4">
-                    {clientesCobrar.length === 0 && mensalistasSemFatura.length === 0 && !masterBypassJanela ? (
-                      <p className="text-sm text-muted-foreground py-4 text-center">Nada por aqui ✨</p>
+                    {clientesCobrarFiltered.length === 0 && mensalistasSemFaturaFiltered.length === 0 && !masterBypassJanela ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">
+                        {searchAFazer ? 'Nenhum cliente bate com a busca.' : 'Nada por aqui ✨'}
+                      </p>
                     ) : (
                       <ClientesFaturar
-                        clientes={masterBypassJanela ? [...clientesCobrar, ...clientesFuturaFatura] : clientesCobrar}
-                        mensalistasSemFatura={mensalistasSemFatura}
+                        clientes={masterBypassJanela ? [...clientesCobrarFiltered, ...clientesFuturaFaturaFiltered] : clientesCobrarFiltered}
+                        mensalistasSemFatura={mensalistasSemFaturaFiltered}
                         onExtratoGerado={setExtratoGerado}
                       />
                     )}
@@ -442,11 +645,13 @@ export default function Financeiro() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                      {clientesFuturaFatura.length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-4 text-center">Nada por aqui ✨</p>
+                      {clientesFuturaFaturaFiltered.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          {searchAFazer ? 'Nenhum cliente bate com a busca.' : 'Nada por aqui ✨'}
+                        </p>
                       ) : (
                         <div className="space-y-2 opacity-80">
-                          {clientesFuturaFatura.map(c => {
+                          {clientesFuturaFaturaFiltered.map(c => {
                             const diaFatura = c.cliente_dia_vencimento_mensal || 0;
                             const hoje = new Date().getDate();
                             const diaInicioJanela = Math.max(1, diaFatura - 5);
@@ -476,7 +681,17 @@ export default function Financeiro() {
             </TabsContent>
 
             {/* ABA 2 — EM ANDAMENTO */}
-            <TabsContent value="em_andamento" className="mt-4">
+            <TabsContent value="em_andamento" className="mt-4 space-y-3">
+              {/* R1.1 — busca livre por cliente/razão social */}
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar cliente ou processo..."
+                  value={searchEmAndamento}
+                  onChange={e => setSearchEmAndamento(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
               <Accordion
                 type="multiple"
                 defaultValue={[
@@ -485,18 +700,11 @@ export default function Financeiro() {
                 ]}
                 className="space-y-4"
               >
-                <AccordionItem value="enviados" className="border rounded-lg px-4 bg-card data-[state=closed]:bg-muted/30">
-                  <AccordionTrigger className="hover:no-underline py-3">
-                    <div className="flex items-center gap-2 flex-1 pr-2">
-                      <Send className="h-4 w-4 text-blue-400" />
-                      <span className="font-medium text-sm">Enviados</span>
-                      <Badge variant="outline" className="ml-auto text-[10px]">0</Badge>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <p className="text-sm text-muted-foreground py-4 text-center">Nada por aqui ✨</p>
-                  </AccordionContent>
-                </AccordionItem>
+                {/* R0.1 — Accordion "Enviados" removido. Era hardcoded com 0 e
+                    mensagem "Nada por aqui ✨" — placeholder de feature que nunca
+                    foi implementada. Quando/se reativar, fluxo correto é:
+                    cobrança_gerada → cobranca_enviada (já tracked em
+                    etapa_financeiro). Não precisa accordion separado. */}
 
                 <AccordionItem value="aguardando" className="border rounded-lg px-4 bg-card data-[state=closed]:bg-muted/30">
                   <AccordionTrigger className="hover:no-underline py-3">
@@ -509,10 +717,12 @@ export default function Financeiro() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    {clientesAguardando.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-4 text-center">Nada por aqui ✨</p>
+                    {clientesAguardandoFiltered.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">
+                        {searchEmAndamento ? 'Nenhum cliente bate com a busca.' : 'Nada por aqui ✨'}
+                      </p>
                     ) : (
-                      <ClientesAguardando clientes={clientesAguardando} contestarLancamento={contestarLancamento} />
+                      <ClientesAguardando clientes={clientesAguardandoFiltered} contestarLancamento={contestarLancamento} />
                     )}
                   </AccordionContent>
                 </AccordionItem>
@@ -529,11 +739,13 @@ export default function Financeiro() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                      {clientesContestados.length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-4 text-center">Nada por aqui ✨</p>
+                      {clientesContestadosFiltered.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          {searchEmAndamento ? 'Nenhum cliente bate com a busca.' : 'Nada por aqui ✨'}
+                        </p>
                       ) : (
                         <ClientesContestados
-                          clientes={clientesContestados}
+                          clientes={clientesContestadosFiltered}
                           onResolver={(params) => resolverContestacao.mutate(params)}
                           userRole={role}
                         />
@@ -572,11 +784,51 @@ export default function Financeiro() {
                   </AccordionContent>
                 </AccordionItem>
 
+                {/* R2.4 — Ranking dos top pagadores no período */}
+                {rankingPagadores.length > 0 && (
+                  <AccordionItem value="ranking" className="border rounded-lg px-4 bg-card">
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex items-center gap-2 flex-1 pr-2">
+                        <TrendingUp className="h-4 w-4 text-emerald-500" />
+                        <span className="font-medium text-sm">Top pagadores do período</span>
+                        <Badge variant="outline" className="ml-auto text-emerald-500 border-emerald-500/30 text-[10px]">
+                          {rankingPagadores.length}
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <ol className="space-y-2 py-2">
+                        {rankingPagadores.map((r, i) => (
+                          <li key={r.cliente_id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/40">
+                            <span className="text-xs font-semibold w-6 text-center text-muted-foreground">
+                              {i + 1}º
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{r.nome}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {r.qtd} lançamento{r.qtd > 1 ? 's' : ''} · {' '}
+                                {r.atrasoMedio === 0
+                                  ? 'em dia'
+                                  : r.atrasoMedio < 0
+                                  ? `pagou ${Math.abs(r.atrasoMedio)}d adiantado`
+                                  : `${r.atrasoMedio}d de atraso médio`}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-bold text-emerald-500">{formatBRL(r.total)}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
                 <AccordionItem value="todos" className="border rounded-lg px-4 bg-card">
                   <AccordionTrigger className="hover:no-underline py-3">
                     <div className="flex items-center gap-2 flex-1 pr-2">
                       <History className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium text-sm">Buscar todos os lançamentos</span>
+                      <span className="font-medium text-sm">Buscar no histórico</span>
                       <Badge variant="outline" className="ml-auto text-[10px]">
                         {todosLancamentos.length}
                       </Badge>

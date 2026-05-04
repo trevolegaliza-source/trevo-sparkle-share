@@ -1,7 +1,38 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 04/05/2026 madrugada (Lote J + B1/PP1 + entidade Cartão completa em 3 fases).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: 04/05/2026 (Lote K — UX Contas a Receber, pré-validação Thales).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 🆕 LOTE K — 04/05/2026 (UX Contas a Receber)
+
+Após Thales pedir auditoria proativa de Contas a Receber (`/financeiro`) no mesmo molde do Lote J. Spec do Thales: *"Pode atacar tudo e quando finalizar avise me! Ai sim eu comeco minha auditoria"* — implementar tudo seguro antes da validação manual dele.
+
+### Itens entregues
+
+| ID | Item |
+|---|---|
+| **R0.1** | Removido accordion "Enviados" da aba Em Andamento. Era hardcoded `count=0` com mensagem "Nada por aqui ✨" — placeholder de feature que nunca foi implementada. Quando/se reativar, fluxo correto é cobranca_gerada → cobranca_enviada (já tracked em `etapa_financeiro`). |
+| **R0.2** | Export CSV agora respeita aba ativa + filtros aplicados. Antes exportava `todosLancamentos` cru independente de onde o usuário estivesse. Filename ganha sufixo `_a_fazer` / `_em_andamento` / `_historico`. Toast de sucesso menciona contagem + aba. |
+| **R1.1** | Busca livre em **A Fazer** e **Em Andamento** — input no topo de cada aba filtra por apelido/nome do cliente OU razão social do processo. Aplicado a todos os accordions internos (Auditoria, Cobrar, Mensalistas sem fatura, Próximas faturas, Aguardando, Contestados). Histórico já tinha; renomeado para "Buscar no histórico" pra reduzir confusão. |
+| **R1.2** | Resumo do Mês trimmed. Removidos "Faturado" e "Recebido" (já aparecem nos KPIs em cima). Mantidos só os 2 deltas que importam: "Falta cobrar" e "Falta receber". |
+| **R1.5** | Card "Projeção · próximos 30 dias" antes das Tabs. Mostra total previsto + qtd lançamentos + qtd clientes + top 3 clientes por valor. Olha pra frente (vs `Falta receber` que olha o filtro). Aparece só se houver lançamentos pendentes nos próximos 30d. |
+| **R2.4** | Ranking dos top 5 pagadores no Histórico. Cada item mostra nome + valor recebido + qtd lançamentos + atraso médio (negativo = pagou adiantado). Computado em cliente sobre `clientesPagos` do período. |
+| **R2.6** | "Buscar todos os lançamentos" → "Buscar no histórico" (nome era enganoso já que a busca é só dentro do período + aba). |
+| **R2.7** | Aviso visual no modal "Confirmar Pagamento" quando valor ≥ R$ 3.000. Box âmbar lembrando irreversibilidade — alinhado com C3 do Lote J (que era pra Pagar). |
+
+### Deferidos (round futuro)
+
+- **R0.3** — métrica Inadimplente: já estava OK, falso alarme.
+- **R1.3** — KPIs mais compactos no desktop: layout atual aceitável, defer pra polimento.
+- **R1.4** — UI editar `observacoes_financeiro` por lançamento: campo já existe no DB, falta UI no `ClienteAccordionFinanceiro` (arquivo de 2.2k linhas; defer).
+- **R1.6** — anexar comprovante PIX manual: precisa edit em `ClienteAccordionFinanceiro` + verificar coluna `comprovante_url` em `lancamentos`. Defer.
+- **R2.1** — emoji ✨ nos placeholders: descartado (tom informal Thales tudo bem).
+- **R2.2** — badges relativos HOJE/ATRASADO/EM Xd nos lançamentos: deep edit em `ClienteAccordionFinanceiro`. Hoje já tem "Vencido" badge via `isLancamentoVencidoReal`.
+- **R2.3** — pular fim de semana/feriado na janela de cobrança: spec ambígua sem dependência clara. Defer até Thales reportar caso real.
+- **R2.5** — ações em lote: irmão de F3 do Lote J (pendente). Defer pra coerência.
+- **R-CONC** — conciliação OFX bancária: round 2 separado (gap estrutural).
 
 ---
 
