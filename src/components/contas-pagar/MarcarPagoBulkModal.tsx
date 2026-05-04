@@ -63,13 +63,24 @@ export default function MarcarPagoBulkModal({ lancamentos, open, onClose, onConf
     }
   };
 
-  // Detecta se há VT/VR no lote — alerta porque eles vão cascatear (ver useMarcarPago)
-  const temVtVr = lancamentos.some(l => {
-    const sub = String(l.subcategoria || '').toLowerCase();
-    return sub.includes('vt') || sub.includes('vr')
-      || sub.includes('vale transporte') || sub.includes('vale refeição')
-      || sub.includes('transporte') || sub.includes('refeição');
-  });
+  // Warning de cascata só faz sentido se VT ou VR estiver "órfão" no lote
+  // (sem o par do mesmo colaborador/data). Quando o lote já contém VT+VR
+  // juntos (caso "Pagar VT+VR" da Visão), o update bulk faz UPDATE direto
+  // nos 2 IDs — sem cascata. Aí o warning só assustaria à toa.
+  const temVtVrOrfao = (() => {
+    const benefMap = new Map<string, { vt?: boolean; vr?: boolean }>();
+    for (const l of lancamentos) {
+      const isVt = l.subcategoria === 'Vale Transporte (VT)';
+      const isVr = l.subcategoria === 'Vale Refeição (VR)';
+      if (!(isVt || isVr) || !l.colaborador_id) continue;
+      const key = `${l.colaborador_id}::${l.data_vencimento}`;
+      const e = benefMap.get(key) || {};
+      if (isVt) e.vt = true; else e.vr = true;
+      benefMap.set(key, e);
+    }
+    // XOR: tem VT sem VR ou VR sem VT
+    return Array.from(benefMap.values()).some(p => !!p.vt !== !!p.vr);
+  })();
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
@@ -100,13 +111,12 @@ export default function MarcarPagoBulkModal({ lancamentos, open, onClose, onConf
             <span className="text-base font-bold tabular-nums text-emerald-600">{fmt(total)}</span>
           </div>
 
-          {temVtVr && (
+          {temVtVrOrfao && (
             <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-400 flex items-start gap-2">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
               <span>
-                Há VT/VR neste lote. Marcar 1 desses faz com que TODOS os VT/VR
-                do mesmo colaborador no mesmo mês sejam marcados juntos
-                (comportamento esperado, mas avise se precisar separar).
+                Há VT ou VR no lote sem o par correspondente. Se preferir
+                pagar VT+VR juntos, use o botão "Pagar VT+VR" da Visão.
               </span>
             </div>
           )}

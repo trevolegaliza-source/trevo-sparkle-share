@@ -207,32 +207,37 @@ export default function ContasPagar() {
   const totalVencido = lancamentos.filter(l => l.status === 'pendente' && l.data_vencimento < hoje).reduce((s, l) => s + Number(l.valor), 0);
 
   // Urgency groups
+  // Aplica mergeVtVr ANTES dos filtros pra contadores ((10) → (5)) e
+  // ordenação refletirem a tela já agregada. UrgencySection passa a
+  // receber items pré-mergidos — não re-mescla.
   const urgencyGroups = useMemo(() => {
     const hojeDate = new Date(); hojeDate.setHours(0, 0, 0, 0);
     const limiteAlerta = new Date(hojeDate);
     limiteAlerta.setDate(limiteAlerta.getDate() + diasAlerta);
     const hojeStr = hojeDate.toISOString().split('T')[0];
 
-    const vencidas = lancamentos.filter(l => {
+    const merged = mergeVtVr(lancamentos);
+
+    const vencidas = merged.filter(l => {
       const v = new Date(l.data_vencimento + 'T00:00:00');
       return l.status !== 'pago' && v < hojeDate;
     }).sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento));
 
-    const hojeItems = lancamentos.filter(l => {
+    const hojeItems = merged.filter(l => {
       return l.status !== 'pago' && l.data_vencimento === hojeStr;
-    }).sort((a, b) => a.descricao.localeCompare(b.descricao));
+    }).sort((a, b) => (a.colaborador_nome || a.descricao || '').localeCompare(b.colaborador_nome || b.descricao || ''));
 
-    const proximas = lancamentos.filter(l => {
+    const proximas = merged.filter(l => {
       const v = new Date(l.data_vencimento + 'T00:00:00');
       return l.status !== 'pago' && v > hojeDate && v <= limiteAlerta;
     }).sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento));
 
-    const futuras = lancamentos.filter(l => {
+    const futuras = merged.filter(l => {
       const v = new Date(l.data_vencimento + 'T00:00:00');
       return l.status !== 'pago' && v > limiteAlerta;
     }).sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento));
 
-    const pagas = lancamentos.filter(l => l.status === 'pago')
+    const pagas = merged.filter(l => l.status === 'pago')
       .sort((a, b) => (b.data_pagamento || '').localeCompare(a.data_pagamento || ''));
 
     return { vencidas, hojeItems, proximas, futuras, pagas };
@@ -703,14 +708,12 @@ function UrgencySection({ title, items, variant, onPagar, onPagarMerged, onEdit,
     success: 'bg-primary/5',
   }[variant];
 
-  // Aplica agregação VT+VR antes de qualquer agrupamento
-  const mergedItems = useMemo(() => mergeVtVr(items), [items]);
-
+  // items já vem pré-mergido do urgencyGroups (parent). Não re-mescla aqui.
   // Group items by date
   const dayGroups = useMemo(() => {
     if (!groupByDate) return null;
     const groups = new Map<string, any[]>();
-    mergedItems.forEach(l => {
+    items.forEach(l => {
       const key = l.data_vencimento;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(l);
@@ -720,7 +723,7 @@ function UrgencySection({ title, items, variant, onPagar, onPagarMerged, onEdit,
       items,
       total: items.reduce((s: number, l: any) => s + Number(l.valor), 0),
     }));
-  }, [mergedItems, groupByDate]);
+  }, [items, groupByDate]);
 
   if (!alwaysShow && items.length === 0) return null;
 
@@ -760,7 +763,7 @@ function UrgencySection({ title, items, variant, onPagar, onPagarMerged, onEdit,
         </div>
       ) : (
         <div className="space-y-1.5">
-          {mergedItems.map(l => (
+          {items.map(l => (
             <LancamentoRow key={l.id} l={l} variant={variant} borderClass={borderClass} bgClass={bgClass} onPagar={onPagar} onPagarMerged={onPagarMerged} onEdit={onEdit} onDelete={onDelete} />
           ))}
         </div>
