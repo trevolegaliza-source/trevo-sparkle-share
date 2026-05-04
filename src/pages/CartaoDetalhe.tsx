@@ -11,12 +11,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   ChevronLeft, ChevronRight, Plus, ArrowLeft, Trash2, CreditCard,
+  Lock, Unlock, CheckCircle2,
 } from 'lucide-react';
 import {
   useCartoes,
   useCartaoCompras,
   useDeleteCompra,
   useDeleteCompraGrupo,
+  useFaturaConsolidada,
+  useFecharFatura,
+  useReabrirFatura,
   type CartaoCompra,
 } from '@/hooks/useCartoes';
 import { CompraFormModal } from '@/components/cartao/CompraFormModal';
@@ -77,6 +81,10 @@ export default function CartaoDetalhe() {
 
   const delCompra = useDeleteCompra();
   const delGrupo = useDeleteCompraGrupo();
+  const fechar = useFecharFatura();
+  const reabrir = useReabrirFatura();
+  const [confirmFechar, setConfirmFechar] = useState(false);
+  const [confirmReabrir, setConfirmReabrir] = useState(false);
 
   // Lista de meses de fatura que têm compras (pra navegação inteligente)
   const mesesComCompras = useMemo(() => {
@@ -109,9 +117,13 @@ export default function CartaoDetalhe() {
   const dataFechFatura = calcularDataFechamento(dataVencFatura, cartao.dia_fechamento);
   const fechouHoje = new Date(dataFechFatura + 'T23:59:59') < new Date();
 
-  const indexAtual = mesesComCompras.indexOf(faturaMes);
   const mesAnterior = navegarMes(faturaMes, -1);
   const mesSeguinte = navegarMes(faturaMes, 1);
+
+  const { data: consolidada } = useFaturaConsolidada(id ?? null, dataVencFatura);
+  const statusReal = consolidada?.statusReal ?? 'aberta';
+  const faturaJaFechada = statusReal === 'pendente' || statusReal === 'paga';
+  const faturaPaga = statusReal === 'paga';
 
   return (
     <div className="container mx-auto p-4 lg:p-6 space-y-5">
@@ -166,10 +178,22 @@ export default function CartaoDetalhe() {
               <p className="text-xs text-muted-foreground">Fatura de</p>
               <p className="font-semibold capitalize">{fmtMesAno(faturaMes)}</p>
               <div className="flex items-center justify-center gap-2 mt-1">
-                <Badge variant={fechouHoje ? 'secondary' : 'outline'} className="text-[10px]">
-                  {fechouHoje ? 'Fechada' : 'Aberta'}
-                </Badge>
-                {faturaMes === mesAtualISO() && (
+                {faturaPaga ? (
+                  <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Paga
+                  </Badge>
+                ) : faturaJaFechada ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    <Lock className="h-3 w-3 mr-1" />
+                    Fechada · em Contas a Pagar
+                  </Badge>
+                ) : fechouHoje ? (
+                  <Badge variant="outline" className="text-[10px]">Pronta para fechar</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px]">Aberta</Badge>
+                )}
+                {faturaMes === mesAtualISO() && !faturaPaga && (
                   <Badge className="text-[10px]">Atual</Badge>
                 )}
               </div>
@@ -200,6 +224,47 @@ export default function CartaoDetalhe() {
               <p className="font-bold text-base">{fmtBRL(totalFatura)}</p>
             </div>
           </div>
+
+          {/* Ações de fechamento */}
+          {comprasFatura.length > 0 && !faturaJaFechada && (
+            <div className="p-3 border-b bg-amber-50/50 dark:bg-amber-950/10">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs text-muted-foreground">
+                  {fechouHoje
+                    ? 'Esta fatura já passou da data de fechamento.'
+                    : 'Você pode fechar a fatura antecipadamente para já criar o lançamento em Contas a Pagar.'}
+                </p>
+                <Button size="sm" onClick={() => setConfirmFechar(true)}>
+                  <Lock className="h-3.5 w-3.5 mr-1.5" />
+                  Fechar fatura
+                </Button>
+              </div>
+            </div>
+          )}
+          {faturaJaFechada && !faturaPaga && (
+            <div className="p-3 border-b bg-blue-50/50 dark:bg-blue-950/10">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs text-muted-foreground">
+                  Fatura já está em Contas a Pagar como pendente.
+                  Pague por lá para concluir.
+                </p>
+                <Button size="sm" variant="outline" onClick={() => setConfirmReabrir(true)}>
+                  <Unlock className="h-3.5 w-3.5 mr-1.5" />
+                  Reabrir fatura
+                </Button>
+              </div>
+            </div>
+          )}
+          {faturaPaga && (
+            <div className="p-3 border-b bg-emerald-50/50 dark:bg-emerald-950/10">
+              <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Fatura paga em {consolidada?.lancamento?.data_pagamento
+                  ? fmtData(consolidada.lancamento.data_pagamento)
+                  : '—'}.
+              </div>
+            </div>
+          )}
 
           {/* Lista de compras */}
           {isLoading ? (
@@ -282,6 +347,74 @@ export default function CartaoDetalhe() {
         onOpenChange={setNovaCompraOpen}
         cartao={cartao}
       />
+
+      {/* Confirmar fechar fatura */}
+      <AlertDialog open={confirmFechar} onOpenChange={setConfirmFechar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fechar fatura de {fmtMesAno(faturaMes)}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vai criar um lançamento em <strong>Contas a Pagar</strong> com:
+              <br /><br />
+              • Descrição: <strong>Fatura {cartao.nome} · {fmtMesAno(faturaMes)}</strong><br />
+              • Valor: <strong>{fmtBRL(totalFatura)}</strong><br />
+              • Vencimento: <strong>{fmtData(dataVencFatura)}</strong>
+              <br /><br />
+              Após fechar, novas compras com data até {fmtData(dataFechFatura)} ainda
+              entram aqui — mas vão precisar de "Reabrir fatura" pra incluir no lançamento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                await fechar.mutateAsync({
+                  cartaoId: cartao.id,
+                  cartaoNome: cartao.nome,
+                  dataFechamento: dataFechFatura,
+                  dataVencimento: dataVencFatura,
+                  valorTotal: totalFatura,
+                  compraIds: comprasFatura.map((c) => c.id),
+                });
+                setConfirmFechar(false);
+              }}
+            >
+              Fechar fatura
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmar reabrir fatura */}
+      <AlertDialog open={confirmReabrir} onOpenChange={setConfirmReabrir}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reabrir fatura?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O lançamento em Contas a Pagar será <strong>apagado</strong> e
+              as compras voltam para "aberta". Você pode fechar de novo depois.
+              <br /><br />
+              <em>Não funciona se a fatura já foi paga — desfaça o pagamento em Contas a Pagar primeiro.</em>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!consolidada?.fatura) return;
+                await reabrir.mutateAsync({
+                  faturaId: consolidada.fatura.id,
+                  lancamentoId: consolidada.fatura.lancamento_id,
+                });
+                setConfirmReabrir(false);
+              }}
+            >
+              Reabrir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={!!deleteCompra}

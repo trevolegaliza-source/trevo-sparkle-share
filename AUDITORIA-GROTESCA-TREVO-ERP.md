@@ -1,6 +1,6 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 04/05/2026 noite (Lote J + sub-lote auditoria UX 6 dimensões + B1 + PP1 + recuo C42/C44).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: 04/05/2026 madrugada (Lote J + B1/PP1 + entidade Cartão completa em 3 fases).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
 
 ---
@@ -31,6 +31,9 @@ Após Thales pedir auditoria proativa de Funcionalidade / Visualização / Layou
 | PP5 | Bloqueio de edição direta de lançamento já pago. AlertDialog "Editar mesmo assim" — sugere desfazer pagamento (round futuro PP1) como caminho correto. | [`8ed0f62`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/8ed0f62) |
 | **PP1** | Desfazer pagamento dentro de janela 24h. Spec do Thales: só admin (`podeAprovar contas_pagar`), motivo opcional, sem histórico. Botão aparece no AlertDialog do PP5 quando `status='pago'` + admin + `updated_at <= 24h`. Diálogo separado pede confirmação com motivo opcional (descartado — sem histórico conforme spec). Volta para `status='pendente`, limpa `data_pagamento` e `comprovante_url`. | [`4cb2053`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/4cb2053) |
 | **B1** | Modal "Nova Despesa" / "Editar Despesa": Conta Contábil + Centro de Custo escondidos atrás de Collapsible "Classificação contábil (opcional)". Abre automaticamente se já tiver valor preenchido (compatível com despesas antigas). Reduz overload do form que Thales nunca usa esses campos. | [`b434749`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/b434749) |
+| **B3 / Cartão Fase 1** | Entidade nativa de cartão de crédito (substitui workaround "prefixar fornecedor com 'Cartão Trevo - '"). Schema: `cartoes`, `cartao_compras` (1 row por parcela), `cartao_faturas`. Migration em [`MIGRATION-cartao.sql`](MIGRATION-cartao.sql). Hooks `useCartoes`/`useCartaoCompras`. Página `/cartao` com cards listando cartões + form cadastro (nome, bandeira, últimos 4, dia fechamento, dia vencimento, limite). Item "Cartão" no sidebar. | [`7fed9cb`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/7fed9cb) |
+| **Cartão Fase 2** | Lançar compra (à vista ou parcelada 1–24x) + visualização de fatura por mês. Página `/cartao/:id` com navegação ← / → entre meses, header com total/fechamento/vencimento, lista de compras com badge `parcela X/N`, exclusão (1 parcela só ou todas via `compra_grupo_id`). Helpers `calcularVencimentoFatura` / `somarMesesAoVencimento` / `calcularValoresParcelas` em `src/lib/cartao-fatura.ts`. Form de compra reusa `CATEGORIAS_DESPESAS` + Collapsible (B1 pattern) + preview ao vivo "Cai em N faturas". | [`9fd1bf0`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/9fd1bf0) |
+| **Cartão Fase 3** | Fechar fatura → cria lançamento em Contas a Pagar (`tipo=pagar`, `categoria=infraestrutura`, `subcategoria=Cartão de Crédito`, `descricao=Fatura {nome} · {mês/ano}`). Status real consolidado por hook `useFaturaConsolidada` (lê `lancamentos.status` via FK `cartao_faturas.lancamento_id`). Badges: Aberta / Pronta para fechar / Fechada (em CP) / Paga. Botão "Reabrir fatura" deleta lançamento e desvincula compras (bloqueia se já pago). | (commit pendente) |
 | **CLT-salário-trigger** | Auto-folha re-dispara quando colaborador muda. Antes o guard era só `mês-ano` → editar `tipo_dia_salario` não disparava recálculo dos pendentes do mês visível (cliente teve que clicar "Importar Folha" manualmente em 04/05). Agora a key inclui hash de `dia_salario`, `tipo_dia_salario`, `dias VT/VR/DAS/adiantamento`, `salario_base`, `updated_at`. | [`47804ac`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/47804ac) |
 | **CLT-salário** | Salário pode ser calculado pelo **Nº-ésimo dia útil** (CLT) ou dia do calendário (legado). Bug descoberto após Thales testar P0.3: salário caía 05/05 em vez de 08/05 (5º útil real, com 1/5 feriado). Novo campo `tipo_dia_salario` no cadastro do colaborador. Form ganha select "Dia útil (CLT)" / "Dia do mês" + texto auxiliar. `getNthDiaUtil(year, month, n, feriados)` em brasil-api.ts. **Migration SQL em [`MIGRATION-tipo-dia-salario.sql`](MIGRATION-tipo-dia-salario.sql) — Thales precisa rodar via Supabase SQL Editor.** Fallback seguro até a migration: comportamento legado ('calendario'). | [`1b49cef`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/1b49cef) |
 | V4 | Animação de "PIX copiado" — **já existia** em `PixInfo` linhas 91-95. Pulado. | (pré-existente) |
@@ -72,8 +75,7 @@ Itens identificados na auditoria 6 dimensões mas **não atacados agora** por de
 
 **Bugs/menores observados na auditoria**
 - **B2** — Wizard "É recorrente?" como primeira etapa do cadastro (Thales reclamou que vai/volta entre fluxos).
-- **B3** — Sem campo "forma de pagamento" no recorrente — workaround atual = prefixar Fornecedor com "Cartão Trevo - ". Cadastrar entidade Cartão nativa.
-- **B4** — Falta export CSV mensal filtrado (já no backlog principal como P2.8).
+- **B4** — Falta export CSV mensal filtrado (já no backlog principal como P2.8). _Thales 04/05: "não uso, mas ok" → deferido._
 
 ### Backlog próximo round
 - **P1.3** — Recorrentes turbinada (próximo venc, total mensal, variação %, mini-histórico).

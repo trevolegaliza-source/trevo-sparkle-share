@@ -260,3 +260,194 @@ export function useCartaoFaturas(cartaoId: string | null) {
     },
   });
 }
+
+/**
+ * Status REAL de uma fatura, lendo o lançamento associado.
+ * Retorna: 'aberta' (sem fatura ainda), 'pendente' (fechada, lancamento
+ * pendente), 'paga' (lancamento pago).
+ *
+ * Usa querry agregada: pega cartao_faturas + lancamentos de uma vez.
+ */
+export type FaturaStatusReal = 'aberta' | 'pendente' | 'paga';
+
+export interface FaturaConsolidada {
+  fatura: CartaoFatura | null;
+  lancamento: { id: string; status: string; data_pagamento: string | null } | null;
+  statusReal: FaturaStatusReal;
+}
+
+export function useFaturaConsolidada(
+  cartaoId: string | null,
+  dataVencimento: string | null
+) {
+  return useQuery({
+    queryKey: ['fatura_consolidada', cartaoId, dataVencimento],
+    enabled: !!cartaoId && !!dataVencimento,
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<FaturaConsolidada> => {
+      const { data: faturaData, error: fatErr } = await supabase
+        .from('cartao_faturas')
+        .select('*')
+        .eq('cartao_id', cartaoId!)
+        .eq('data_vencimento', dataVencimento!)
+        .maybeSingle();
+      if (fatErr) throw fatErr;
+      const fatura = (faturaData as CartaoFatura | null) ?? null;
+
+      if (!fatura) return { fatura: null, lancamento: null, statusReal: 'aberta' };
+      if (!fatura.lancamento_id) {
+        return { fatura, lancamento: null, statusReal: 'pendente' };
+      }
+
+      const { data: lancData } = await supabase
+        .from('lancamentos')
+        .select('id, status, data_pagamento')
+        .eq('id', fatura.lancamento_id)
+        .maybeSingle();
+
+      if (!lancData) {
+        // Lançamento foi deletado em Contas a Pagar — fatura está órfã.
+        return { fatura, lancamento: null, statusReal: 'pendente' };
+      }
+
+      const statusReal: FaturaStatusReal =
+        lancData.status === 'pago' ? 'paga' : 'pendente';
+
+      return { fatura, lancamento: lancData as any, statusReal };
+    },
+  });
+}
+
+/**
+ * Fecha uma fatura: cria row em cartao_faturas + cria lançamento em
+ * Contas a Pagar + vincula todas as compras do mês.
+ *
+ * Não é transacional (Supabase JS não tem tx multi-tabela). Se a 2ª chamada
+ * falhar, deixa estado parcial. Operação é idempotente o suficiente para
+ * o user reexecutar.
+ */
+export function useFecharFatura() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      cartaoId: string;
+      cartaoNome: string;
+      dataFechamento: string;
+      dataVencimento: string;
+      valorTotal: number;
+      compraIds: string[];
+    }) => {
+      const {
+        cartaoId, cartaoNome, dataFechamento, dataVencimento, valorTotal, compraIds,
+      } = params;
+
+      if (!compraIds.length) throw new Error('Fatura sem compras para fechar.');
+
+      // 1) Cria a fatura
+      const { data: faturaCriada, error: fatErr } = await supabase
+        .from('cartao_faturas')
+        .insert({
+          cartao_id: cartaoId,
+          data_fechamento: dataFechamento,
+          data_vencimento: dataVencimento,
+          valor_total: valorTotal,
+          status: 'fechada',
+        } as any)
+        .select()
+        .single();
+      if (fatErr) throw fatErr;
+      const faturaId = (faturaCriada as any).id;
+
+      // 2) Cria o lançamento em Contas a Pagar
+      const dVenc = new Date(dataVencimento + 'T12:00:00');
+      const mesAno = dVenc.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      const { data: lancCriado, error: lancErr } = await supabase
+        .from('lancamentos')
+        .insert({
+          tipo: 'pagar',
+          status: 'pendente',
+          descricao: `Fatura ${cartaoNome} · ${mesAno}`,
+          fornecedor: cartaoNome,
+          valor: valorTotal,
+          data_vencimento: dataVencimento,
+          competencia_mes: dVenc.getMonth() + 1,
+          competencia_ano: dVenc.getFullYear(),
+          categoria: 'infraestrutura',
+          subcategoria: 'Cartão de Crédito',
+        } as any)
+        .select('id')
+        .single();
+      if (lancErr) throw lancErr;
+      const lancamentoId = (lancCriado as any).id;
+
+      // 3) Atualiza fatura com lancamento_id
+      await supabase
+        .from('cartao_faturas')
+        .update({ lancamento_id: lancamentoId } as any)
+        .eq('id', faturaId);
+
+      // 4) Vincula todas as compras
+      await supabase
+        .from('cartao_compras')
+        .update({ cartao_fatura_id: faturaId } as any)
+        .in('id', compraIds);
+
+      return { faturaId, lancamentoId };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cartao_faturas'] });
+      qc.invalidateQueries({ queryKey: ['cartao_compras'] });
+      qc.invalidateQueries({ queryKey: ['fatura_consolidada'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos_pagar'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos_pagar_date'] });
+      toast.success('Fatura fechada! Lançamento criado em Contas a Pagar.');
+    },
+    onError: (e: any) => toast.error('Erro ao fechar fatura: ' + e.message),
+  });
+}
+
+/**
+ * Reabre uma fatura: deleta o lançamento + a row de cartao_faturas +
+ * desvincula as compras. Bloqueia se lançamento já foi pago.
+ */
+export function useReabrirFatura() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { faturaId: string; lancamentoId: string | null }) => {
+      const { faturaId, lancamentoId } = params;
+
+      if (lancamentoId) {
+        // Verifica se já foi pago
+        const { data: lanc } = await supabase
+          .from('lancamentos')
+          .select('status')
+          .eq('id', lancamentoId)
+          .maybeSingle();
+        if (lanc && (lanc as any).status === 'pago') {
+          throw new Error('Fatura já foi paga. Desfaça o pagamento em Contas a Pagar primeiro.');
+        }
+        // Apaga o lançamento
+        await supabase.from('lancamentos').delete().eq('id', lancamentoId);
+      }
+
+      // Desvincula compras
+      await supabase
+        .from('cartao_compras')
+        .update({ cartao_fatura_id: null } as any)
+        .eq('cartao_fatura_id', faturaId);
+
+      // Apaga a fatura
+      const { error } = await supabase.from('cartao_faturas').delete().eq('id', faturaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cartao_faturas'] });
+      qc.invalidateQueries({ queryKey: ['cartao_compras'] });
+      qc.invalidateQueries({ queryKey: ['fatura_consolidada'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos_pagar'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos_pagar_date'] });
+      toast.success('Fatura reaberta. Compras voltaram para o status aberto.');
+    },
+    onError: (e: any) => toast.error(e.message || 'Erro ao reabrir fatura.'),
+  });
+}
