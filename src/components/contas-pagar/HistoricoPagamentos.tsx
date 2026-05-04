@@ -76,7 +76,7 @@ export default function HistoricoPagamentos() {
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState<string>('all');
 
-  const filtrados = useMemo(() => {
+  const filtradosRaw = useMemo(() => {
     return pagamentos.filter((p: any) => {
       if (filterCat !== 'all' && (p.categoria || 'outros') !== filterCat) return false;
       if (search) {
@@ -89,14 +89,22 @@ export default function HistoricoPagamentos() {
     });
   }, [pagamentos, filterCat, search]);
 
+  // Demanda Thales 04/05 (P0.2): agregar VT+VR do mesmo colaborador na
+  // mesma data_vencimento em UMA linha "BENEFÍCIOS — VT+VR" no histórico.
+  // Espelha a lógica da Visão (UI agrega, DB segue separado pro contador).
+  // CSV continua exportando linhas RAW (detalhe contábil preservado).
+  const filtrados = useMemo(() => mergeVtVrHistorico(filtradosRaw), [filtradosRaw]);
+
   const total = filtrados.reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
 
   // Exporta CSV simples (data, descricao, categoria, subcategoria, fornecedor, valor)
+  // IMPORTANTE: usa filtradosRaw (sem agregação VT+VR) — contador precisa
+  // do detalhe contábil separado.
   const exportarCSV = () => {
-    if (filtrados.length === 0) return;
+    if (filtradosRaw.length === 0) return;
     const linhas = [
       ['Data Pagamento', 'Descrição', 'Categoria', 'Subcategoria', 'Fornecedor', 'Valor'].join(';'),
-      ...filtrados.map((p: any) => [
+      ...filtradosRaw.map((p: any) => [
         p.data_pagamento || '',
         (p.descricao || '').replace(/;/g, ','),
         p.categoria || '',
@@ -113,6 +121,10 @@ export default function HistoricoPagamentos() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   };
+
+  // Counter raw vs agregado (mostra "10 → 5" no resumo)
+  const totalRaw = filtradosRaw.length;
+  const totalAgg = filtrados.length;
 
   return (
     <div className="space-y-4">
@@ -179,7 +191,10 @@ export default function HistoricoPagamentos() {
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Total pago no período</p>
               <p className="text-2xl font-bold tabular-nums text-emerald-600">{fmt(total)}</p>
               <p className="text-xs text-muted-foreground">
-                {filtrados.length} pagamento{filtrados.length !== 1 ? 's' : ''}
+                {totalAgg} linha{totalAgg !== 1 ? 's' : ''}
+                {totalRaw !== totalAgg && (
+                  <span> ({totalRaw} pagamento{totalRaw !== 1 ? 's' : ''} contábeis · VT+VR agrupados)</span>
+                )}
                 {' · '}
                 de {fmtData(inicio)} a {fmtData(fim)}
               </p>
@@ -205,11 +220,15 @@ export default function HistoricoPagamentos() {
         <div className="space-y-2">
           {filtrados.map((p: any) => {
             const catInfo = CATEGORIAS_DESPESAS[(p.categoria || 'outros') as keyof typeof CATEGORIAS_DESPESAS];
+            const isMerged = p.__merged === true;
             return (
               <div key={p.id} className="rounded-lg border border-border p-3 hover:bg-muted/30 transition-colors">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{p.descricao}</p>
+                    <p className="font-medium text-sm truncate">
+                      {isMerged && <span className="mr-1">🍱</span>}
+                      {p.descricao}
+                    </p>
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5 flex-wrap">
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0" style={{ borderColor: catInfo?.color }}>
                         {catInfo?.label || p.categoria || 'Outros'}
@@ -218,20 +237,41 @@ export default function HistoricoPagamentos() {
                       {p.fornecedor && <span>· {p.fornecedor}</span>}
                       <span className="ml-auto">Pago em {fmtData(p.data_pagamento)}</span>
                     </div>
+                    {/* Breakdown VT/VR pra linha agregada */}
+                    {isMerged && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                        VT {fmt(p.vtValor)} + VR {fmt(p.vrValor)}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="font-mono font-semibold tabular-nums text-emerald-600">{fmt(Number(p.valor || 0))}</span>
-                    {p.comprovante_url && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2"
-                        onClick={() => abrirArquivoStorage(STORAGE_BUCKETS.CONTRACTS, p.comprovante_url)}
-                        title="Ver comprovante"
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
+                    {/* Comprovantes — pode haver até 2 distintos no agregado */}
+                    {isMerged
+                      ? p.comprovantes.map((c: { url: string; label: string }, i: number) => (
+                          <Button
+                            key={i}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => abrirArquivoStorage(STORAGE_BUCKETS.CONTRACTS, c.url)}
+                            title={`Comprovante ${c.label}`}
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            <span className="ml-1 text-[10px]">{c.label}</span>
+                          </Button>
+                        ))
+                      : p.comprovante_url && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => abrirArquivoStorage(STORAGE_BUCKETS.CONTRACTS, p.comprovante_url)}
+                            title="Ver comprovante"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                   </div>
                 </div>
               </div>
@@ -241,4 +281,85 @@ export default function HistoricoPagamentos() {
       )}
     </div>
   );
+}
+
+/**
+ * Agrega VT + VR do mesmo colaborador na mesma data_vencimento numa linha
+ * "BENEFÍCIOS — VT+VR — {nome}". Espelha a lógica do Visão (UI agrega,
+ * DB segue separado pro contador). Usado SÓ pra display — CSV exporta
+ * filtradosRaw (sem agregação).
+ *
+ * Detecção de VT/VR: subcategoria contém "vt"/"vale transporte" ou
+ * "vr"/"vale refeição" (case-insensitive). Se faltar colaborador_id ou
+ * só um lado existir, passa direto.
+ *
+ * Comprovantes: o agregado pode ter 0, 1 ou 2 comprovantes (caso bulk
+ * UM PDF pra ambos vs marcado individual com PDFs separados). Lista
+ * todos os disponíveis com label "VT"/"VR".
+ */
+function mergeVtVrHistorico(items: any[]): any[] {
+  const out: any[] = [];
+  const benefMap = new Map<string, { vt?: any; vr?: any }>();
+
+  const isVt = (l: any) => {
+    const s = (l.subcategoria || '').toLowerCase();
+    return s.includes('vt') || s.includes('vale transporte') || s.includes('transporte');
+  };
+  const isVr = (l: any) => {
+    const s = (l.subcategoria || '').toLowerCase();
+    return s.includes('vr') || s.includes('vale refeição') || s.includes('refeição');
+  };
+
+  for (const l of items) {
+    const vt = isVt(l);
+    const vr = isVr(l);
+    if ((vt || vr) && l.colaborador_id) {
+      const key = `${l.colaborador_id}::${l.data_vencimento}`;
+      const entry = benefMap.get(key) || {};
+      if (vt) entry.vt = l; else entry.vr = l;
+      benefMap.set(key, entry);
+    } else {
+      out.push(l);
+    }
+  }
+
+  benefMap.forEach((pair, key) => {
+    if (pair.vt && pair.vr) {
+      // Extrair nome do colaborador da descrição (formato "VT — Nome" ou "VR — Nome")
+      const cleanName = (desc: string) => {
+        const parts = (desc || '').split('—');
+        return parts.length > 1 ? parts[parts.length - 1].trim() : (desc || '').trim();
+      };
+      const nome = cleanName(pair.vt.descricao) || cleanName(pair.vr.descricao);
+      const comprovantes: { url: string; label: string }[] = [];
+      const cVt = pair.vt.comprovante_url || pair.vt.url_comprovante;
+      const cVr = pair.vr.comprovante_url || pair.vr.url_comprovante;
+      if (cVt) comprovantes.push({ url: cVt, label: 'VT' });
+      // Só adiciona o do VR se for diferente (bulk reusa mesma URL)
+      if (cVr && cVr !== cVt) comprovantes.push({ url: cVr, label: 'VR' });
+      out.push({
+        __merged: true,
+        id: `merged-${key}`,
+        descricao: `BENEFÍCIOS — VT+VR — ${nome}`,
+        subcategoria: 'Benefícios (VT+VR)',
+        categoria: 'folha',
+        colaborador_id: pair.vt.colaborador_id,
+        valor: Number(pair.vt.valor) + Number(pair.vr.valor),
+        vtValor: Number(pair.vt.valor),
+        vrValor: Number(pair.vr.valor),
+        data_vencimento: pair.vt.data_vencimento,
+        data_pagamento: pair.vt.data_pagamento || pair.vr.data_pagamento,
+        comprovantes,
+        items: [pair.vt, pair.vr],
+      });
+    } else {
+      // Apenas um lado existe — passa direto
+      if (pair.vt) out.push(pair.vt);
+      if (pair.vr) out.push(pair.vr);
+    }
+  });
+
+  // Ordena por data_pagamento desc (mais recente primeiro)
+  out.sort((a, b) => (b.data_pagamento || '').localeCompare(a.data_pagamento || ''));
+  return out;
 }
