@@ -135,7 +135,14 @@ export default function ContasPagar() {
           queryClient.invalidateQueries({ queryKey: ['lancamentos_pagar_date'] });
         }
       })
-      .catch(() => { /* silent */ });
+      .catch((err) => {
+        // Demanda Thales 04/05 — antes era catch silencioso. Falhou e
+        // ele só descobriu manualmente. Agora mostra erro pra próxima
+        // falha não passar batido. Se quebrar muito, esconder atrás de
+        // flag, mas por enquanto: melhor barulhento que invisível.
+        console.error('[auto-folha] falhou:', err);
+        toast.error(`Auto-importação de folha falhou: ${err?.message || 'erro desconhecido'}. Use "Importar Folha" manualmente.`);
+      });
   }, [viewMonth, viewYear, folhaGerada, colaboradores, queryClient]);
 
   // Demanda Thales 30/04: corrigir vencimentos pendentes que caíram em
