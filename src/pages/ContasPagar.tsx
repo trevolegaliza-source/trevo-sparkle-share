@@ -173,6 +173,18 @@ export default function ContasPagar() {
   const [folhaModal, setFolhaModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  // Demanda Thales 04/05 (C3): pré-confirmação pra valores acima do
+  // threshold. Evita marcar pago errado em despesa grande. Threshold
+  // hardcoded R$ 3.000 — pode virar config em Configurações depois.
+  const VALOR_ALTO_THRESHOLD = 3000;
+  const [valorAltoConfirm, setValorAltoConfirm] = useState<any>(null);
+  const handleClickMarcarPago = useCallback((l: any) => {
+    if (Number(l.valor) >= VALOR_ALTO_THRESHOLD) {
+      setValorAltoConfirm(l);
+    } else {
+      setPagoModal(l);
+    }
+  }, []);
 
   // Bulk selection state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -454,7 +466,7 @@ export default function ContasPagar() {
             <CategoriaAccordion
               lancamentos={lancamentosFiltrados}
               onEdit={podeEditar('contas_pagar') ? (l => { setEditDespesa(l); setDespesaModal(true); }) : undefined}
-              onMarcarPago={podeAprovar('contas_pagar') ? (l => setPagoModal(l)) : undefined}
+              onMarcarPago={podeAprovar('contas_pagar') ? handleClickMarcarPago : undefined}
               onPagarMerged={podeAprovar('contas_pagar') ? handlePagarMerged : undefined}
             />
             {lancamentosFiltrados.length === 0 && (
@@ -469,7 +481,7 @@ export default function ContasPagar() {
           <ContasPagarLista
             lancamentos={lancamentos}
             onEdit={podeEditar('contas_pagar') ? (l => { setEditDespesa(l); setDespesaModal(true); }) : (() => {})}
-            onMarcarPago={podeAprovar('contas_pagar') ? (l => setPagoModal(l)) : (() => {})}
+            onMarcarPago={podeAprovar('contas_pagar') ? handleClickMarcarPago : (() => {})}
             onDelete={podeExcluir('contas_pagar') ? handleDelete : (() => {})}
             selectionMode={selectionMode}
             selectedIds={selectedIds}
@@ -582,6 +594,30 @@ export default function ContasPagar() {
           exitSelectionMode();
         }}
       />
+
+      {/* Confirmação valor alto (C3) */}
+      <AlertDialog open={!!valorAltoConfirm} onOpenChange={(o) => { if (!o) setValorAltoConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠ Pagamento de valor alto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você está prestes a marcar como pago:
+              <br /><br />
+              <strong>{valorAltoConfirm?.descricao}</strong>
+              <br />
+              Valor: <strong>{valorAltoConfirm ? Number(valorAltoConfirm.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''}</strong>
+              <br /><br />
+              Esse valor está acima de {VALOR_ALTO_THRESHOLD.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Confirma que quer prosseguir?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const l = valorAltoConfirm; setValorAltoConfirm(null); setPagoModal(l); }}>
+              Sim, prosseguir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bulk delete confirmation */}
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
