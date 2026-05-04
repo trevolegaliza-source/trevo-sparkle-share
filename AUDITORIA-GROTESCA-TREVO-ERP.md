@@ -1,6 +1,6 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 04/05/2026 noite (Lote J + sub-lote auditoria UX 6 dimensões).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: 04/05/2026 noite (Lote J + sub-lote auditoria UX 6 dimensões + B1 + PP1 + recuo C42/C44).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
 
 ---
@@ -29,6 +29,8 @@ Após Thales pedir auditoria proativa de Funcionalidade / Visualização / Layou
 | C4 | Toast lembrete (1× por sessão) avisando que comprovante PDF/imagem cabe no upload — reduz fricção pós-pagamento. | [`33e27d5`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/33e27d5) |
 | C3 | Pré-confirmação obrigatória para "Marcar como pago" quando valor ≥ R$ 3.000. AlertDialog com aviso de irreversibilidade. | [`d85fe6d`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/d85fe6d) |
 | PP5 | Bloqueio de edição direta de lançamento já pago. AlertDialog "Editar mesmo assim" — sugere desfazer pagamento (round futuro PP1) como caminho correto. | [`8ed0f62`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/8ed0f62) |
+| **PP1** | Desfazer pagamento dentro de janela 24h. Spec do Thales: só admin (`podeAprovar contas_pagar`), motivo opcional, sem histórico. Botão aparece no AlertDialog do PP5 quando `status='pago'` + admin + `updated_at <= 24h`. Diálogo separado pede confirmação com motivo opcional (descartado — sem histórico conforme spec). Volta para `status='pendente`, limpa `data_pagamento` e `comprovante_url`. | [`4cb2053`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/4cb2053) |
+| **B1** | Modal "Nova Despesa" / "Editar Despesa": Conta Contábil + Centro de Custo escondidos atrás de Collapsible "Classificação contábil (opcional)". Abre automaticamente se já tiver valor preenchido (compatível com despesas antigas). Reduz overload do form que Thales nunca usa esses campos. | [`b434749`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/b434749) |
 | **CLT-salário-trigger** | Auto-folha re-dispara quando colaborador muda. Antes o guard era só `mês-ano` → editar `tipo_dia_salario` não disparava recálculo dos pendentes do mês visível (cliente teve que clicar "Importar Folha" manualmente em 04/05). Agora a key inclui hash de `dia_salario`, `tipo_dia_salario`, `dias VT/VR/DAS/adiantamento`, `salario_base`, `updated_at`. | [`47804ac`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/47804ac) |
 | **CLT-salário** | Salário pode ser calculado pelo **Nº-ésimo dia útil** (CLT) ou dia do calendário (legado). Bug descoberto após Thales testar P0.3: salário caía 05/05 em vez de 08/05 (5º útil real, com 1/5 feriado). Novo campo `tipo_dia_salario` no cadastro do colaborador. Form ganha select "Dia útil (CLT)" / "Dia do mês" + texto auxiliar. `getNthDiaUtil(year, month, n, feriados)` em brasil-api.ts. **Migration SQL em [`MIGRATION-tipo-dia-salario.sql`](MIGRATION-tipo-dia-salario.sql) — Thales precisa rodar via Supabase SQL Editor.** Fallback seguro até a migration: comportamento legado ('calendario'). | [`1b49cef`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/1b49cef) |
 | V4 | Animação de "PIX copiado" — **já existia** em `PixInfo` linhas 91-95. Pulado. | (pré-existente) |
@@ -58,7 +60,6 @@ Itens identificados na auditoria 6 dimensões mas **não atacados agora** por de
 - **C1** — Validação anti-duplicata na criação manual (mesma descrição+valor+data). Risco de falso positivo.
 
 **Pós-pagamento**
-- **PP1** — Desfazer pagamento (com motivo + log). Caminho correto pra editar pago. **Pré-requisito do PP5.**
 - **PP2** — Trilha de auditoria visível (quem marcou pago, quando, IP). Dep: tabela de log.
 - **PP3** — Conciliar pagamento ↔ extrato bancário (OFX). Dep: GAP estrutural OFX.
 
@@ -70,7 +71,6 @@ Itens identificados na auditoria 6 dimensões mas **não atacados agora** por de
 - **R5** — Confirmação de leitura (read receipt Z-API). Dep: R1.
 
 **Bugs/menores observados na auditoria**
-- **B1** — Modal "Nova Despesa" ainda mostra "Conta Contábil" e "Centro de Custo" que Thales nunca usa. Esconder/colapsar atrás de "Avançado".
 - **B2** — Wizard "É recorrente?" como primeira etapa do cadastro (Thales reclamou que vai/volta entre fluxos).
 - **B3** — Sem campo "forma de pagamento" no recorrente — workaround atual = prefixar Fornecedor com "Cartão Trevo - ". Cadastrar entidade Cartão nativa.
 - **B4** — Falta export CSV mensal filtrado (já no backlog principal como P2.8).
@@ -375,8 +375,8 @@ Itens identificados na auditoria 6 dimensões mas **não atacados agora** por de
 ---
 
 ### 🔴 Crítico — eu faço sozinho (sem mexer em banco / sem depender do Thales)
-- [ ] **C42** — REMOVER feature saldo pré-pago (frontend + migration `DROP TABLE saldo_prepago, prepago_movimentacoes`). *Decisão: Thales nunca usou.*
-- [ ] **C44** — REMOVER botão Gerar Verbas colaborador (frontend). *Decisão: Thales não usa.*
+- [~] **C42** — Saldo pré-pago. **RECUADO 04/05 noite.** Aba só aparece se `isPrePago === true` — Thales nunca cadastrou pré-pago, então a feature é **invisível na UI** na prática. Remoção mexe em 11 arquivos (cadastro-rapido, ClienteDetalhe, hooks…) — não cabe em rodada "sem chance de bug". Mantém dormente até decisão explícita de refactor.
+- [~] **C44** — Gerar Verbas. **REATIVADA 04/05 — NÃO REMOVER.** `gerar-verbas.ts` virou central na auto-folha (P0.3) e no CLT-salário. Botão manual em Colaboradores fica como override. Memória em `project_features_mortas.md` atualizada.
 - [ ] **C45** — race condition no fallback boas-vindas. `useFinanceiro.ts:415-427`
 - [ ] **C48** — validação de payload em `useContasPagar.create`. `useContasPagar.ts:82-83`
 
