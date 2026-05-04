@@ -1,6 +1,6 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 04/05/2026 (Lote J — UX Contas a Pagar pós-pagamento real).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: 04/05/2026 noite (Lote J + sub-lote auditoria UX 6 dimensões).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
 
 ---
@@ -16,6 +16,61 @@ Após pagamento real do VT+VR de Maio/2026, Thales relatou: *"as duas colunas na
 - **P2.6** — ✅ Tendência na Provisão. Cada card de mês futuro mostra variação % vs mês anterior (atual incluído como baseline). Seta vermelha = custo crescendo (ruim), verde = caindo (bom), traço = estável (<1%). Tooltip mostra valor do mês comparado.
 - **P0.3** — ✅ Auto-importa folha quando muda mês ([`967dcb0`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/967dcb0)). Antes salário/adiantamento/VT/VR/DAS/FGTS/INSS só apareciam após clicar "Importar Folha" manualmente em Colaboradores. Cliente relatou 5º dia útil de Maio (8/5) invisível ao abrir Contas a Pagar. Agora `useEffect` em `ContasPagar.tsx` chama `gerarVerbasDoMes(ativos, ano, mês)` espelhando o padrão do `gerarLancamentosRecorrentes`. Função já era idempotente (upsert: atualiza pendente, pula pago, insere novo). Modal manual em Colaboradores fica como override.
 - **P0.3.1** — ✅ Fix do catch silencioso ([`732d056`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/732d056)). O auto-trigger do `967dcb0` falhou silenciosamente em produção (Maio/2026 — cliente teve que importar manualmente, gerou 27 lançamentos que deveriam ter sido auto). `.catch(() => {})` engoliu a causa raiz. Agora `console.error` + `toast.error` com mensagem real. Falhas futuras visíveis na hora.
+
+### Sub-lote 04/05 noite — auditoria UX 6 dimensões + cadastro de cartão
+
+Após Thales pedir auditoria proativa de Funcionalidade / Visualização / Layout / Condição / Controle pós-pagamento / Recibos. Critério: atacar tudo que for seguro AGORA, deferir o que tem dependência ou escopo maior.
+
+| ID | Item | Commit |
+|---|---|---|
+| F1+V2 | Cabeçalho de grupo de data mostra subcategoria (não dia da semana) + badge relativo HOJE/AMANHÃ/ATRASADO/EM Xd. Dia da semana virou tooltip. | [`39450b6`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/39450b6) |
+| F4 | Chips de filtro rápido por data (Todas / Hoje / 7d) acima da lista de lançamentos. | [`cd5e6e7`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/cd5e6e7) |
+| C4 | Toast lembrete (1× por sessão) avisando que comprovante PDF/imagem cabe no upload — reduz fricção pós-pagamento. | [`33e27d5`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/33e27d5) |
+| C3 | Pré-confirmação obrigatória para "Marcar como pago" quando valor ≥ R$ 3.000. AlertDialog com aviso de irreversibilidade. | [`d85fe6d`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/d85fe6d) |
+| PP5 | Bloqueio de edição direta de lançamento já pago. AlertDialog "Editar mesmo assim" — sugere desfazer pagamento (round futuro PP1) como caminho correto. | [`8ed0f62`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/8ed0f62) |
+| V4 | Animação de "PIX copiado" — **já existia** em `PixInfo` linhas 91-95. Pulado. | (pré-existente) |
+| L1 | Header sticky em listas longas — descartado por escopo maior (mexe em layout shell). Volta no round de polimento. | (deferido) |
+
+### Backlog UX Pagar — adiado (round futuro)
+
+Itens identificados na auditoria 6 dimensões mas **não atacados agora** por dependência, escopo ou risco.
+
+**Funcionalidade**
+- **F2** — Reordenar dentro de grupo de data (drag para priorizar quitação). Dep: lib de DnD.
+- **F3** — Ações em lote (selecionar N → marcar pago / atribuir comprovante único). Risco contábil — exige revisão de fluxo.
+- **F5** — Dividir um lançamento em parcelas pós-criação. Dep: schema de relacionamento.
+- **F6** — Vincular lançamento a anexo de NF-e (XML). Dep: módulo de NF-e ainda não existe.
+
+**Visualização**
+- **V1** — Indicador de "fechado pelo contador" (lançamento congelado por mês contábil). Dep: ciclo contábil mensal não modelado.
+- **V3** — Heatmap mensal (calendário com gradiente de carga). Escopo médio.
+- **V5** — Avatar/ícone do colaborador no card de folha. Cosmético, sem urgência.
+
+**Layout**
+- **L2** — Densidade compacta/confortável togglável. Não pediu — só intuição.
+- **L3** — Painel lateral com totais por categoria do mês visível. Sobrepõe filtros existentes.
+- **L4** — Visão calendário (alternar lista ↔ calendário mensal). Escopo grande, lib nova.
+
+**Condição**
+- **C1** — Validação anti-duplicata na criação manual (mesma descrição+valor+data). Risco de falso positivo.
+
+**Pós-pagamento**
+- **PP1** — Desfazer pagamento (com motivo + log). Caminho correto pra editar pago. **Pré-requisito do PP5.**
+- **PP2** — Trilha de auditoria visível (quem marcou pago, quando, IP). Dep: tabela de log.
+- **PP3** — Conciliar pagamento ↔ extrato bancário (OFX). Dep: GAP estrutural OFX.
+
+**Recibos / comunicação**
+- **R1** — Enviar recibo automático por WhatsApp/email ao colaborador após marcar folha como paga. Dep: Z-API + template.
+- **R2** — Botão "reenviar recibo" no card pago. Dep: R1.
+- **R3** — Template editável de recibo (logo + dados Trevo). Dep: editor.
+- **R4** — Histórico de envios por colaborador. Dep: R1 + tabela.
+- **R5** — Confirmação de leitura (read receipt Z-API). Dep: R1.
+
+**Bugs/menores observados na auditoria**
+- **B1** — Modal "Nova Despesa" ainda mostra "Conta Contábil" e "Centro de Custo" que Thales nunca usa. Esconder/colapsar atrás de "Avançado".
+- **B2** — Wizard "É recorrente?" como primeira etapa do cadastro (Thales reclamou que vai/volta entre fluxos).
+- **B3** — Sem campo "forma de pagamento" no recorrente — workaround atual = prefixar Fornecedor com "Cartão Trevo - ". Cadastrar entidade Cartão nativa.
+- **B4** — Falta export CSV mensal filtrado (já no backlog principal como P2.8).
 
 ### Backlog próximo round
 - **P1.3** — Recorrentes turbinada (próximo venc, total mensal, variação %, mini-histórico).
