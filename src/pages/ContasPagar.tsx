@@ -121,10 +121,19 @@ export default function ContasPagar() {
   // Modal manual continua disponível em Colaboradores como override.
   const [folhaGerada, setFolhaGerada] = useState<string>('');
   useEffect(() => {
-    const key = `${viewMonth}-${viewYear}`;
-    if (folhaGerada === key) return;
     if (!colaboradores || colaboradores.length === 0) return; // ainda carregando
     const ativos = colaboradores.filter((c: any) => c.status === 'ativo');
+    // Demanda Thales 04/05/2026 noite — incluir hash dos campos relevantes
+    // do colaborador no guard. Antes era só `${mês}-${ano}` → editar
+    // colaborador (mudar tipo_dia_salario, dia_salario etc.) não disparava
+    // re-cálculo dos pendentes. Agora qualquer mudança em campo que afeta
+    // verba dispara o auto-trigger.
+    const colabHash = ativos
+      .map((c: any) => [c.id, c.dia_salario, c.tipo_dia_salario, c.dia_adiantamento, c.dia_vt_vr, c.dia_das, c.salario_base, c.updated_at].join(':'))
+      .sort()
+      .join('|');
+    const key = `${viewMonth}-${viewYear}-${colabHash}`;
+    if (folhaGerada === key) return;
     setFolhaGerada(key); // marca antes pra evitar re-trigger
     if (ativos.length === 0) return;
     const diasUteis = getBusinessDaysInMonth(viewYear, viewMonth);
