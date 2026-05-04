@@ -184,6 +184,23 @@ export default function ContasPagar() {
   const [activeTab, setActiveTab] = useState('visao');
   const [diasAlerta, setDiasAlerta] = useState(() => parseInt(localStorage.getItem('trevo_dias_alerta_pagar') || '7'));
   const [kpiFilter, setKpiFilter] = useState<KpiFilter>('total');
+  // Demanda Thales 04/05 (F4): chips de filtro rápido por janela de
+  // tempo. Ortogonal ao KPI (status) — os dois compõem.
+  type DateFilter = 'all' | 'today' | '7d';
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+
+  const lancamentosFiltrados = useMemo(() => {
+    if (dateFilter === 'all') return lancamentos;
+    const hojeStr = new Date().toISOString().split('T')[0];
+    if (dateFilter === 'today') return lancamentos.filter((l: any) => l.data_vencimento === hojeStr);
+    if (dateFilter === '7d') {
+      const em7 = new Date();
+      em7.setDate(em7.getDate() + 7);
+      const limite = em7.toISOString().split('T')[0];
+      return lancamentos.filter((l: any) => l.data_vencimento >= hojeStr && l.data_vencimento <= limite);
+    }
+    return lancamentos;
+  }, [lancamentos, dateFilter]);
 
   const selectableIds = useMemo(() => {
     return lancamentos.filter(l => l.status !== 'pago').map(l => l.id);
@@ -362,8 +379,8 @@ export default function ContasPagar() {
         onFilterChange={handleKpiFilter}
       />
 
-      {/* Dias alerta control */}
-      <div className="flex items-center justify-between">
+      {/* Dias alerta control + chips filtro rápido (F4) */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Alertar contas em</span>
           <Input
@@ -378,6 +395,12 @@ export default function ContasPagar() {
             min={1} max={90}
           />
           <span className="text-sm text-muted-foreground">dias</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted-foreground mr-1">Mostrar:</span>
+          <Button size="sm" variant={dateFilter === 'all' ? 'default' : 'outline'} className="h-7 px-3 text-xs" onClick={() => setDateFilter('all')}>Todas</Button>
+          <Button size="sm" variant={dateFilter === 'today' ? 'default' : 'outline'} className="h-7 px-3 text-xs" onClick={() => setDateFilter('today')}>Hoje</Button>
+          <Button size="sm" variant={dateFilter === '7d' ? 'default' : 'outline'} className="h-7 px-3 text-xs" onClick={() => setDateFilter('7d')}>7d</Button>
         </div>
       </div>
 
@@ -402,14 +425,14 @@ export default function ContasPagar() {
           <div>
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">📂 POR CATEGORIA</h3>
             <CategoriaAccordion
-              lancamentos={lancamentos}
+              lancamentos={lancamentosFiltrados}
               onEdit={podeEditar('contas_pagar') ? (l => { setEditDespesa(l); setDespesaModal(true); }) : undefined}
               onMarcarPago={podeAprovar('contas_pagar') ? (l => setPagoModal(l)) : undefined}
               onPagarMerged={podeAprovar('contas_pagar') ? handlePagarMerged : undefined}
             />
-            {lancamentos.length === 0 && (
+            {lancamentosFiltrados.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
-                <p>Nenhuma despesa neste período</p>
+                <p>{dateFilter === 'all' ? 'Nenhuma despesa neste período' : dateFilter === 'today' ? 'Nenhuma despesa vence hoje' : 'Nenhuma despesa nos próximos 7 dias'}</p>
               </div>
             )}
           </div>
