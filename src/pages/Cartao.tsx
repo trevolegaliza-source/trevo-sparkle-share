@@ -4,6 +4,7 @@
 // ===========================================================================
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, CreditCard, Pencil, Archive } from 'lucide-react';
@@ -143,8 +144,8 @@ export default function Cartao() {
                 </div>
 
                 <div className="pt-3 border-t">
-                  <Button variant="outline" size="sm" className="w-full" disabled>
-                    Ver fatura — em breve
+                  <Button variant="outline" size="sm" className="w-full" asChild>
+                    <Link to={`/cartao/${c.id}`}>Abrir fatura</Link>
                   </Button>
                 </div>
               </CardContent>
