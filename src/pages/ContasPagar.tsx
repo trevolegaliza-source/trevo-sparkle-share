@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, ChevronLeft, ChevronRight, Users, CheckSquare, X, CheckCircle } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -446,11 +447,24 @@ export default function ContasPagar() {
           />
           <span className="text-sm text-muted-foreground">dias</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-muted-foreground mr-1">Mostrar:</span>
-          <Button size="sm" variant={dateFilter === 'all' ? 'default' : 'outline'} className="h-7 px-3 text-xs" onClick={() => setDateFilter('all')}>Todas</Button>
-          <Button size="sm" variant={dateFilter === 'today' ? 'default' : 'outline'} className="h-7 px-3 text-xs" onClick={() => setDateFilter('today')}>Hoje</Button>
-          <Button size="sm" variant={dateFilter === '7d' ? 'default' : 'outline'} className="h-7 px-3 text-xs" onClick={() => setDateFilter('7d')}>7d</Button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Mostrar:</span>
+          <ToggleGroup
+            type="single"
+            value={dateFilter}
+            onValueChange={(v) => { if (v) setDateFilter(v as DateFilter); }}
+            className="bg-muted/50 rounded-md p-0.5"
+          >
+            <ToggleGroupItem value="all" aria-label="Todas" className="h-7 px-3 text-xs data-[state=on]:bg-background data-[state=on]:shadow-sm">
+              Todas
+            </ToggleGroupItem>
+            <ToggleGroupItem value="today" aria-label="Hoje" className="h-7 px-3 text-xs data-[state=on]:bg-background data-[state=on]:shadow-sm">
+              Hoje
+            </ToggleGroupItem>
+            <ToggleGroupItem value="7d" aria-label="Próximos 7 dias" className="h-7 px-3 text-xs data-[state=on]:bg-background data-[state=on]:shadow-sm">
+              7d
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
       </div>
 
