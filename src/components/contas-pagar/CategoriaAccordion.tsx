@@ -364,17 +364,54 @@ function getDateGroupIcon(urgency: DateGroupUrgency) {
   }
 }
 
+// Demanda Thales 04/05 (F1+V2): cabeçalho do dia mostra subcategoria
+// dominante + label relativo (HOJE/AMANHÃ/ATRASADO Xd) em vez de
+// dia da semana puro. Dia da semana vai pra tooltip.
+function getDateGroupSubcatLabel(items: any[]): string {
+  const subs = new Set(items.map((l) => getSubcatLabel(l)));
+  const arr = Array.from(subs);
+  if (arr.length === 1) return arr[0];
+  if (arr.length <= 3) return arr.join(' + ');
+  return `MISTO (${arr.length} TIPOS)`;
+}
+
+function getRelativeDateLabel(dateStr: string): string | null {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr + 'T12:00:00');
+  target.setHours(0, 0, 0, 0);
+  const diff = Math.round((target.getTime() - hoje.getTime()) / 86400000);
+  if (diff === 0) return 'HOJE';
+  if (diff === 1) return 'AMANHÃ';
+  if (diff === -1) return 'ONTEM';
+  if (diff < 0) return `ATRASADO ${Math.abs(diff)}D`;
+  if (diff <= 7) return `EM ${diff}D`;
+  return null; // mais de 7 dias: omitido (data já mostra)
+}
+
 function DateGroupHeader({ dateStr, total, items, urgency }: { dateStr: string; total: number; items: any[]; urgency: DateGroupUrgency }) {
   const date = new Date(dateStr + 'T12:00:00');
   const formatted = date.toLocaleDateString('pt-BR');
   const diaSemana = DIAS_SEMANA[date.getDay()];
   const pagos = items.filter(l => l.status === 'pago').length;
   const pendentes = items.length - pagos;
+  const subcatLabel = getDateGroupSubcatLabel(items);
+  const relLabel = getRelativeDateLabel(dateStr);
+  const relColor =
+    relLabel?.startsWith('ATRASADO') || relLabel === 'ONTEM' ? 'text-destructive' :
+    relLabel === 'HOJE' ? 'text-amber-600' :
+    relLabel === 'AMANHÃ' ? 'text-amber-500' :
+    relLabel?.startsWith('EM ') ? 'text-muted-foreground' : '';
 
   return (
     <div className="flex items-center gap-2 w-full flex-wrap">
       {getDateGroupIcon(urgency)}
-      <span className="font-medium text-foreground uppercase text-sm">{formatted} · {diaSemana}</span>
+      <span className="font-medium text-foreground uppercase text-sm" title={diaSemana}>
+        {formatted} · {subcatLabel}
+        {relLabel && (
+          <span className={`ml-2 text-[11px] font-bold ${relColor}`}>· {relLabel}</span>
+        )}
+      </span>
       <span className="ml-auto mr-2 font-bold text-sm text-foreground">{fmt(total)}</span>
       <span className="flex items-center gap-2 text-[11px]">
         {pagos > 0 && (
