@@ -1,4 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { CATEGORIAS_DESPESAS, type CategoriaKey } from '@/constants/categorias-despesas';
 import type { DespesaRecorrente } from '@/hooks/useContasPagar';
 
@@ -19,11 +20,14 @@ const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'O
 export default function ProvisaoBarra({ recorrentes, mesAtual, anoAtual }: Props) {
   const ativas = recorrentes.filter(r => r.ativo);
 
-  const mesesFuturos = [1, 2, 3].map(offset => {
+  // P2.6: incluímos o mês ATUAL como baseline pra cálculo de variação,
+  // mas só renderizamos os 3 futuros. Variação do primeiro futuro é
+  // contra o atual; do segundo contra o primeiro; etc.
+  const mesesParaCalcular = [0, 1, 2, 3].map(offset => {
     let m = mesAtual + offset;
     let a = anoAtual;
-    if (m > 12) { m -= 12; a += 1; }
-    return { mes: m, ano: a };
+    while (m > 12) { m -= 12; a += 1; }
+    return { mes: m, ano: a, offset };
   });
 
   const calcularProvisao = (mes: number, ano: number) => {
@@ -48,16 +52,54 @@ export default function ProvisaoBarra({ recorrentes, mesAtual, anoAtual }: Props
     return { total, porCategoria };
   };
 
+  // Pré-calcula tudo (atual + 3 futuros) pra ter variação fácil
+  const provisoes = mesesParaCalcular.map(m => ({
+    ...m,
+    ...calcularProvisao(m.mes, m.ano),
+  }));
+
+  // Variação % entre o mês N e o mês N-1
+  const variacao = (atual: number, anterior: number): { pct: number; signal: 'up' | 'down' | 'flat' } => {
+    if (anterior === 0) return { pct: 0, signal: 'flat' };
+    const pct = ((atual - anterior) / anterior) * 100;
+    if (Math.abs(pct) < 1) return { pct, signal: 'flat' };
+    return { pct, signal: pct > 0 ? 'up' : 'down' };
+  };
+
+  // Só mostra os 3 futuros (offset 1, 2, 3); offset 0 é só baseline
+  const mesesFuturos = provisoes.slice(1);
+
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Provisão de Despesas</h3>
       <div className="grid gap-4 sm:grid-cols-3">
-        {mesesFuturos.map(({ mes, ano }) => {
-          const { total, porCategoria } = calcularProvisao(mes, ano);
+        {mesesFuturos.map((m, idx) => {
+          const { mes, ano, total, porCategoria } = m;
+          const anterior = provisoes[idx]; // idx aqui é índice em mesesFuturos; provisoes[idx] é o mês anterior (offset menor)
+          const v = variacao(total, anterior.total);
+          const Arrow = v.signal === 'up' ? TrendingUp : v.signal === 'down' ? TrendingDown : Minus;
+          // Despesa subindo = ruim (vermelho); descendo = bom (verde)
+          const corTrend = v.signal === 'up' ? 'text-destructive' : v.signal === 'down' ? 'text-emerald-600' : 'text-muted-foreground';
+          const labelAnterior = `vs ${MESES[anterior.mes - 1]}`;
+
           return (
             <Card key={`${mes}-${ano}`} className="border-border bg-card" style={{ borderTopWidth: '3px', borderTopColor: 'hsl(var(--primary))' }}>
               <CardContent className="p-4">
-                <p className="text-sm font-semibold text-foreground">{MESES[mes - 1]} {ano}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-foreground">{MESES[mes - 1]} {ano}</p>
+                  {/* P2.6: variação % vs mês anterior. Subir = vermelho (custo crescendo). */}
+                  {v.signal !== 'flat' && (
+                    <span className={`flex items-center gap-0.5 text-[11px] font-semibold ${corTrend}`} title={`${labelAnterior}: ${fmt(anterior.total)}`}>
+                      <Arrow className="h-3 w-3" />
+                      {v.pct > 0 ? '+' : ''}{v.pct.toFixed(1)}%
+                    </span>
+                  )}
+                  {v.signal === 'flat' && (
+                    <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground" title={labelAnterior}>
+                      <Minus className="h-3 w-3" /> estável
+                    </span>
+                  )}
+                </div>
                 <p className="text-xl font-extrabold text-foreground mt-1">{fmt(total)}</p>
                 <div className="mt-3 space-y-1">
                   {Object.entries(porCategoria)
