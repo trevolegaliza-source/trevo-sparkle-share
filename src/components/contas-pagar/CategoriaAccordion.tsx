@@ -14,6 +14,9 @@ interface Props {
   lancamentos: any[];
   onEdit: (l: any) => void;
   onMarcarPago: (l: any) => void;
+  // Pagar VT+VR juntos (1 PIX só) — quando ambos pendentes pro mesmo
+  // colaborador/data. Abre bulk modal pré-selecionado com os 2 IDs.
+  onPagarMerged?: (merged: { ids: string[]; colaborador_id?: string }) => void;
 }
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -265,12 +268,14 @@ function BeneficiosRow({
   colaborador,
   onEdit,
   onMarcarPago,
+  onPagarMerged,
 }: {
   vtItem: any | null;
   vrItem: any | null;
   colaborador: any | null;
   onEdit: (l: any) => void;
   onMarcarPago: (l: any) => void;
+  onPagarMerged?: (merged: { ids: string[]; colaborador_id?: string }) => void;
 }) {
   const [showAvisar, setShowAvisar] = useState(false);
   const [showComprovante, setShowComprovante] = useState<any>(null);
@@ -335,13 +340,31 @@ function BeneficiosRow({
                 </Button>
               ) : null;
             })()}
-            {items.map(item => (
-              item.status === 'pendente' && (
-                <Button key={`pay-${item.id}`} variant="ghost" size="icon" className="h-7 w-7" title={`Pagar ${item.subcategoria}`} onClick={() => onMarcarPago(item)}>
-                  <CheckCircle className="h-3.5 w-3.5 text-primary" />
-                </Button>
-              )
-            ))}
+            {/* Pagar VT+VR juntos (1 PIX) quando ambos pendentes — atalho preferido.
+                Caso contrário, mostra botões individuais por item. */}
+            {(() => {
+              const ambosPendentes = vtItem?.status === 'pendente' && vrItem?.status === 'pendente';
+              if (ambosPendentes && onPagarMerged) {
+                return (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title="Pagar VT+VR juntos (1 PIX)"
+                    onClick={() => onPagarMerged({ ids: [vtItem.id, vrItem.id], colaborador_id: vtItem.colaborador_id })}
+                  >
+                    <CheckCircle className="h-3.5 w-3.5 text-primary" />
+                  </Button>
+                );
+              }
+              return items.map(item => (
+                item.status === 'pendente' && (
+                  <Button key={`pay-${item.id}`} variant="ghost" size="icon" className="h-7 w-7" title={`Pagar ${item.subcategoria}`} onClick={() => onMarcarPago(item)}>
+                    <CheckCircle className="h-3.5 w-3.5 text-primary" />
+                  </Button>
+                )
+              ));
+            })()}
             {items.map(item => (
               <Button key={`edit-${item.id}`} variant="ghost" size="icon" className="h-7 w-7" title={`Editar ${item.subcategoria}`} onClick={() => onEdit(item)}>
                 <Pencil className="h-3.5 w-3.5" />
@@ -458,7 +481,7 @@ function getColabName(desc: string): string {
   return parts.length > 1 ? parts[parts.length - 1].trim().toUpperCase() : desc.toUpperCase();
 }
 
-function FolhaSubgrupos({ items, onEdit, onMarcarPago }: { items: any[]; onEdit: (l: any) => void; onMarcarPago: (l: any) => void }) {
+function FolhaSubgrupos({ items, onEdit, onMarcarPago, onPagarMerged }: { items: any[]; onEdit: (l: any) => void; onMarcarPago: (l: any) => void; onPagarMerged?: (merged: { ids: string[]; colaborador_id?: string }) => void }) {
   const [avisarTarget, setAvisarTarget] = useState<any>(null);
   const [comprovanteTarget, setComprovanteTarget] = useState<any>(null);
   const { data: colaboradores } = useColaboradores();
@@ -592,6 +615,7 @@ function FolhaSubgrupos({ items, onEdit, onMarcarPago }: { items: any[]; onEdit:
               colaborador={colab}
               onEdit={onEdit}
               onMarcarPago={onMarcarPago}
+              onPagarMerged={onPagarMerged}
             />
           );
         })}
@@ -636,7 +660,7 @@ function FolhaSubgrupos({ items, onEdit, onMarcarPago }: { items: any[]; onEdit:
   );
 }
 
-export default function CategoriaAccordion({ lancamentos, onEdit, onMarcarPago }: Props) {
+export default function CategoriaAccordion({ lancamentos, onEdit, onMarcarPago, onPagarMerged }: Props) {
   const categorias = Object.entries(CATEGORIAS_DESPESAS) as [CategoriaKey, typeof CATEGORIAS_DESPESAS[CategoriaKey]][];
 
   const grouped = categorias.map(([key, cat]) => {
@@ -670,7 +694,7 @@ export default function CategoriaAccordion({ lancamentos, onEdit, onMarcarPago }
               {items.length === 0 ? (
                 <p className="text-xs text-muted-foreground italic py-2">Nenhuma despesa nesta categoria</p>
               ) : key === 'folha' ? (
-                <FolhaSubgrupos items={items} onEdit={onEdit} onMarcarPago={onMarcarPago} />
+                <FolhaSubgrupos items={items} onEdit={onEdit} onMarcarPago={onMarcarPago} onPagarMerged={onPagarMerged} />
               ) : (
                 <div className="divide-y divide-border">
                   {items.map((l: any) => (

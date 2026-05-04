@@ -1,7 +1,26 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 30/04/2026 noite (Lote H — UI/UX).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: 04/05/2026 (Lote J — UX Contas a Pagar pós-pagamento real).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 🆕 LOTE J — 04/05/2026 (UX Contas a Pagar pós-uso real)
+
+Após pagamento real do VT+VR de Maio/2026, Thales relatou: *"as duas colunas na mesma tela do financeiro mais atrapalharam do que ajudaram"*. Pediu auditoria proativa de UX. Plano: P0+P1+P2 + Gap Estrutural (conciliação bancária).
+
+### Itens em ataque hoje
+- **P0.1** — ✅ Coluna Urgência removida (Categoria full-width). VT+VR aggregate preservado em CategoriaAccordion.
+- **P0.2** — ⏳ Histórico replicar agregação VT+VR (10 linhas → 5 BENEFÍCIOS).
+- **P1.5** — ⏳ Comprovante quick-view (parcial — `ComprovanteLightbox` já existe; verificar surface em todos os lugares).
+- **P2.6** — ⏳ Tendência na Provisão (variação % mês a mês).
+
+### Backlog próximo round
+- **P1.3** — Recorrentes turbinada (próximo venc, total mensal, variação %, mini-histórico).
+- **P1.4** — Busca global + filtros (descrição, colaborador, valor, status).
+- **P2.7** — Atalhos teclado (`/`, `n`, `p`).
+- **P2.8** — Export CSV mensal.
+- **GAP** — Conciliação bancária (parser OFX + fuzzy match + UI). 2-3 dias dedicados; aguardando OFX de exemplo.
 
 ---
 
