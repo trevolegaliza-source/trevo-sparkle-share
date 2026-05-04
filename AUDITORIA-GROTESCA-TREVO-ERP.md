@@ -12,7 +12,7 @@ Após pagamento real do VT+VR de Maio/2026, Thales relatou: *"as duas colunas na
 ### Itens em ataque hoje
 - **P0.1** — ✅ Coluna Urgência removida (Categoria full-width). VT+VR aggregate preservado em CategoriaAccordion.
 - **P0.2** — ✅ Histórico agrega VT+VR (10 linhas → 5 BENEFÍCIOS). CSV mantém raw pro contador. Suporta 2 comprovantes distintos (caso pago individual com PDFs diferentes).
-- **P1.5** — ⏳ Comprovante quick-view (parcial — `ComprovanteLightbox` já existe; verificar surface em todos os lugares).
+- **P1.5** — ✅ Comprovante quick-view padronizado. `ComprovanteLightbox` extraído pra arquivo próprio; usado em CategoriaAccordion, Histórico e Lista. Antes Histórico/Lista abriam em nova aba via `abrirArquivoStorage` — agora todos abrem modal in-place.
 - **P2.6** — ⏳ Tendência na Provisão (variação % mês a mês).
 
 ### Backlog próximo round

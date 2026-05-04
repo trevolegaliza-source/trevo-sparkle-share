@@ -6,8 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Search, Pencil, CheckCircle, Trash2, Paperclip } from 'lucide-react';
-import { abrirArquivoStorage } from '@/lib/storage-utils';
-import { STORAGE_BUCKETS } from '@/constants/storage';
+import ComprovanteLightbox from './ComprovanteLightbox';
 import { CATEGORIAS_DESPESAS, type CategoriaKey } from '@/constants/categorias-despesas';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import * as LucideIcons from 'lucide-react';
@@ -40,6 +39,8 @@ export default function ContasPagarLista({ lancamentos, onEdit, onMarcarPago, on
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  // P1.5 — lightbox compartilhado pra ver comprovante in-place
+  const [lightboxLanc, setLightboxLanc] = useState<any | null>(null);
 
   const filtered = useMemo(() => {
     const hoje = new Date().toISOString().split('T')[0];
@@ -161,7 +162,7 @@ export default function ContasPagarLista({ lancamentos, onEdit, onMarcarPago, on
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7"
-                                onClick={() => abrirArquivoStorage(STORAGE_BUCKETS.CONTRACTS, l.comprovante_url)}
+                                onClick={() => setLightboxLanc(l)}
                               >
                                 <Paperclip className="h-3.5 w-3.5 text-emerald-500" />
                               </Button>
@@ -198,6 +199,25 @@ export default function ContasPagarLista({ lancamentos, onEdit, onMarcarPago, on
           </TableBody>
         </Table>
       </div>
+
+      {/* P1.5 — comprovante in-place, sem nova aba */}
+      <ComprovanteLightbox
+        open={!!lightboxLanc}
+        onClose={() => setLightboxLanc(null)}
+        comprovanteUrl={lightboxLanc?.comprovante_url || lightboxLanc?.url_comprovante}
+        titulo={(() => {
+          const desc = lightboxLanc?.descricao || '';
+          const parts = desc.split('—');
+          return (parts.length > 1 ? parts[parts.length - 1].trim() : desc).toUpperCase();
+        })()}
+        subtitulo={(() => {
+          const sub = (lightboxLanc?.subcategoria || 'PAGAMENTO').toUpperCase();
+          const dt = lightboxLanc?.data_pagamento
+            ? new Date(lightboxLanc.data_pagamento + 'T12:00:00').toLocaleDateString('pt-BR')
+            : (lightboxLanc?.data_vencimento ? new Date(lightboxLanc.data_vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '');
+          return `${sub}${dt ? ' · ' + dt : ''}`;
+        })()}
+      />
     </div>
   );
 }

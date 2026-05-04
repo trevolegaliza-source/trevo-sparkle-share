@@ -8,8 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Download, FileText, Search, CheckCircle2, Loader2 } from 'lucide-react';
 import { CATEGORIAS_DESPESAS } from '@/constants/categorias-despesas';
-import { abrirArquivoStorage } from '@/lib/storage-utils';
-import { STORAGE_BUCKETS } from '@/constants/storage';
+import ComprovanteLightbox from './ComprovanteLightbox';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -125,6 +124,20 @@ export default function HistoricoPagamentos() {
   // Counter raw vs agregado (mostra "10 → 5" no resumo)
   const totalRaw = filtradosRaw.length;
   const totalAgg = filtrados.length;
+
+  // Lightbox de comprovante in-place (P1.5)
+  const [lightboxState, setLightboxState] = useState<{
+    url: string;
+    titulo: string;
+    subtitulo: string;
+  } | null>(null);
+
+  const openLightbox = (url: string, descricao: string, subcategoria: string, dataPag: string) => {
+    const parts = (descricao || '').split('—');
+    const tit = (parts.length > 1 ? parts[parts.length - 1].trim() : descricao || '').toUpperCase();
+    const sub = `${(subcategoria || 'PAGAMENTO').toUpperCase()} · PAGO EM ${fmtData(dataPag)}`;
+    setLightboxState({ url, titulo: tit, subtitulo: sub });
+  };
 
   return (
     <div className="space-y-4">
@@ -246,7 +259,8 @@ export default function HistoricoPagamentos() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="font-mono font-semibold tabular-nums text-emerald-600">{fmt(Number(p.valor || 0))}</span>
-                    {/* Comprovantes — pode haver até 2 distintos no agregado */}
+                    {/* Comprovantes — pode haver até 2 distintos no agregado.
+                        P1.5: abre em lightbox modal in-place (sem sair da tela). */}
                     {isMerged
                       ? p.comprovantes.map((c: { url: string; label: string }, i: number) => (
                           <Button
@@ -254,7 +268,7 @@ export default function HistoricoPagamentos() {
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2"
-                            onClick={() => abrirArquivoStorage(STORAGE_BUCKETS.CONTRACTS, c.url)}
+                            onClick={() => openLightbox(c.url, p.descricao, `BENEFÍCIOS (${c.label})`, p.data_pagamento)}
                             title={`Comprovante ${c.label}`}
                           >
                             <FileText className="h-3.5 w-3.5" />
@@ -266,7 +280,7 @@ export default function HistoricoPagamentos() {
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2"
-                            onClick={() => abrirArquivoStorage(STORAGE_BUCKETS.CONTRACTS, p.comprovante_url)}
+                            onClick={() => openLightbox(p.comprovante_url, p.descricao, p.subcategoria || 'PAGAMENTO', p.data_pagamento)}
                             title="Ver comprovante"
                           >
                             <FileText className="h-3.5 w-3.5" />
@@ -279,6 +293,15 @@ export default function HistoricoPagamentos() {
           })}
         </div>
       )}
+
+      {/* Lightbox compartilhado pro comprovante (P1.5) */}
+      <ComprovanteLightbox
+        open={!!lightboxState}
+        onClose={() => setLightboxState(null)}
+        comprovanteUrl={lightboxState?.url}
+        titulo={lightboxState?.titulo}
+        subtitulo={lightboxState?.subtitulo}
+      />
     </div>
   );
 }

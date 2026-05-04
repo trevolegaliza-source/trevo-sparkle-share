@@ -1,13 +1,12 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Pencil, CheckCircle, AlertTriangle, Clock, Check, MessageCircle, Key, Copy, Eye, Download } from 'lucide-react';
+import { Pencil, CheckCircle, AlertTriangle, Clock, Check, MessageCircle, Key, Copy, Eye } from 'lucide-react';
 import { CATEGORIAS_DESPESAS, type CategoriaKey } from '@/constants/categorias-despesas';
 import { useColaboradores } from '@/hooks/useColaboradores';
 import AvisarColaboradorModal from './AvisarColaboradorModal';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { supabase } from '@/integrations/supabase/client';
+import ComprovanteLightbox from './ComprovanteLightbox';
 import * as LucideIcons from 'lucide-react';
 
 interface Props {
@@ -100,89 +99,6 @@ export function PixInfo({ colaborador }: { colaborador: any | null }) {
         <span className="italic">PIX: NÃO CADASTRADO</span>
       )}
     </p>
-  );
-}
-
-function ComprovanteLightbox({ open, onClose, lancamento }: { open: boolean; onClose: () => void; lancamento: any }) {
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const comprovanteUrl = lancamento?.comprovante_url || lancamento?.url_comprovante;
-  const ext = comprovanteUrl?.split('.').pop()?.toLowerCase() || '';
-  const isImage = ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
-
-  const colabName = (() => {
-    const parts = (lancamento?.descricao || '').split('—');
-    return parts.length > 1 ? parts[parts.length - 1].trim().toUpperCase() : (lancamento?.descricao || '').toUpperCase();
-  })();
-  const subcatLabel = (lancamento?.subcategoria || 'PAGAMENTO').toUpperCase();
-  const dateStr = lancamento?.data_vencimento ? new Date(lancamento.data_vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '';
-
-  useEffect(() => {
-    if (!open || !comprovanteUrl) { setBlobUrl(null); return; }
-    setLoading(true);
-    let revoke: string | null = null;
-
-    // Try contratos bucket first (where uploads go), then documentos as fallback
-    const tryDownload = async () => {
-      for (const bucket of ['contratos', 'documentos']) {
-        const { data, error } = await supabase.storage.from(bucket).download(comprovanteUrl);
-        if (data && !error) {
-          const url = URL.createObjectURL(data);
-          revoke = url;
-          setBlobUrl(url);
-          setLoading(false);
-          return;
-        }
-      }
-      // If direct download fails, try createSignedUrl
-      const { data: signedData } = await supabase.storage.from('contratos').createSignedUrl(comprovanteUrl, 3600);
-      if (signedData?.signedUrl) {
-        setBlobUrl(signedData.signedUrl);
-      }
-      setLoading(false);
-    };
-    tryDownload();
-
-    return () => { if (revoke) URL.revokeObjectURL(revoke); };
-  }, [open, comprovanteUrl]);
-
-  const handleDownload = () => {
-    if (!blobUrl) return;
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = `comprovante-${colabName}.${ext}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-[80vw] max-h-[90vh] flex flex-col p-0 gap-0">
-        <DialogDescription className="sr-only">Visualização do comprovante</DialogDescription>
-        <DialogHeader className="px-6 py-3 border-b border-border/60 shrink-0">
-          <DialogTitle className="uppercase text-sm">COMPROVANTE · {colabName}</DialogTitle>
-          <p className="text-xs text-muted-foreground uppercase">{subcatLabel} · {dateStr}</p>
-        </DialogHeader>
-        <div className="flex-1 min-h-0 flex items-center justify-center p-4 bg-muted/10 overflow-auto">
-          {loading && <p className="text-sm text-muted-foreground">Carregando...</p>}
-          {!loading && blobUrl && isImage && (
-            <img src={blobUrl} alt="Comprovante" className="max-w-full max-h-[70vh] object-contain rounded-md" />
-          )}
-          {!loading && blobUrl && !isImage && (
-            <iframe src={blobUrl} className="w-full h-[70vh] border-0 rounded-md" title="Comprovante" />
-          )}
-          {!loading && !blobUrl && <p className="text-sm text-muted-foreground">Não foi possível carregar o comprovante.</p>}
-        </div>
-        <DialogFooter className="px-6 py-3 border-t border-border/60">
-          <Button variant="outline" onClick={handleDownload} disabled={!blobUrl} className="gap-1.5">
-            <Download className="h-3.5 w-3.5" /> BAIXAR
-          </Button>
-          <Button variant="outline" onClick={onClose}>FECHAR</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -399,7 +315,17 @@ function BeneficiosRow({
       <ComprovanteLightbox
         open={!!showComprovante}
         onClose={() => setShowComprovante(null)}
-        lancamento={showComprovante}
+        comprovanteUrl={showComprovante?.comprovante_url || showComprovante?.url_comprovante}
+        titulo={(() => {
+          const desc = showComprovante?.descricao || '';
+          const parts = desc.split('—');
+          return (parts.length > 1 ? parts[parts.length - 1].trim() : desc).toUpperCase();
+        })()}
+        subtitulo={(() => {
+          const sub = (showComprovante?.subcategoria || 'PAGAMENTO').toUpperCase();
+          const dt = showComprovante?.data_vencimento ? new Date(showComprovante.data_vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+          return `${sub}${dt ? ' · ' + dt : ''}`;
+        })()}
       />
     </>
   );
@@ -654,7 +580,17 @@ function FolhaSubgrupos({ items, onEdit, onMarcarPago, onPagarMerged }: { items:
       <ComprovanteLightbox
         open={!!comprovanteTarget}
         onClose={() => setComprovanteTarget(null)}
-        lancamento={comprovanteTarget}
+        comprovanteUrl={comprovanteTarget?.comprovante_url || comprovanteTarget?.url_comprovante}
+        titulo={(() => {
+          const desc = comprovanteTarget?.descricao || '';
+          const parts = desc.split('—');
+          return (parts.length > 1 ? parts[parts.length - 1].trim() : desc).toUpperCase();
+        })()}
+        subtitulo={(() => {
+          const sub = (comprovanteTarget?.subcategoria || 'PAGAMENTO').toUpperCase();
+          const dt = comprovanteTarget?.data_vencimento ? new Date(comprovanteTarget.data_vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+          return `${sub}${dt ? ' · ' + dt : ''}`;
+        })()}
       />
     </>
   );
