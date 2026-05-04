@@ -189,6 +189,33 @@ export default function ContasPagar() {
   type DateFilter = 'all' | 'today' | '7d';
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
+  // Demanda Thales 04/05 (C4): toast lembrete ao abrir Pagar pela
+  // primeira vez na sessão. Mostra soma dos próximos `diasAlerta` dias.
+  // Anti-irritação: 1x por sessão (sessionStorage), só dispara se tiver
+  // ao menos 1 lançamento pendente na janela.
+  useEffect(() => {
+    const flagKey = 'trevo_lembrete_pagar_sessao';
+    if (sessionStorage.getItem(flagKey)) return;
+    if (!lancamentos || lancamentos.length === 0) return;
+    const hojeStr = new Date().toISOString().split('T')[0];
+    const limite = new Date();
+    limite.setDate(limite.getDate() + diasAlerta);
+    const limiteStr = limite.toISOString().split('T')[0];
+    const proximos = lancamentos.filter((l: any) =>
+      l.status === 'pendente' && l.data_vencimento >= hojeStr && l.data_vencimento <= limiteStr
+    );
+    if (proximos.length === 0) {
+      sessionStorage.setItem(flagKey, '1'); // marca mesmo sem aviso pra não tentar de novo
+      return;
+    }
+    const total = proximos.reduce((s: number, l: any) => s + Number(l.valor), 0);
+    const totalFmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    toast.warning(`⏰ ${proximos.length} despesa(s) vencem nos próximos ${diasAlerta} dia(s) · ${totalFmt}`, {
+      duration: 6000,
+    });
+    sessionStorage.setItem(flagKey, '1');
+  }, [lancamentos, diasAlerta]);
+
   const lancamentosFiltrados = useMemo(() => {
     if (dateFilter === 'all') return lancamentos;
     const hojeStr = new Date().toISOString().split('T')[0];
