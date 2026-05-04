@@ -185,6 +185,17 @@ export default function ContasPagar() {
       setPagoModal(l);
     }
   }, []);
+  // Demanda Thales 04/05 (PP5): bloquear edição de lançamento já pago
+  // sem confirmação. Risco: quebrar rastreio histórico/contábil.
+  const [editPagoConfirm, setEditPagoConfirm] = useState<any>(null);
+  const handleClickEdit = useCallback((l: any) => {
+    if (l.status === 'pago') {
+      setEditPagoConfirm(l);
+    } else {
+      setEditDespesa(l);
+      setDespesaModal(true);
+    }
+  }, []);
 
   // Bulk selection state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -465,7 +476,7 @@ export default function ContasPagar() {
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">📂 POR CATEGORIA</h3>
             <CategoriaAccordion
               lancamentos={lancamentosFiltrados}
-              onEdit={podeEditar('contas_pagar') ? (l => { setEditDespesa(l); setDespesaModal(true); }) : undefined}
+              onEdit={podeEditar('contas_pagar') ? handleClickEdit : undefined}
               onMarcarPago={podeAprovar('contas_pagar') ? handleClickMarcarPago : undefined}
               onPagarMerged={podeAprovar('contas_pagar') ? handlePagarMerged : undefined}
             />
@@ -480,7 +491,7 @@ export default function ContasPagar() {
         <TabsContent value="lista">
           <ContasPagarLista
             lancamentos={lancamentos}
-            onEdit={podeEditar('contas_pagar') ? (l => { setEditDespesa(l); setDespesaModal(true); }) : (() => {})}
+            onEdit={podeEditar('contas_pagar') ? handleClickEdit : (() => {})}
             onMarcarPago={podeAprovar('contas_pagar') ? handleClickMarcarPago : (() => {})}
             onDelete={podeExcluir('contas_pagar') ? handleDelete : (() => {})}
             selectionMode={selectionMode}
@@ -594,6 +605,31 @@ export default function ContasPagar() {
           exitSelectionMode();
         }}
       />
+
+      {/* Confirmação edição de pago (PP5) */}
+      <AlertDialog open={!!editPagoConfirm} onOpenChange={(o) => { if (!o) setEditPagoConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠ Lançamento já pago</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{editPagoConfirm?.descricao}</strong> está marcado como <strong>pago</strong>.
+              <br /><br />
+              Editar pode quebrar o rastreio histórico/contábil. Se foi pagamento errado, o caminho correto é <strong>desfazer pagamento</strong> primeiro (round futuro PP1).
+              <br /><br />
+              Tem certeza que quer editar mesmo assim?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { const l = editPagoConfirm; setEditPagoConfirm(null); setEditDespesa(l); setDespesaModal(true); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Editar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirmação valor alto (C3) */}
       <AlertDialog open={!!valorAltoConfirm} onOpenChange={(o) => { if (!o) setValorAltoConfirm(null); }}>
