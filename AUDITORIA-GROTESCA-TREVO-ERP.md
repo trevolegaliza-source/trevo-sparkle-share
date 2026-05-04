@@ -14,6 +14,7 @@ Após pagamento real do VT+VR de Maio/2026, Thales relatou: *"as duas colunas na
 - **P0.2** — ✅ Histórico agrega VT+VR (10 linhas → 5 BENEFÍCIOS). CSV mantém raw pro contador. Suporta 2 comprovantes distintos (caso pago individual com PDFs diferentes).
 - **P1.5** — ✅ Comprovante quick-view padronizado. `ComprovanteLightbox` extraído pra arquivo próprio; usado em CategoriaAccordion, Histórico e Lista. Antes Histórico/Lista abriam em nova aba via `abrirArquivoStorage` — agora todos abrem modal in-place.
 - **P2.6** — ✅ Tendência na Provisão. Cada card de mês futuro mostra variação % vs mês anterior (atual incluído como baseline). Seta vermelha = custo crescendo (ruim), verde = caindo (bom), traço = estável (<1%). Tooltip mostra valor do mês comparado.
+- **P0.3** — ✅ Auto-importa folha quando muda mês ([`967dcb0`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/967dcb0)). Antes salário/adiantamento/VT/VR/DAS/FGTS/INSS só apareciam após clicar "Importar Folha" manualmente em Colaboradores. Cliente relatou 5º dia útil de Maio (8/5) invisível ao abrir Contas a Pagar. Agora `useEffect` em `ContasPagar.tsx` chama `gerarVerbasDoMes(ativos, ano, mês)` espelhando o padrão do `gerarLancamentosRecorrentes`. Função já era idempotente (upsert: atualiza pendente, pula pago, insere novo). Modal manual em Colaboradores fica como override.
 
 ### Backlog próximo round
 - **P1.3** — Recorrentes turbinada (próximo venc, total mensal, variação %, mini-histórico).
@@ -21,6 +22,7 @@ Após pagamento real do VT+VR de Maio/2026, Thales relatou: *"as duas colunas na
 - **P2.7** — Atalhos teclado (`/`, `n`, `p`).
 - **P2.8** — Export CSV mensal.
 - **GAP** — Conciliação bancária (parser OFX + fuzzy match + UI). 2-3 dias dedicados; aguardando OFX de exemplo.
+- **P3 (futuro)** — Cron Supabase (pg_cron ou edge function agendada) rodando `gerarVerbasDoMes` dia 1 de cada mês. Substitui o auto-trigger client-side. Vale só quando: 2+ pessoas no financeiro ou notificação automática (WhatsApp/email) "folha gerada, X pendentes". Hoje (1 pessoa abrindo o ERP todo dia) gain é zero e risco de falha silenciosa é alto.
 
 ---
 
