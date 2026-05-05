@@ -43,6 +43,8 @@ import ContractPreviewModal from '@/components/contratos/ContractPreviewModal';
 import { useServiceNegotiations } from '@/hooks/useServiceNegotiations';
 import TrelloProvisionButton from '@/components/clientes/TrelloProvisionButton';
 import ProcessoEditModal from '@/components/financeiro/ProcessoEditModal';
+import ProcessoConfigEditModal from '@/components/processos/ProcessoConfigEditModal';
+import { PagamentoBadge, classificarPagamento } from '@/components/processos/PagamentoBadge';
 import { useColaboradores } from '@/hooks/useColaboradores';
 import { Textarea } from '@/components/ui/textarea';
 import { gerarExtratoPDF, fetchValoresAdicionaisMulti, fetchCompetenciaProcessos } from '@/lib/extrato-pdf';
@@ -100,6 +102,8 @@ export default function ClienteDetalhe() {
   const [selectedProcessosTab, setSelectedProcessosTab] = useState<Set<string>>(new Set());
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editProcesso, setEditProcesso] = useState<ProcessoFinanceiro | null>(null);
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [configEditProcesso, setConfigEditProcesso] = useState<ProcessoDB | null>(null);
   const [generatingExtrato, setGeneratingExtrato] = useState(false);
   const [showMarkFaturadoDialog, setShowMarkFaturadoDialog] = useState(false);
   const [showDeferimentoAlert, setShowDeferimentoAlert] = useState(false);
@@ -1033,9 +1037,11 @@ export default function ClienteDetalhe() {
                       <TableHead>Razão Social</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Etapa</TableHead>
+                      <TableHead>Pagamento</TableHead>
                       <TableHead>Prioridade</TableHead>
                       <TableHead>Data</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-center w-12">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1094,6 +1100,9 @@ export default function ClienteDetalhe() {
                           {pago ? 'Concluído' : (KANBAN_STAGES.find(s => s.key === p.etapa)?.label || p.etapa)}
                         </TableCell>
                         <TableCell>
+                          <PagamentoBadge status={classificarPagamento(lancamentos.find(l => l.processo_id === p.id && l.tipo === 'receber'))} />
+                        </TableCell>
+                        <TableCell>
                           {!pago && p.prioridade === 'urgente'
                             ? <Badge className="text-[10px] bg-destructive/10 text-destructive border-0">Urgente</Badge>
                             : <span className={cn("text-xs", pago ? "text-muted-foreground" : "text-muted-foreground")}>Normal</span>}
@@ -1102,6 +1111,20 @@ export default function ClienteDetalhe() {
                         <TableCell className={cn("text-right text-sm", pago ? "line-through text-green-500/50" : "font-medium")}>
                           {p.valor ? Number(p.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
                           {pago && <span className="ml-2 text-xs text-green-500 no-underline inline-block">✓ Pago</span>}
+                        </TableCell>
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="Editar configurações do processo"
+                            onClick={() => {
+                              setConfigEditProcesso(p);
+                              setConfigModalOpen(true);
+                            }}
+                          >
+                            <Settings className="h-3.5 w-3.5" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                       );
@@ -2229,6 +2252,13 @@ export default function ClienteDetalhe() {
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
         processo={editProcesso}
+      />
+
+      {/* Edit Process CONFIG Modal (botão Settings na coluna Ações) */}
+      <ProcessoConfigEditModal
+        open={configModalOpen}
+        onOpenChange={setConfigModalOpen}
+        processo={configEditProcesso}
       />
 
       {/* Mark as Faturado after extrato */}

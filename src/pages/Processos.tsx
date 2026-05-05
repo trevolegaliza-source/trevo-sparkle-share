@@ -20,6 +20,7 @@ import { gerarFaturamentoDeferimento } from '@/hooks/useFinanceiro';
 import { useProcessosFinanceiro, type ProcessoFinanceiro } from '@/hooks/useProcessosFinanceiro';
 import ProcessoEditModal from '@/components/financeiro/ProcessoEditModal';
 import ProcessoConfigEditModal from '@/components/processos/ProcessoConfigEditModal';
+import { PagamentoBadge, classificarPagamento } from '@/components/processos/PagamentoBadge';
 import ValoresAdicionaisModal from '@/components/financeiro/ValoresAdicionaisModal';
 import { Settings } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,36 +32,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 type ViewMode = 'kanban' | 'list';
 type GroupBy = 'none' | 'cliente' | 'mes' | 'etapa';
 type FilterPagamento = 'all' | 'pago' | 'pendente' | 'vencido';
-
-// Badge visual de status de pagamento — reaproveitado nas tabelas e kanban
-function PagamentoBadge({ status }: { status: 'pago' | 'pendente' | 'vencido' | 'sem-lancamento' | undefined }) {
-  if (!status || status === 'sem-lancamento') {
-    return <span className="text-xs text-muted-foreground">—</span>;
-  }
-  if (status === 'pago') {
-    return <Badge className="text-[10px] bg-green-600/15 text-green-600 border-0">Pago</Badge>;
-  }
-  if (status === 'vencido') {
-    return <Badge className="text-[10px] bg-destructive/10 text-destructive border-0">Vencido</Badge>;
-  }
-  return <Badge className="text-[10px] bg-amber-500/15 text-amber-600 border-0">Pendente</Badge>;
-}
-
-// Classifica status de pagamento a partir de um lançamento
-function classificarPagamento(lanc: any): 'pago' | 'pendente' | 'vencido' | 'sem-lancamento' {
-  if (!lanc) return 'sem-lancamento';
-  if (lanc.status === 'pago') return 'pago';
-  if (lanc.status === 'cancelado') return 'sem-lancamento';
-  // pendente → verifica se vencido
-  if (lanc.data_vencimento) {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const venc = new Date(lanc.data_vencimento);
-    venc.setHours(0, 0, 0, 0);
-    if (venc < hoje) return 'vencido';
-  }
-  return 'pendente';
-}
 
 function QuickActionsMenu({
   process,
