@@ -2081,6 +2081,13 @@ export function ModalPosExtrato({
 function MoverParaMenu({ cliente }: { cliente: ClienteFinanceiro }) {
   const qc = useQueryClient();
 
+  // Se todos os lançamentos já estão pagos (caso típico do Histórico),
+  // o menu "Mover para" não tem nada útil — esconde pra evitar UX confusa
+  // com "Marcar como Pago" disponível em algo que já foi pago.
+  // Desfazer pagamento já está disponível inline em cada linha + botão "Desfazer Todos".
+  const todosPagos = cliente.lancamentos.length > 0 && cliente.lancamentos.every(l => l.status === 'pago');
+  if (todosPagos) return null;
+
   async function handleMoverPara(novaEtapa: string) {
     const lancamentoIds = cliente.lancamentos
       .filter(l => l.status !== 'pago')
@@ -2217,6 +2224,9 @@ function LancamentoRow({ lancamento: l, checked, onToggle }: { lancamento: Lanca
         <p className="text-xs text-muted-foreground">
           {TIPO_PROCESSO_LABELS[l.processo_tipo as keyof typeof TIPO_PROCESSO_LABELS] || l.processo_tipo}
           {l.data_vencimento && ` · Vence ${fmtDate(l.data_vencimento)}`}
+          {l.status === 'pago' && l.data_pagamento && (
+            <span className="text-emerald-500 font-medium"> · Pago em {fmtDate(l.data_pagamento)}</span>
+          )}
           {l.extrato_id && <span className="text-emerald-500 font-medium"> · Extrato ✓</span>}
           {l.valor_alterado_em && <span className="text-amber-600 font-medium"> · ✏️ Alterado</span>}
         </p>
