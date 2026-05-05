@@ -406,8 +406,13 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
 
       return Array.from(result.values());
     },
-    staleTime: 300_000,
-    refetchOnMount: false,
+    // Bug fix 05/05 — antes: staleTime 5min + refetchOnMount false
+    // mascarava criação/auditoria de processos por usuários paralelos
+    // e processos recém-criados sumiam até cache expirar. ERP financeiro
+    // multi-usuário precisa de janela curta. 60s é compromisso entre
+    // freshness e evitar refetch agressivo a cada navegação.
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
   });
 
   const marcarEnviado = useMutation({

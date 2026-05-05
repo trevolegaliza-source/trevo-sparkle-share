@@ -555,6 +555,11 @@ export function useCreateProcesso() {
       qc.invalidateQueries({ queryKey: ['lancamentos'] });
       qc.invalidateQueries({ queryKey: ['dashboard_stats'] });
       qc.invalidateQueries({ queryKey: ['processos_financeiro'] });
+      // Bug fix 05/05 — sem isso, /financeiro mantinha cache stale por
+      // até 5min (staleTime do useFinanceiroClientes). Processo recém-
+      // criado não aparecia em "Aguardando Auditoria" enquanto outras
+      // telas (clientes/:id/faturas) já mostravam, gerando inconsistência.
+      invalidateFinanceiro(qc);
       toast.success('Processo criado!');
     },
     onError: (e: Error) => toast.error(e.message),
