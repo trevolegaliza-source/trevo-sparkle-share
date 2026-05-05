@@ -19,7 +19,9 @@ import { useProcessosDB, useUpdateProcessoEtapa, useDeleteProcesso, type Process
 import { gerarFaturamentoDeferimento } from '@/hooks/useFinanceiro';
 import { useProcessosFinanceiro, type ProcessoFinanceiro } from '@/hooks/useProcessosFinanceiro';
 import ProcessoEditModal from '@/components/financeiro/ProcessoEditModal';
+import ProcessoConfigEditModal from '@/components/processos/ProcessoConfigEditModal';
 import ValoresAdicionaisModal from '@/components/financeiro/ValoresAdicionaisModal';
+import { Settings } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
@@ -29,6 +31,20 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 type ViewMode = 'kanban' | 'list';
 type GroupBy = 'none' | 'cliente' | 'mes' | 'etapa';
 type FilterPagamento = 'all' | 'pago' | 'pendente' | 'vencido';
+
+// Badge visual de status de pagamento — reaproveitado nas tabelas e kanban
+function PagamentoBadge({ status }: { status: 'pago' | 'pendente' | 'vencido' | 'sem-lancamento' | undefined }) {
+  if (!status || status === 'sem-lancamento') {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  if (status === 'pago') {
+    return <Badge className="text-[10px] bg-green-600/15 text-green-600 border-0">Pago</Badge>;
+  }
+  if (status === 'vencido') {
+    return <Badge className="text-[10px] bg-destructive/10 text-destructive border-0">Vencido</Badge>;
+  }
+  return <Badge className="text-[10px] bg-amber-500/15 text-amber-600 border-0">Pendente</Badge>;
+}
 
 // Classifica status de pagamento a partir de um lançamento
 function classificarPagamento(lanc: any): 'pago' | 'pendente' | 'vencido' | 'sem-lancamento' {
@@ -50,11 +66,13 @@ function QuickActionsMenu({
   process,
   onDelete,
   onEdit,
+  onEditConfig,
   onHonorarioExtra,
 }: {
   process: ProcessoDB;
   onDelete: (id: string) => void;
   onEdit: (process: ProcessoDB) => void;
+  onEditConfig: (process: ProcessoDB) => void;
   onHonorarioExtra: (process: ProcessoDB) => void;
 }) {
   return (
@@ -64,9 +82,12 @@ function QuickActionsMenu({
           <MoreHorizontal className="h-3.5 w-3.5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuItem onClick={() => onEdit(process)}>
-          <Pencil className="h-3.5 w-3.5 mr-2" /> Editar
+          <Pencil className="h-3.5 w-3.5 mr-2" /> Editar Financeiro
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onEditConfig(process)}>
+          <Settings className="h-3.5 w-3.5 mr-2" /> Editar Configurações
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onHonorarioExtra(process)}>
           <Receipt className="h-3.5 w-3.5 mr-2" /> Honorário Extra
@@ -89,6 +110,7 @@ function ProcessCard({
   onDelete,
   onDoubleClick,
   onEdit,
+  onEditConfig,
   onHonorarioExtra,
 }: {
   process: ProcessoDB;
@@ -96,6 +118,7 @@ function ProcessCard({
   onDelete: (id: string) => void;
   onDoubleClick: (process: ProcessoDB) => void;
   onEdit: (process: ProcessoDB) => void;
+  onEditConfig: (process: ProcessoDB) => void;
   onHonorarioExtra: (process: ProcessoDB) => void;
 }) {
   const clientName = process.cliente?.apelido || process.cliente?.nome || 'Cliente';
@@ -128,7 +151,7 @@ function ProcessCard({
               )}
             </div>
             <div className="flex items-center gap-0.5 shrink-0">
-              <QuickActionsMenu process={process} onDelete={onDelete} onEdit={onEdit} onHonorarioExtra={onHonorarioExtra} />
+              <QuickActionsMenu process={process} onDelete={onDelete} onEdit={onEdit} onEditConfig={onEditConfig} onHonorarioExtra={onHonorarioExtra} />
               <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
@@ -183,6 +206,8 @@ export default function Processos() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [configEditProcess, setConfigEditProcess] = useState<ProcessoDB | null>(null);
   const [valoresOpen, setValoresOpen] = useState(false);
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -301,6 +326,11 @@ export default function Processos() {
   const openHonorarioExtra = useCallback((proc: ProcessoDB) => {
     setSelectedProcessId(proc.id);
     setValoresOpen(true);
+  }, []);
+
+  const openConfigModal = useCallback((proc: ProcessoDB) => {
+    setConfigEditProcess(proc);
+    setConfigModalOpen(true);
   }, []);
 
   const DEFERIMENTO_STAGES: KanbanStage[] = ['registro', 'finalizados'];
@@ -482,6 +512,7 @@ export default function Processos() {
                                 onDelete={handleDeleteRequest}
                                 onDoubleClick={openEditModal}
                                 onEdit={openEditModal}
+                                onEditConfig={openConfigModal}
                                 onHonorarioExtra={openHonorarioExtra}
                               />
                             ))}
@@ -575,6 +606,9 @@ export default function Processos() {
                                   </TableCell>
                                   <TableCell className="text-sm text-foreground">{KANBAN_STAGES.find(s => s.key === proc.etapa)?.label || proc.etapa}</TableCell>
                                   <TableCell>
+                                    <PagamentoBadge status={pagamentoStatusMap.get(proc.id)} />
+                                  </TableCell>
+                                  <TableCell>
                                     {proc.prioridade === 'urgente' ? (
                                       <Badge className="text-[10px] bg-destructive/10 text-destructive border-0">Urgente</Badge>
                                     ) : (
@@ -585,7 +619,7 @@ export default function Processos() {
                                     {proc.valor ? <ValorProtegido valor={Number(proc.valor)} /> : '-'}
                                   </TableCell>
                                   <TableCell className="text-center">
-                                    <QuickActionsMenu process={proc} onDelete={handleDeleteRequest} onEdit={openEditModal} onHonorarioExtra={openHonorarioExtra} />
+                                    <QuickActionsMenu process={proc} onDelete={handleDeleteRequest} onEdit={openEditModal} onEditConfig={openConfigModal} onHonorarioExtra={openHonorarioExtra} />
                                   </TableCell>
                                 </TableRow>
                               ))}
@@ -607,6 +641,7 @@ export default function Processos() {
                       <TableHead className="text-xs font-semibold">Cliente</TableHead>
                       <TableHead className="text-xs font-semibold">Tipo</TableHead>
                       <TableHead className="text-xs font-semibold">Etapa</TableHead>
+                      <TableHead className="text-xs font-semibold">Pagamento</TableHead>
                       <TableHead className="text-xs font-semibold">Prioridade</TableHead>
                       <TableHead className="text-right text-xs font-semibold">Valor</TableHead>
                       <TableHead className="text-center text-xs font-semibold">Ações</TableHead>
@@ -636,6 +671,9 @@ export default function Processos() {
                         </TableCell>
                         <TableCell className="text-sm text-foreground">{KANBAN_STAGES.find(s => s.key === proc.etapa)?.label || proc.etapa}</TableCell>
                         <TableCell>
+                          <PagamentoBadge status={pagamentoStatusMap.get(proc.id)} />
+                        </TableCell>
+                        <TableCell>
                           {proc.prioridade === 'urgente' ? (
                             <Badge className="text-[10px] bg-destructive/10 text-destructive border-0">Urgente</Badge>
                           ) : (
@@ -646,13 +684,13 @@ export default function Processos() {
                           {proc.valor ? <ValorProtegido valor={Number(proc.valor)} /> : '-'}
                         </TableCell>
                         <TableCell className="text-center">
-                          <QuickActionsMenu process={proc} onDelete={handleDeleteRequest} onEdit={openEditModal} onHonorarioExtra={openHonorarioExtra} />
+                          <QuickActionsMenu process={proc} onDelete={handleDeleteRequest} onEdit={openEditModal} onEditConfig={openConfigModal} onHonorarioExtra={openHonorarioExtra} />
                         </TableCell>
                       </TableRow>
                     ))}
                     {filtered.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           Nenhum processo encontrado
                         </TableCell>
                       </TableRow>
@@ -672,6 +710,12 @@ export default function Processos() {
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
         processo={selectedFinanceiroProcess}
+      />
+
+      <ProcessoConfigEditModal
+        open={configModalOpen}
+        onOpenChange={setConfigModalOpen}
+        processo={configEditProcess}
       />
 
       <ValoresAdicionaisModal
