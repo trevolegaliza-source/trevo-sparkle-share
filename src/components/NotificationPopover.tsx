@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bell, CheckCircle, XCircle, CreditCard, AlertTriangle, FileText, ChevronRight } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface Notificacao {
   id: string;
@@ -62,6 +63,35 @@ export function NotificationPopover() {
   });
 
   const naoLidas = notificacoes.filter(n => !n.lida);
+
+  // Realtime — escuta INSERTs em notificacoes (filtrados por RLS por empresa).
+  // Dispara toast e invalida query pra atualizar sino instantaneamente,
+  // sem depender do polling de 15s.
+  useEffect(() => {
+    const channel = supabase
+      .channel('notificacoes_realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notificacoes' },
+        (payload) => {
+          const n = payload.new as Notificacao;
+          qc.invalidateQueries({ queryKey: ['notificacoes'] });
+
+          if (n.tipo === 'pagamento') {
+            toast.success(n.titulo, { description: n.mensagem, duration: 8000 });
+          } else if (n.tipo === 'cobranca' || n.tipo === 'recusa') {
+            toast.warning(n.titulo, { description: n.mensagem, duration: 8000 });
+          } else {
+            toast(n.titulo, { description: n.mensagem, duration: 6000 });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   async function marcarComoLida(id: string) {
     await supabase.from('notificacoes').update({ lida: true } as any).eq('id', id);

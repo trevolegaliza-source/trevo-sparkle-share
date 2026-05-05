@@ -1,6 +1,6 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 05/05/2026 (Hotfix pós-migração Supabase: regex observação + envs Vite quebradas).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: 05/05/2026 (Notificação A — toast + sino in-app no pagamento Asaas).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
 
 ---
@@ -15,6 +15,7 @@ Após Thales gerar primeira cobrança no Asaas no projeto Supabase novo (`aahhau
 |---|---|
 | **MIG-1** | Regex `AUTO_META_PATTERNS` em `src/lib/observacao-processo.ts:32` não pegava strings com sufixo ` (N Processos)` depois da keyword. Resultado: textos internos tipo `Mudança de UF (2 Processos) \| Proc 2: R$ 551 + Proc 3: R$ 523` vazavam pra página pública de cobrança como "observação ao cliente". Adicionado grupo opcional `(\s*\(\d+\s*processos?\))?` na regex. |
 | **MIG-2** | 4 lugares no front usavam `import.meta.env.VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` que não existem no novo projeto Lovable (URL é hardcoded em `src/integrations/supabase/client.ts`). Resultado: fetch ia pra `undefined/functions/v1/...` → 404. Refatorado: client.ts agora exporta `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`, e os 4 callers importam de lá. Arquivos: `CobrancaPublica.tsx` (botão Baixar extrato), `PropostaPublica.tsx`, `PortfolioPublico.tsx`, `GestaoUsuarios.tsx` (convite de usuário). |
+| **MIG-3 (Notif A)** | Webhook `asaas-webhook/index.ts` agora insere row em `notificacoes` (tipo `pagamento`) ao receber `PAYMENT_CONFIRMED`/`PAYMENT_RECEIVED`, e `cobranca` ao receber `PAYMENT_OVERDUE`. SELECT de cobrança estendido pra trazer `empresa_id`, `total_geral` e `clientes.nome`. Frontend `NotificationPopover.tsx` ganhou subscription Realtime em `notificacoes` (event INSERT) que dispara toast (sonner) instantâneo + invalida query do sino, eliminando o gap de até 15s do `refetchInterval`. **Pré-requisito Lovable/Supabase**: `ALTER PUBLICATION supabase_realtime ADD TABLE notificacoes;` — se ainda não estiver na publicação, o INSERT chega no DB mas o toast não dispara. |
 
 ### Bugs paralelos da migração — fixes manuais Thales
 
