@@ -3,11 +3,9 @@ import { useParams } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle, Download, FileText, Lock as LockIcon } from 'lucide-react';
 import { normalizeItem, type OrcamentoItem, type CenarioOrcamento } from '@/components/orcamentos/types';
 import DOMPurify from 'dompurify';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY as SUPABASE_KEY } from '@/integrations/supabase/client';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 const anonHeaders = {
   'apikey': SUPABASE_KEY,

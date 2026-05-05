@@ -1,7 +1,26 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 04/05/2026 (Lote K — UX Contas a Receber, pré-validação Thales).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: 05/05/2026 (Hotfix pós-migração Supabase: regex observação + envs Vite quebradas).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 🔥 HOTFIX MIG — 05/05/2026 (pós-migração Supabase)
+
+Após Thales gerar primeira cobrança no Asaas no projeto Supabase novo (`aahhauquuicvtwtrxyan`), apareceram 2 bugs que estavam latentes da migração de 04/05.
+
+### Itens entregues
+
+| ID | Item |
+|---|---|
+| **MIG-1** | Regex `AUTO_META_PATTERNS` em `src/lib/observacao-processo.ts:32` não pegava strings com sufixo ` (N Processos)` depois da keyword. Resultado: textos internos tipo `Mudança de UF (2 Processos) \| Proc 2: R$ 551 + Proc 3: R$ 523` vazavam pra página pública de cobrança como "observação ao cliente". Adicionado grupo opcional `(\s*\(\d+\s*processos?\))?` na regex. |
+| **MIG-2** | 4 lugares no front usavam `import.meta.env.VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` que não existem no novo projeto Lovable (URL é hardcoded em `src/integrations/supabase/client.ts`). Resultado: fetch ia pra `undefined/functions/v1/...` → 404. Refatorado: client.ts agora exporta `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`, e os 4 callers importam de lá. Arquivos: `CobrancaPublica.tsx` (botão Baixar extrato), `PropostaPublica.tsx`, `PortfolioPublico.tsx`, `GestaoUsuarios.tsx` (convite de usuário). |
+
+### Bugs paralelos da migração — fixes manuais Thales
+
+- Edge function `asaas-gerar-cobranca` falhava 403 em OPTIONS preflight: desativado "Verify JWT" no dashboard.
+- CORS bloqueava `app.trevolegaliza.com`: configurado `ALLOWED_ORIGINS_EXTRA` nos secrets do Supabase (substituiu `CORS_FALLBACK_OPEN=true` que era brecha temporária).
+- 13 cobranças órfãs (asaas_payment_id NULL pós-migração): SQL `UPDATE cobrancas SET asaas_payment_id=NULL, asaas_invoice_url=NULL, pix_payload=NULL` zerou tudo + Asaas account resetada (zero histórico real de pagamento). Cobranças serão regeradas via ERP conforme Thales auditar.
 
 ---
 

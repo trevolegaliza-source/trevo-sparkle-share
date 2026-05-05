@@ -28,8 +28,8 @@ const AUTO_META_PATTERNS: RegExp[] = [
   /^valor alterado manualmente\b/i,
   /^base:\s*r\$/i,
   /^is_manual\b/i,
-  // Flags ambíguas — só filtra se for standalone, flag com valor (%), ou dentro de pipe
-  /^(valor manual|boas[- ]?vindas|cortesia|mudan[çc]a de uf|urg[êe]ncia|m[ée]todo trevo)(\s*\d+\s*%?)?\s*(\||$)/i,
+  // Flags ambíguas — só filtra se for standalone, flag com valor (%), com sufixo "(N Processos)", ou dentro de pipe
+  /^(valor manual|boas[- ]?vindas|cortesia|mudan[çc]a de uf|urg[êe]ncia|m[ée]todo trevo)(\s*\(\d+\s*processos?\))?(\s*\d+\s*%?)?\s*(\||$)/i,
 ];
 
 const INLINE_META_TOKENS: RegExp[] = [

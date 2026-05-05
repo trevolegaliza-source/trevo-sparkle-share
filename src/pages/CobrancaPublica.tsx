@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -220,9 +220,9 @@ export default function CobrancaPublica() {
     if (!token) return;
     try {
       toast.info('Baixando PDF...');
-      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cobranca-pdf?token=${encodeURIComponent(token)}`;
+      const fnUrl = `${SUPABASE_URL}/functions/v1/cobranca-pdf?token=${encodeURIComponent(token)}`;
       const resp = await fetch(fnUrl, {
-        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
       });
       if (!resp.ok) {
         toast.error('PDF indisponível. Fale com a gente pelo WhatsApp.');

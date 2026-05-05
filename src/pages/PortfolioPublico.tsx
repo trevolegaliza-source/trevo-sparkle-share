@@ -9,6 +9,7 @@ import { Search, BookOpen, Loader2, ArrowLeft, ArrowRight, ChevronRight, DollarS
 import { CATALOG_HIERARCHY, type HierarchyGroup } from '@/constants/catalogo-hierarchy';
 import { UFS_BRASIL, UF_NOMES } from '@/constants/estados-brasil';
 import { CATEGORIAS_SERVICO } from '@/hooks/useCatalogo';
+import { SUPABASE_URL } from '@/integrations/supabase/client';
 
 const GLASS_CSS = `
 .glass-card {
@@ -141,8 +142,7 @@ export default function PortfolioPublico() {
 
   useEffect(() => {
     if (!token) { setError('Token não informado'); setLoading(false); return; }
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    fetch(`https://${projectId}.supabase.co/functions/v1/portfolio-publico?token=${token}`)
+    fetch(`${SUPABASE_URL}/functions/v1/portfolio-publico?token=${token}`)
       .then(async res => {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
