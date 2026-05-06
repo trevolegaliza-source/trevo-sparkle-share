@@ -26,6 +26,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import logoTrevo from '@/assets/logo-trevo.png';
+import logoDani from '@/assets/dani-dark.png';
 import { consolidarObservacoes } from '@/lib/observacao-processo';
 
 interface Taxa {
@@ -622,40 +623,35 @@ export default function CobrancaPublica() {
             aria-hidden
             className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none"
           />
-          <div className="relative flex items-start gap-4">
-            <div className="shrink-0">
-              <div className="relative">
-                <div
-                  className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-700 flex items-center justify-center text-2xl shadow-[0_0_20px_rgba(34,197,94,0.45)]"
-                >
-                  🤖
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-emerald-500 rounded-full border-2 border-background flex items-center justify-center">
-                  <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+          <div className="relative space-y-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <img
+                src={logoDani}
+                alt="Dani — IA da Trevo Legaliza"
+                className="h-10 w-auto"
+                style={{ filter: 'drop-shadow(0 0 12px rgba(34,197,94,0.35))' }}
+              />
+              <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
                 </span>
-              </div>
+                IA da Trevo
+              </span>
             </div>
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-bold text-emerald-300 text-base">Dani</h3>
-                <span className="text-[10px] uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
-                  IA da Trevo
-                </span>
-              </div>
-              <p className="text-sm text-foreground/90 leading-relaxed">
-                {cobranca.cliente_nome_contador ? (
-                  <>Olá, <strong className="text-emerald-300">{cobranca.cliente_nome_contador}</strong>! </>
-                ) : (
-                  <>Olá! </>
-                )}
-                Sou a <strong className="text-emerald-300">Dani</strong>, inteligência artificial da Trevo Legaliza.
-                Fui eu quem gerou esta cobrança automaticamente e estou acompanhando seu processo 24 horas por dia.
-                Qualquer dúvida, chama a gente no WhatsApp que eu sigo cuidando de tudo por aqui. 🍀
-              </p>
-              <p className="text-[11px] text-emerald-400/80">
-                Trevo Legaliza · Assessoria societária com tecnologia de ponta
-              </p>
-            </div>
+            <p className="text-sm text-foreground/90 leading-relaxed">
+              {cobranca.cliente_nome_contador ? (
+                <>Olá, <strong className="text-emerald-300">{cobranca.cliente_nome_contador}</strong>! </>
+              ) : (
+                <>Olá! </>
+              )}
+              Sou a <strong className="text-emerald-300">Dani</strong>, inteligência artificial da Trevo Legaliza.
+              Fui eu quem gerou esta cobrança automaticamente e estou acompanhando seu processo 24 horas por dia.
+              Qualquer dúvida, chama a gente no WhatsApp que eu sigo cuidando de tudo por aqui. 🍀
+            </p>
+            <p className="text-[11px] text-emerald-400/80">
+              Trevo Legaliza · Assessoria societária com tecnologia de ponta
+            </p>
           </div>
         </section>
 
