@@ -107,7 +107,11 @@ export function NotificationPopover() {
 
   function handleClick(n: Notificacao) {
     marcarComoLida(n.id);
-    if (n.orcamento_id) {
+    // Rotear por tipo. Notificações de pagamento/cobrança vivem no /financeiro;
+    // aprovação/recusa/assinatura vêm do fluxo de orçamento.
+    if (n.tipo === 'pagamento' || n.tipo === 'cobranca') {
+      navigate('/financeiro');
+    } else if (n.orcamento_id) {
       navigate(`/orcamentos/novo?id=${n.orcamento_id}`);
     } else {
       navigate('/orcamentos');
