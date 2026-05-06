@@ -1,0 +1,782 @@
+/* =============================================================
+   TREVO LEGALIZA — COBRANÇA
+   Mesma DNA da LP: brand verde + motivos tech (HUD, brackets,
+   scan-line) sobre uma base limpa. Light por padrão (checkout).
+   ============================================================= */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+.cobranca-public {
+  /* brand */
+  --brand-trevo: #16a34a;
+  --brand-trevo-deep: #15803d;
+  --brand-trevo-soft: rgba(22, 163, 74, 0.10);
+  --brand-trevo-glow: rgba(22, 163, 74, 0.40);
+
+  /* tech */
+  --tech-cyan: #06b6d4;
+  --tech-cyan-soft: rgba(6, 182, 212, 0.10);
+  --tech-grid: rgba(22, 163, 74, 0.05);
+  --tech-scanline: rgba(11, 18, 32, 0.025);
+
+  /* neutrals (light, cool) */
+  --bg: #f4f7fa;
+  --bg-elev-1: #ffffff;
+  --bg-elev-2: #eef2f7;
+  --fg-1: #0b1220;
+  --fg-2: rgba(11, 18, 32, 0.70);
+  --fg-3: rgba(11, 18, 32, 0.50);
+  --fg-4: rgba(11, 18, 32, 0.35);
+  --border: rgba(11, 18, 32, 0.08);
+  --border-strong: rgba(11, 18, 32, 0.14);
+
+  /* semantic */
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+
+  /* radii */
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+
+  /* shadows */
+  --shadow-card: 0 1px 0 rgba(11, 18, 32, 0.04), 0 8px 32px -12px rgba(11, 18, 32, 0.10);
+  --shadow-card-hover: 0 1px 0 rgba(11, 18, 32, 0.04), 0 16px 40px -12px rgba(22, 163, 74, 0.18);
+  --shadow-glow: 0 0 24px rgba(22, 163, 74, 0.18);
+  --shadow-glow-strong: 0 0 32px rgba(22, 163, 74, 0.30);
+
+  /* type */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Orbitron', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  font-family: var(--font-sans);
+  color: var(--fg-1);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv01", "cv02";
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.cobranca-public *,
+.cobranca-public *::before,
+.cobranca-public *::after { box-sizing: border-box; }
+
+.cobranca-public :focus-visible {
+  outline: 2px solid var(--brand-trevo);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ── Page shell with tech grid backdrop ───────────────────── */
+.cobranca-public .shell {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+}
+.cobranca-public .shell::before {
+  content: "";
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(var(--tech-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--tech-grid) 1px, transparent 1px);
+  background-size: 56px 56px;
+  background-position: -1px -1px;
+  pointer-events: none;
+  z-index: -1;
+}
+.cobranca-public .shell::after {
+  content: "";
+  position: fixed;
+  top: -200px; left: 50%;
+  width: 800px; height: 600px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(22, 163, 74, 0.10), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ── Top accent bar with subtle scan ──────────────────────── */
+.cobranca-public .top-bar {
+  height: 3px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--brand-trevo) 20%,
+    var(--brand-trevo) 80%,
+    transparent 100%);
+  position: relative;
+  overflow: hidden;
+}
+.cobranca-public .top-bar::after {
+  content: "";
+  position: absolute; top: 0; left: -20%;
+  width: 30%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: cobranca-scan 3.6s linear infinite;
+}
+@keyframes cobranca-scan {
+  0%   { transform: translateX(0);    opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateX(450%); opacity: 0; }
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+.cobranca-public .header {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border-bottom: 1px solid var(--border);
+}
+.cobranca-public .header-inner {
+  max-width: 1040px;
+  margin: 0 auto;
+  height: 76px;
+  padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+}
+.cobranca-public .header-logo { display: flex; align-items: center; }
+.cobranca-public .header-logo img {
+  height: 56px; width: auto;
+  display: block;
+}
+.cobranca-public .status-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 30px; padding: 0 12px;
+  border-radius: 999px;
+  background: var(--brand-trevo-soft);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  color: var(--brand-trevo-deep);
+  font-size: 12px; font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.cobranca-public .status-pill.warning {
+  background: rgba(217, 119, 6, 0.10);
+  border-color: rgba(217, 119, 6, 0.25);
+  color: #b45309;
+}
+.cobranca-public .status-pill.danger {
+  background: rgba(220, 38, 38, 0.10);
+  border-color: rgba(220, 38, 38, 0.25);
+  color: #b91c1c;
+}
+.cobranca-public .status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--brand-trevo);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+  animation: cobranca-pulse 2s ease-in-out infinite;
+}
+.cobranca-public .status-pill.warning .status-dot {
+  background: var(--warning);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.18);
+}
+.cobranca-public .status-pill.danger .status-dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+}
+@keyframes cobranca-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.85); }
+}
+
+/* ── Main grid ────────────────────────────────────────────── */
+.cobranca-public main {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 48px 24px 32px;
+}
+.cobranca-public .grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+@media (max-width: 880px) {
+  .cobranca-public main { padding: 32px 20px 24px; }
+  .cobranca-public .grid { grid-template-columns: 1fr; gap: 24px; }
+}
+
+/* ── Section card (with HUD brackets) ─────────────────────── */
+.cobranca-public .card {
+  position: relative;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-card);
+}
+.cobranca-public .card-hero { padding: 32px 32px 28px; }
+.cobranca-public .card-hud::before,
+.cobranca-public .card-hud::after {
+  content: "";
+  position: absolute;
+  width: 14px; height: 14px;
+  border: 1.5px solid var(--brand-trevo);
+  border-radius: 2px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+.cobranca-public .card-hud::before { top: -1px; left: -1px; border-right: none; border-bottom: none; border-top-left-radius: var(--r-xl); }
+.cobranca-public .card-hud::after  { bottom: -1px; right: -1px; border-left: none; border-top: none; border-bottom-right-radius: var(--r-xl); }
+
+/* ── Hero (cobrança principal) ────────────────────────────── */
+.cobranca-public .hero-meta {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.cobranca-public .hero-meta-dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--fg-3);
+}
+.cobranca-public .hero-greet {
+  font-size: 15px;
+  color: var(--fg-2);
+  margin: 0 0 24px;
+}
+.cobranca-public .hero-greet b { color: var(--fg-1); font-weight: 600; }
+
+.cobranca-public .hero-amount-label {
+  font-size: 12px; font-weight: 600;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 6px;
+}
+.cobranca-public .hero-amount {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 56px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  display: flex; align-items: baseline; gap: 12px;
+}
+.cobranca-public .hero-amount .currency {
+  font-size: 22px; font-weight: 500;
+  color: var(--fg-3);
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+.cobranca-public .hero-due {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--fg-2);
+}
+.cobranca-public .hero-due svg { color: var(--brand-trevo); }
+.cobranca-public .hero-due b { color: var(--fg-1); font-weight: 600; }
+
+/* ── Payment block (PIX) ──────────────────────────────────── */
+.cobranca-public .pay-block { padding: 24px 32px 32px; }
+.cobranca-public .pay-tabs {
+  display: inline-flex;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 2px;
+  margin-bottom: 20px;
+}
+.cobranca-public .pay-tab {
+  appearance: none;
+  border: 0; background: transparent;
+  height: 34px; padding: 0 18px;
+  font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--fg-2);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.cobranca-public .pay-tab svg { width: 14px; height: 14px; }
+.cobranca-public .pay-tab[aria-selected="true"] {
+  background: var(--bg-elev-1);
+  color: var(--fg-1);
+  box-shadow: 0 1px 2px rgba(11, 18, 32, 0.06);
+}
+.cobranca-public .pay-panel { display: none; }
+.cobranca-public .pay-panel[data-active] { display: block; }
+
+/* PIX panel */
+.cobranca-public .pix-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+.cobranca-public .pix-row > .qr-box { width: 200px; height: 200px; }
+@media (max-width: 720px) {
+  .cobranca-public .pix-row { grid-template-columns: 1fr; justify-items: center; }
+  .cobranca-public .pix-row > .qr-box { width: 220px; height: 220px; }
+  .cobranca-public .pix-info { width: 100%; }
+}
+.cobranca-public .qr-box {
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px;
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 1;
+  position: relative;
+}
+.cobranca-public .qr-box::before,
+.cobranca-public .qr-box::after {
+  content: ""; position: absolute;
+  width: 10px; height: 10px;
+  border: 1.5px solid var(--brand-trevo);
+}
+.cobranca-public .qr-box::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+.cobranca-public .qr-box::after  { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+.cobranca-public .qr-box img,
+.cobranca-public .qr-box svg {
+  width: 100%; height: 100%;
+  display: block;
+}
+.cobranca-public .pix-info { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.cobranca-public .pix-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.cobranca-public .pix-code {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-2);
+  line-height: 1.5;
+  word-break: break-all;
+  max-height: 88px; overflow: hidden;
+  position: relative;
+}
+.cobranca-public .pix-code::after {
+  content: "";
+  position: absolute; bottom: 0; left: 0; right: 0; height: 30px;
+  background: linear-gradient(to top, var(--bg-elev-2), transparent);
+  pointer-events: none;
+}
+.cobranca-public .btn {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  border-radius: var(--r-md);
+  height: 48px; padding: 0 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 10px;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.cobranca-public .btn svg { width: 18px; height: 18px; }
+.cobranca-public .btn-primary {
+  background: var(--brand-trevo);
+  color: #fff;
+  font-size: 15px;
+  box-shadow: 0 8px 20px -8px rgba(22, 163, 74, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  position: relative;
+  overflow: hidden;
+}
+.cobranca-public .btn-primary::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 35%, rgba(255, 255, 255, 0.25) 50%, transparent 65%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+.cobranca-public .btn-primary:hover {
+  background: var(--brand-trevo-deep);
+  box-shadow: 0 10px 28px -8px rgba(22, 163, 74, 0.60), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+.cobranca-public .btn-primary:hover::before { transform: translateX(100%); }
+.cobranca-public .btn-primary.copied { background: var(--brand-trevo-deep); }
+.cobranca-public .btn-secondary {
+  background: var(--bg-elev-1);
+  color: var(--fg-1);
+  border: 1px solid var(--border-strong);
+  font-size: 14px;
+  height: 44px;
+}
+.cobranca-public .btn-secondary:hover {
+  background: var(--bg-elev-2);
+  border-color: var(--brand-trevo);
+  color: var(--brand-trevo-deep);
+}
+.cobranca-public .btn-w-full { width: 100%; }
+.cobranca-public .pix-help {
+  font-size: 12px; color: var(--fg-3);
+  display: flex; align-items: center; gap: 6px;
+}
+.cobranca-public .pix-help svg { width: 14px; height: 14px; color: var(--brand-trevo); }
+
+/* Boleto panel */
+.cobranca-public .boleto-line {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 16px;
+}
+.cobranca-public .boleto-line code {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-2);
+  word-break: break-all;
+  line-height: 1.5;
+}
+.cobranca-public .icon-btn {
+  appearance: none; border: 0; cursor: pointer;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--fg-2);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.cobranca-public .icon-btn:hover {
+  background: var(--brand-trevo-soft);
+  border-color: var(--brand-trevo);
+  color: var(--brand-trevo-deep);
+}
+.cobranca-public .boleto-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 480px) {
+  .cobranca-public .boleto-actions { grid-template-columns: 1fr; }
+}
+
+/* ── Right column ─────────────────────────────────────────── */
+.cobranca-public .side-section { margin-bottom: 24px; }
+.cobranca-public .side-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 0 0 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.cobranca-public .side-title::before {
+  content: "";
+  width: 10px; height: 1px;
+  background: var(--brand-trevo);
+}
+
+.cobranca-public .detail-card {
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 20px;
+}
+.cobranca-public .detail-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px;
+}
+.cobranca-public .detail-row + .detail-row { margin-top: 14px; }
+.cobranca-public .detail-name {
+  font-size: 15px; font-weight: 600;
+  color: var(--fg-1);
+  line-height: 1.35;
+  margin: 0 0 6px;
+}
+.cobranca-public .detail-tag {
+  display: inline-flex; align-items: center;
+  height: 22px; padding: 0 10px;
+  background: var(--brand-trevo-soft);
+  color: var(--brand-trevo-deep);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.cobranca-public .detail-amount {
+  font-family: var(--font-mono);
+  font-size: 15px; font-weight: 600;
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.cobranca-public .detail-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+  position: relative;
+}
+.cobranca-public .detail-divider::before,
+.cobranca-public .detail-divider::after {
+  content: ""; position: absolute; top: 50%;
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  transform: translateY(-50%);
+}
+.cobranca-public .detail-divider::before { left: -8px; }
+.cobranca-public .detail-divider::after { right: -8px; }
+.cobranca-public .detail-total {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.cobranca-public .detail-total .lbl {
+  font-size: 13px; font-weight: 600;
+  color: var(--fg-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cobranca-public .detail-total .val {
+  font-family: var(--font-display);
+  font-size: 20px; font-weight: 700;
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* ── Dani card ────────────────────────────────────────────── */
+.cobranca-public .dani-card {
+  position: relative;
+  background:
+    linear-gradient(135deg, rgba(22, 163, 74, 0.06) 0%, rgba(6, 182, 212, 0.04) 100%),
+    var(--bg-elev-1);
+  border: 1px solid rgba(22, 163, 74, 0.22);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  overflow: hidden;
+}
+.cobranca-public .dani-card::before {
+  content: "";
+  position: absolute; top: 0; left: -20%;
+  width: 30%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-trevo), transparent);
+  animation: cobranca-scan 4s linear infinite;
+}
+.cobranca-public .dani-head {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.cobranca-public .dani-avatar {
+  height: 64px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.cobranca-public .dani-avatar img {
+  height: 100%; width: auto; display: block;
+  filter: drop-shadow(0 0 14px rgba(22, 163, 74, 0.40));
+}
+.cobranca-public .dani-meta { display: flex; flex-direction: column; min-width: 0; }
+.cobranca-public .dani-name {
+  font-size: 14px; font-weight: 700;
+  color: var(--fg-1);
+  line-height: 1.2;
+}
+.cobranca-public .dani-name b {
+  color: var(--brand-trevo-deep);
+  font-weight: 800;
+}
+.cobranca-public .dani-role {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 2px;
+}
+.cobranca-public .dani-role::before {
+  content: "";
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--brand-trevo);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+  animation: cobranca-pulse 2s ease-in-out infinite;
+}
+.cobranca-public .dani-msg {
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.55;
+  margin: 0 0 14px;
+}
+.cobranca-public .btn-whatsapp {
+  width: 100%;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--brand-trevo);
+  color: var(--brand-trevo-deep);
+  height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--r-md);
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-decoration: none;
+}
+.cobranca-public .btn-whatsapp:hover {
+  background: var(--brand-trevo);
+  color: #fff;
+  box-shadow: 0 8px 20px -8px rgba(22, 163, 74, 0.40);
+}
+.cobranca-public .btn-whatsapp svg { width: 16px; height: 16px; }
+
+/* ── Trust strip ──────────────────────────────────────────── */
+.cobranca-public .trust {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 18px;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  font-size: 12px; color: var(--fg-2);
+}
+.cobranca-public .trust svg { width: 16px; height: 16px; color: var(--brand-trevo); flex-shrink: 0; }
+
+/* ── Meta footer (full width) ─────────────────────────────── */
+.cobranca-public .meta-bar {
+  max-width: 1040px;
+  margin: 32px auto 0;
+  padding: 16px 24px;
+  border-top: 1px dashed var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  letter-spacing: 0.06em;
+  flex-wrap: wrap;
+}
+.cobranca-public .meta-bar .id { color: var(--brand-trevo-deep); font-weight: 600; }
+
+/* ── Footer ───────────────────────────────────────────────── */
+.cobranca-public footer {
+  margin-top: 8px;
+  padding: 32px 24px 48px;
+  text-align: center;
+}
+.cobranca-public .footer-inner {
+  max-width: 1040px; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.cobranca-public .footer-brands {
+  display: flex; align-items: center; gap: 28px;
+  padding: 4px 0;
+}
+.cobranca-public .footer-brand {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.cobranca-public .footer-brand img { height: 32px; width: auto; display: block; opacity: 0.9; }
+.cobranca-public .footer-brand-dani img { height: 28px; }
+.cobranca-public .footer-brand-cap {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--fg-3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.cobranca-public .footer-brand-cap b {
+  color: var(--brand-trevo-deep);
+  font-weight: 700;
+}
+.cobranca-public .footer-brand-cap .reg {
+  font-size: 8px;
+  vertical-align: super;
+  margin-left: 1px;
+  opacity: 0.7;
+}
+.cobranca-public .footer-divider {
+  width: 1px; height: 36px;
+  background: var(--border);
+}
+@media (max-width: 480px) {
+  .cobranca-public .footer-brands { flex-direction: column; gap: 18px; }
+  .cobranca-public .footer-divider { width: 36px; height: 1px; }
+}
+.cobranca-public .footer-text {
+  font-size: 11px;
+  color: var(--fg-3);
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  margin: 0;
+}
+.cobranca-public .footer-text b { color: var(--fg-2); font-weight: 600; }
+
+/* ── Toast ────────────────────────────────────────────────── */
+.cobranca-public .toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--fg-1);
+  color: var(--bg-elev-1);
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 12px 40px -12px rgba(11, 18, 32, 0.40);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 50;
+}
+.cobranca-public .toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.cobranca-public .toast svg { width: 16px; height: 16px; color: var(--brand-trevo); }
+
+/* ── Cobrança paga ─────────────────────────────────────────── */
+.cobranca-public .paid-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 18px 32px;
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.10), rgba(22, 163, 74, 0.04));
+  border-bottom: 1px solid rgba(22, 163, 74, 0.20);
+  color: var(--brand-trevo-deep);
+  font-weight: 600;
+  font-size: 14px;
+}
+.cobranca-public .paid-banner svg { color: var(--brand-trevo); flex-shrink: 0; }
+
+/* Estado de erro / cancelado / loading */
+.cobranca-public .state-screen {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.cobranca-public .state-card {
+  max-width: 420px;
+  width: 100%;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 32px;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+.cobranca-public .state-card h1 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 16px 0 8px;
+  color: var(--fg-1);
+}
+.cobranca-public .state-card p {
+  font-size: 14px;
+  color: var(--fg-2);
+  margin: 0 0 20px;
+}
