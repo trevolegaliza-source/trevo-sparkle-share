@@ -11,6 +11,25 @@ Varredura por subagent Explore em 7 vetores: SEGURANÇA, PERFORMANCE, CONFIABILI
 
 **Distribuição:** 1 CRÍTICO · 28 IMPORTANTE · 9 NICE.
 
+### 🟢 Sprint 1 — atacados em 07/05 (durante ausência do Thales)
+
+| ID | Status | Commit |
+|---|---|---|
+| SEC-004 | ✅ FIXADO — 4 catches silenciosos viraram `console.warn` | `5f31956` |
+| INFRA-001 | ✅ FIXADO — sourcemap explícito false em prod | `ae2b4bf` |
+| REL-001/SEC-005 | ✅ PARCIAL — util `lib/clipboard.ts` com fallback iOS/HTTP, refatorados 2 modais financeiros (resto admin-only, baixo risco) | `e3a4478` |
+| REL-006 | ✅ FIXADO — `verificarSenha` agora checa `res.ok` antes de parsear JSON | `aaed956` |
+| REL-002 | ✅ FIXADO — `readRangeStored` wrapped em try/catch (iOS Safari modo privado) | `aaed956` |
+| REL-007 | ✅ FIXADO — `ContractDropzone` setTimeout com cleanup via useRef + useEffect | `aaed956` |
+| REL-003 | ⚠️ FALSO ALARME — todos `parseFloat` já têm `\|\| 0` (NaN é falsy) ou `isNaN()` guard |  |
+| REL-004 | ⚠️ FALSO ALARME — `localStorage.setItem` na CobrancaPublica já está em try/catch |  |
+| REL-005 | ⚠️ FALSO ALARME — blobs criados localmente nunca null (`new Blob()` garantido) |  |
+| REL-008 | ⚠️ FALSO ALARME — `useHighlightOnModal` já tem `return () => clearTimeout(t)` |  |
+| A11Y-001 | ⚠️ FALSO ALARME — ambos `<img>` (ContractPreviewModal, PortfolioPublico) já têm `alt` |  |
+| INFRA-007 | ⚠️ FALSO ALARME — comentário no AuthContext é relevante (fix #14, #20), não obsoleto |  |
+
+**Fora de escopo (decisão Thales):** PERF-001 (otimização de imagens — destrutivo, requer ferramenta externa), DATA-001 (migration SQL — Lovable controla), PERF-002 (god components — refactor amplo), SEC-001/002/003 (`dangerouslySetInnerHTML` — design decision atual aceita).
+
 ### 🔴 CRÍTICO (1)
 
 | ID | Arquivo:linha | Descrição | Fix |
