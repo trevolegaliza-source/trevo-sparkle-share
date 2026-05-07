@@ -5,6 +5,7 @@ import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations
 import { Loader2, AlertCircle, XCircle } from 'lucide-react';
 import logoTrevo from '@/assets/logo-trevo-legaliza.png';
 import logoDani from '@/assets/dani-logo-dark.png';
+import daniAvatar from '@/assets/dani-avatar.png';
 import './CobrancaPublica.css';
 
 interface Taxa {
@@ -75,21 +76,17 @@ const fmtData = (iso: string | null | undefined) => {
   });
 };
 
-const fmtDataExtenso = (iso: string | null | undefined) => {
-  if (!iso) return '';
-  const isDateOnly = typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso);
-  const d = isDateOnly ? new Date(iso + 'T00:00:00') : new Date(iso);
-  return d.toLocaleDateString('pt-BR', { weekday: 'long' });
-};
-
 const fmtDataHora = (iso: string | null | undefined) => {
   if (!iso) return '';
   const d = new Date(iso);
   return d.toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
-  }).replace(',', ' ·');
+  });
 };
+
+const fmtBRL = (v: number) =>
+  `R$\u00a0${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const cobrancaShortId = (id: string) => `#${id.slice(0, 6)}`;
 
@@ -224,10 +221,11 @@ export default function CobrancaPublica() {
   const saudacao = cobranca.cliente_apelido || cobranca.cliente_nome;
   const isPaga = cobranca.status === 'paga';
 
-  // Status pill (header)
+  // Status pill (header) + due chip
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const venc = cobranca.data_vencimento ? new Date(cobranca.data_vencimento + 'T00:00:00') : null;
-  const diffDias = venc ? Math.floor((venc.getTime() - hoje.getTime()) / 86400000) : null;
+  const diffDias = venc ? Math.round((venc.getTime() - hoje.getTime()) / 86400000) : null;
+
   let statusPillClass = '';
   let statusPillLabel = 'Cobrança ativa';
   if (isPaga) { statusPillLabel = 'Cobrança paga'; }
@@ -235,7 +233,15 @@ export default function CobrancaPublica() {
   else if (diffDias !== null && diffDias === 0) { statusPillClass = 'warning'; statusPillLabel = 'Vence hoje'; }
   else if (diffDias !== null && diffDias === 1) { statusPillClass = 'warning'; statusPillLabel = 'Vence amanhã'; }
 
-  const valorFmt = cobranca.total_geral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let dueClass = '';
+  let dueText = '';
+  if (diffDias !== null) {
+    if (diffDias < 0) { dueClass = 'is-overdue'; dueText = `Vencida há ${Math.abs(diffDias)} ${Math.abs(diffDias) === 1 ? 'dia' : 'dias'}`; }
+    else if (diffDias === 0) { dueClass = 'is-soon'; dueText = 'Vence hoje'; }
+    else if (diffDias === 1) { dueClass = 'is-soon'; dueText = 'Vence amanhã'; }
+    else if (diffDias <= 3) { dueClass = 'is-soon'; dueText = `Vence em ${diffDias} dias`; }
+    else { dueText = `Vence em ${diffDias} dias`; }
+  }
 
   const temAsaasPix = !!cobranca.asaas?.pix_payload;
   const pixValueToCopy = cobranca.asaas?.pix_payload || empresa.pix_chave;
@@ -280,6 +286,9 @@ export default function CobrancaPublica() {
     }
   };
 
+  const tipoPrincipal = cobranca.lancamentos[0]?.tipo_processo;
+  const empresaPrincipal = cobranca.lancamentos[0]?.razao_social || cobranca.cliente_nome;
+
   return (
     <div className="cobranca-public">
       <div className="shell">
@@ -287,7 +296,7 @@ export default function CobrancaPublica() {
 
         <header className="header">
           <div className="header-inner">
-            <a href="#" className="header-logo" aria-label="Trevo Legaliza">
+            <a href="https://trevolegaliza.com.br" className="header-logo" aria-label="Trevo Legaliza">
               <img src={logoTrevo} alt="Trevo Legaliza" />
             </a>
             <span className={`status-pill ${statusPillClass}`}>
@@ -301,53 +310,66 @@ export default function CobrancaPublica() {
           <div className="grid">
             {/* COLUNA ESQUERDA */}
             <div>
-              <section className="card card-hud" style={{ marginBottom: 20 }}>
-                {isPaga && (
-                  <div className="paid-banner">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                    Pagamento confirmado{cobranca.pago_em ? ` em ${fmtData(cobranca.pago_em)}` : ''}
-                  </div>
-                )}
+              <section className="card" style={{ marginBottom: 20 }}>
                 <div className="card-hero">
-                  <div className="hero-meta">
-                    <span>Cobrança</span>
-                    <span className="hero-meta-dot"></span>
-                    <span>{cobrancaShortId(cobranca.id)}</span>
-                    <span className="hero-meta-dot"></span>
-                    <span>Emitida {fmtData(cobranca.created_at)}</span>
-                  </div>
                   <p className="hero-greet">Olá, <b>{saudacao}</b>. {isPaga ? 'Recebemos seu pagamento.' : 'Sua cobrança está pronta.'}</p>
+
+                  {isPaga && (
+                    <div className="paid-banner" role="status">
+                      <div className="paid-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      </div>
+                      <div className="paid-text">
+                        <b>Pagamento confirmado</b>
+                        <span>Recebemos {fmtBRL(cobranca.total_geral)}{cobranca.pago_em ? ` em ${fmtDataHora(cobranca.pago_em)}` : ''}</span>
+                      </div>
+                    </div>
+                  )}
+
                   <p className="hero-amount-label">{isPaga ? 'Valor pago' : 'Total a pagar'}</p>
-                  <p className="hero-amount">
-                    <span className="currency">R$</span>
-                    <span>{valorFmt}</span>
-                  </p>
-                  {!isPaga && cobranca.data_vencimento && (
-                    <p className="hero-due">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+                  <p className="hero-amount">{fmtBRL(cobranca.total_geral)}</p>
+
+                  {!isPaga && cobranca.data_vencimento && dueText && (
+                    <span className={`due ${dueClass}`}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                         <line x1="16" y1="2" x2="16" y2="6"></line>
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                       </svg>
-                      Vence em <b>{fmtData(cobranca.data_vencimento)}</b> ({fmtDataExtenso(cobranca.data_vencimento)})
-                    </p>
+                      <span>{dueText}</span>
+                      <span className="due-sep"></span>
+                      <b>{fmtData(cobranca.data_vencimento)}</b>
+                    </span>
                   )}
                 </div>
 
                 {!isPaga && (
-                  <div className="pay-block" style={{ borderTop: '1px dashed var(--border)', paddingTop: 24 }}>
-                    <div className="pay-tabs" role="tablist">
-                      <button className="pay-tab" role="tab" aria-selected={tab === 'pix'} onClick={() => setTab('pix')}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M16 6l-4 4-4-4M8 18l4-4 4 4M6 8l-4 4 4 4M18 16l4-4-4-4" />
+                  <div className="pay-block">
+                    <div className="pay-tabs" role="tablist" aria-label="Forma de pagamento">
+                      <button
+                        className="pay-tab"
+                        role="tab"
+                        aria-selected={tab === 'pix'}
+                        onClick={() => setTab('pix')}
+                        tabIndex={tab === 'pix' ? 0 : -1}
+                      >
+                        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                          <path d="M11.917 11.71a2.046 2.046 0 0 1-1.454-.602l-2.1-2.1a.4.4 0 0 0-.551 0l-2.108 2.108a2.044 2.044 0 0 1-1.454.602h-.414l2.66 2.66c.83.83 2.177.83 3.007 0l2.667-2.668h-.253zM4.25 4.282c.55 0 1.066.214 1.454.602l2.108 2.108a.39.39 0 0 0 .552 0l2.1-2.1a2.044 2.044 0 0 1 1.453-.602h.253L9.503 1.623a2.127 2.127 0 0 0-3.007 0l-2.66 2.66h.414z" />
+                          <path d="m14.377 6.496-1.612-1.612a.307.307 0 0 1-.114.023h-.733c-.379 0-.75.154-1.017.422l-2.1 2.1a1.005 1.005 0 0 1-1.425 0L5.268 5.32a1.448 1.448 0 0 0-1.018-.422h-.9a.306.306 0 0 1-.109-.021L1.623 6.496c-.83.83-.83 2.177 0 3.008l1.618 1.618a.305.305 0 0 1 .108-.022h.901c.38 0 .75-.153 1.018-.421L7.375 8.57a1.034 1.034 0 0 1 1.426 0l2.1 2.1c.267.268.638.421 1.017.421h.733c.04 0 .079.01.114.024l1.612-1.612c.83-.83.83-2.178 0-3.008z" />
                         </svg>
                         PIX
                       </button>
                       {temBoleto && (
-                        <button className="pay-tab" role="tab" aria-selected={tab === 'boleto'} onClick={() => setTab('boleto')}>
+                        <button
+                          className="pay-tab"
+                          role="tab"
+                          aria-selected={tab === 'boleto'}
+                          onClick={() => setTab('boleto')}
+                          tabIndex={tab === 'boleto' ? 0 : -1}
+                        >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="6" y1="4" x2="6" y2="20" />
                             <line x1="10" y1="4" x2="10" y2="20" />
@@ -411,12 +433,6 @@ export default function CobrancaPublica() {
                             <div className="pix-label" style={{ marginBottom: 8 }}>Linha digitável</div>
                             <div className="boleto-line">
                               <code>{cobranca.asaas.boleto_barcode}</code>
-                              <button className="icon-btn" onClick={onCopyBoleto} aria-label="Copiar linha digitável">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                </svg>
-                              </button>
                             </div>
                           </>
                         )}
@@ -452,22 +468,13 @@ export default function CobrancaPublica() {
                 )}
               </section>
 
-              {/* Trust strip */}
-              <div className="trust">
+              <p className="trust-line">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
-                Cobrança emitida por <b>&nbsp;Trevo Legaliza</b>&nbsp;·&nbsp;ambiente protegido por criptografia e validação bancária
-              </div>
-
-              <button className="btn btn-secondary btn-w-full" style={{ marginTop: 16 }} onClick={baixarExtrato}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Baixar extrato em PDF
-              </button>
+                Pagamento processado em ambiente seguro
+              </p>
             </div>
 
             {/* COLUNA DIREITA */}
@@ -481,33 +488,42 @@ export default function CobrancaPublica() {
                         <p className="detail-name">{l.razao_social || l.descricao}</p>
                         {l.tipo_processo && <span className="detail-tag">{l.tipo_processo}</span>}
                       </div>
-                      <span className="detail-amount">{`R$\u00a0${l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</span>
+                      <span className="detail-amount">{fmtBRL(l.valor)}</span>
                     </div>
                   ))}
                   <div className="detail-divider"></div>
                   <div className="detail-total">
                     <span className="lbl">Total</span>
-                    <span className="val">{`R$\u00a0${valorFmt}`}</span>
+                    <span className="val">{fmtBRL(cobranca.total_geral)}</span>
                   </div>
                 </div>
               </section>
 
               <section className="side-section">
-                <h2 className="side-title">Sua atendente IA</h2>
+                <h2 className="side-title">Precisa de ajuda?</h2>
                 <div className="dani-card">
                   <div className="dani-head">
                     <div className="dani-avatar">
-                      <img src={logoDani} alt="dani.ai" />
+                      <img src={daniAvatar} alt="" />
                     </div>
                     <div className="dani-meta">
-                      <span className="dani-name"><b>dani.ai</b> — Powered by Trevo Legaliza</span>
-                      <span className="dani-role">Online · 24h</span>
+                      <span className="dani-name">dani</span>
+                      <span className="dani-role">Assistente IA da Trevo</span>
                     </div>
                   </div>
                   <p className="dani-msg">
-                    Eu gerei esta cobrança e sigo acompanhando seu processo. Qualquer dúvida sobre o pagamento ou o andamento, é só chamar.
+                    {tipoPrincipal ? (
+                      <>Tem dúvida sobre a <b>{tipoPrincipal} da {empresaPrincipal}</b> ou sobre essa cobrança? Posso te ajudar agora.</>
+                    ) : (
+                      <>Posso te ajudar com qualquer dúvida sobre essa cobrança.</>
+                    )}
                   </p>
-                  <a href={`https://wa.me/${empresa.whatsapp}`} target="_blank" rel="noopener" className="btn-whatsapp">
+                  <a
+                    href={`https://wa.me/${empresa.whatsapp}?text=${encodeURIComponent(`Oi Dani, tenho uma dúvida sobre a cobrança ${cobrancaShortId(cobranca.id)}`)}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="btn-whatsapp"
+                  >
                     <svg viewBox="0 0 24 24" fill="currentColor">
                       <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.149-.174.198-.298.298-.496.099-.198.05-.372-.025-.521-.074-.149-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
                     </svg>
@@ -515,11 +531,28 @@ export default function CobrancaPublica() {
                   </a>
                 </div>
               </section>
+
+              <section className="side-section">
+                <h2 className="side-title">
+                  Histórico
+                  <button className="side-title-link" onClick={baixarExtrato}>Baixar PDF</button>
+                </h2>
+                <div className="detail-card" style={{ padding: '14px 16px' }}>
+                  <p className="pix-help" style={{ margin: 0 }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    Esta é a primeira cobrança da {empresaPrincipal}.
+                  </p>
+                </div>
+              </section>
             </div>
           </div>
 
           <div className="meta-bar">
-            <span>Cobrança&nbsp;<span className="id">{cobrancaShortId(cobranca.id)}</span></span>
+            <span>Cobrança <b>{cobrancaShortId(cobranca.id)}</b></span>
+            <span className="meta-sep"></span>
             <span>Emitida em {fmtDataHora(cobranca.created_at)}</span>
           </div>
         </main>
@@ -527,19 +560,20 @@ export default function CobrancaPublica() {
         <footer>
           <div className="footer-inner">
             <div className="footer-brands">
-              <div className="footer-brand footer-brand-dani">
-                <img src={logoDani} alt="dani.ai" />
-                <span className="footer-brand-cap">dani<span className="reg">®</span>.ai</span>
+              <div className="footer-brand footer-brand-trevo">
+                <img src={logoTrevo} alt="Trevo Legaliza" />
               </div>
               <div className="footer-divider"></div>
-              <div className="footer-brand">
-                <img src={logoTrevo} alt="Trevo Legaliza" />
-                <span className="footer-brand-cap">Powered by <b>Trevo Legaliza<span className="reg">®</span></b></span>
+              <div className="footer-brand footer-brand-dani">
+                <div className="footer-dani-row">
+                  <img src={logoDani} alt="dani" />
+                  <span className="footer-dani-reg">®</span>
+                </div>
+                <span className="footer-brand-cap">Powered by Trevo Legaliza</span>
               </div>
             </div>
             <p className="footer-text">
-              <b>{empresa.nome}</b><br />
-              CNPJ {empresa.cnpj} · {empresa.site}
+              <b>{empresa.nome}</b> · CNPJ {empresa.cnpj} · {empresa.site}
             </p>
           </div>
         </footer>
