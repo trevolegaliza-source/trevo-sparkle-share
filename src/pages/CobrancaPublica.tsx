@@ -111,10 +111,19 @@ const normalizarProcesso = (raw: string | null | undefined): string => {
 };
 
 // Confetti vanilla canvas (executa quando isPaga vira true)
-function dispararConfetti() {
+function dispararConfetti(cobrancaId: string) {
   // Respeita preferência de movimento reduzido (acessibilidade)
   if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     return;
+  }
+  // Dedup: não dispara em refresh se já viu confetti dessa cobrança nas últimas 24h
+  const dedupKey = `cobranca:confetti:${cobrancaId}`;
+  try {
+    const last = localStorage.getItem(dedupKey);
+    if (last && Date.now() - Number(last) < 24 * 60 * 60 * 1000) return;
+    localStorage.setItem(dedupKey, String(Date.now()));
+  } catch {
+    /* localStorage indisponível (modo privado iOS antigo) — segue */
   }
   const canvas = document.createElement('canvas');
   canvas.className = 'cobranca-confetti';
@@ -202,11 +211,11 @@ export default function CobrancaPublica() {
   // Confetti ao detectar pagamento confirmado
   const confettiDisparado = useRef(false);
   useEffect(() => {
-    if (cobranca?.status === 'paga' && !confettiDisparado.current) {
+    if (cobranca?.status === 'paga' && !confettiDisparado.current && cobranca.id) {
       confettiDisparado.current = true;
-      dispararConfetti();
+      dispararConfetti(cobranca.id);
     }
-  }, [cobranca?.status]);
+  }, [cobranca?.status, cobranca?.id]);
 
   // Fetch cobrança
   useEffect(() => {
@@ -351,9 +360,13 @@ export default function CobrancaPublica() {
 
   const baixarExtrato = async () => {
     if (!token) return;
+    // Timeout 15s: edge function cobranca-pdf raramente passa de 3s,
+    // mas conexão lenta + sem timeout deixa botão Baixar PDF travado pra sempre
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15_000);
     try {
       const fnUrl = `${SUPABASE_URL}/functions/v1/cobranca-pdf?token=${encodeURIComponent(token)}`;
-      const resp = await fetch(fnUrl, { headers: { apikey: SUPABASE_PUBLISHABLE_KEY } });
+      const resp = await fetch(fnUrl, { headers: { apikey: SUPABASE_PUBLISHABLE_KEY }, signal: ctrl.signal });
       if (!resp.ok) { showToast('PDF indisponível'); return; }
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
@@ -363,8 +376,11 @@ export default function CobrancaPublica() {
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 30_000);
       showToast('PDF baixado');
-    } catch {
-      showToast('Erro ao baixar PDF');
+    } catch (err) {
+      const aborted = err instanceof DOMException && err.name === 'AbortError';
+      showToast(aborted ? 'PDF demorou demais — tente novamente' : 'Erro ao baixar PDF');
+    } finally {
+      clearTimeout(timer);
     }
   };
 
@@ -435,6 +451,8 @@ export default function CobrancaPublica() {
                       <button
                         className="pay-tab"
                         role="tab"
+                        id="tab-pix"
+                        aria-controls="panel-pix"
                         aria-selected={tab === 'pix'}
                         onClick={() => setTab('pix')}
                         tabIndex={tab === 'pix' ? 0 : -1}
@@ -449,6 +467,8 @@ export default function CobrancaPublica() {
                         <button
                           className="pay-tab"
                           role="tab"
+                          id="tab-boleto"
+                          aria-controls="panel-boleto"
                           aria-selected={tab === 'boleto'}
                           onClick={() => setTab('boleto')}
                           tabIndex={tab === 'boleto' ? 0 : -1}
@@ -465,7 +485,7 @@ export default function CobrancaPublica() {
                     </div>
 
                     {tab === 'pix' && (
-                      <div className="pay-panel" data-active>
+                      <div className="pay-panel" data-active role="tabpanel" id="panel-pix" aria-labelledby="tab-pix">
                         <div className="pix-row">
                           <div className="qr-box" aria-label="QR Code PIX">
                             {cobranca.asaas?.pix_qrcode ? (
@@ -510,7 +530,7 @@ export default function CobrancaPublica() {
                     )}
 
                     {tab === 'boleto' && temBoleto && (
-                      <div className="pay-panel" data-active>
+                      <div className="pay-panel" data-active role="tabpanel" id="panel-boleto" aria-labelledby="tab-boleto">
                         {cobranca.asaas?.boleto_barcode && (
                           <>
                             <div className="pix-label" style={{ marginBottom: 8 }}>Linha digitável</div>
