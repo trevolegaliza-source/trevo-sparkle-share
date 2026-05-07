@@ -396,3 +396,17 @@ html {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* A11Y-004: respeita preferência do SO por reduzir movimento.
+   Cobre todas as animações/transições globalmente — confetti, dashFadeInUp,
+   logoPulse, trevoWave, municipioPulse, card-hover, etc. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

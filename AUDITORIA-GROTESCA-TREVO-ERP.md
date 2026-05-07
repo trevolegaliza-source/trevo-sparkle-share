@@ -51,15 +51,24 @@ Varredura por subagent Explore em 7 vetores: SEGURANÇA, PERFORMANCE, CONFIABILI
 | PERF-002 | ⏸️ NÃO ATACAR — refactor de god components (2549/2302l) sem ROI claro. Atacar só se bater bug específico ou feature nova nessas telas |  |
 | SEC-001/002/003 | ⏸️ NÃO ATACAR — `dangerouslySetInnerHTML` com CSS estático (constante `GLASS_CSS`). Risco XSS = ZERO porque conteúdo não vem de input do user. Audit flagou só por padrão de código |  |
 
+### 🟢 Sprint 4 — atacados em 07/05 (rodada 4, batch baixo risco)
+
+| ID | Status | Commit |
+|---|---|---|
+| SEC-006 | ✅ FIXADO — `geo-cache.ts` reescrito com Map + LRU (max 50) + TTL (30min). Não vaza mais memória em SPA long-lived | `5e791d8` |
+| A11Y-004 | ✅ FIXADO — `@media (prefers-reduced-motion: reduce)` global em `index.css` cobre TODAS animações (confetti, dashFadeInUp, logoPulse, trevoWave, municipioPulse, card-hover) | _este commit_ |
+| SEC-007 | ⚠️ FALSO ALARME — `ContractDropzone.tsx` já tem `ACCEPTED_TYPES` (PDF/JPG/PNG/DOCX) + `MAX_SIZE` 10MB via react-dropzone |  |
+| PERF-004 | ⚠️ FALSO ALARME — `salvarSelecaoSilencioso` já usa `saveTimer` como `useRef`, e args (sel/vals/allItens) são passados como parâmetros frescos, não capturados por closure |  |
+
 ### 📊 Balanço final auditoria sistêmica
 
 **38 achados originais:**
-- ✅ 11 fixados (sprint 1+2+3)
-- ⚠️ 12 falsos alarmes (já estavam corretos no código)
+- ✅ 13 fixados (sprint 1+2+3+4)
+- ⚠️ 14 falsos alarmes (já estavam corretos no código)
 - ⏸️ 5 não atacar (custo > benefício ou sem risco real)
-- 🔄 10 não atacados ainda (UX-001/002/005/006, REL-002 (✅), A11Y-001 (✅)/A11Y-002/A11Y-004, INFRA-002/004/005/006, DATA-003/004, PERF-003/004/006, SEC-006/007/008)
+- 🔄 6 não atacados ainda (UX-001/002/005/006, A11Y-002, INFRA-002/004/005/006, DATA-003/004, PERF-003/006, SEC-008)
 
-**Insight:** ~32% dos achados eram falsos alarmes. A auditoria automática do subagent foi superficial em vários itens — útil pra catálogo, mas precisa validação humana antes de atacar.
+**Insight:** ~37% dos achados eram falsos alarmes. A auditoria automática do subagent foi superficial em vários itens — útil pra catálogo, mas precisa validação humana antes de atacar.
 
 ### 🔴 CRÍTICO (1)
 
