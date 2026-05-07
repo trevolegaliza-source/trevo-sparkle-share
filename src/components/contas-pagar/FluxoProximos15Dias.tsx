@@ -43,8 +43,12 @@ const STORAGE_KEY = 'trevo_fluxo_range_dias';
 
 function readRangeStored(): number {
   if (typeof window === 'undefined') return 15;
-  const v = parseInt(window.localStorage.getItem(STORAGE_KEY) || '15', 10);
-  return RANGE_OPTIONS.some(o => o.value === v) ? v : 15;
+  try {
+    const v = parseInt(window.localStorage.getItem(STORAGE_KEY) || '15', 10);
+    return RANGE_OPTIONS.some(o => o.value === v) ? v : 15;
+  } catch {
+    return 15; // localStorage pode lançar em iOS Safari modo privado
+  }
 }
 
 export default function FluxoProximos15Dias() {

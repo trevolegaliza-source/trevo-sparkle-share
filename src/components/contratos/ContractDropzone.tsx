@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,12 @@ interface ContractDropzoneProps {
 
 export default function ContractDropzone({ uploading, onUpload }: ContractDropzoneProps) {
   const [uploadedName, setUploadedName] = useState<string | null>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // REL-007: cleanup do setTimeout pra evitar setState em componente desmontado
+  useEffect(() => () => {
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+  }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[], rejectedFiles: any[]) => {
     if (rejectedFiles.length > 0) {
@@ -36,7 +42,8 @@ export default function ContractDropzone({ uploading, onUpload }: ContractDropzo
     try {
       await onUpload(file);
       setUploadedName(file.name);
-      setTimeout(() => setUploadedName(null), 4000);
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = setTimeout(() => setUploadedName(null), 4000);
     } catch {
       // error handled by parent
     }

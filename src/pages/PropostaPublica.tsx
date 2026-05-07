@@ -353,6 +353,7 @@ export default function PropostaPublica() {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/verificar_senha_proposta`, {
         method: 'POST', headers: anonHeaders, body: JSON.stringify({ p_token: token, p_senha: senhaInput }),
       });
+      if (!res.ok) { setSenhaErro(true); return; }
       const result = await res.json();
       if (result === true) { setAutenticado(true); setSenhaErro(false); } else setSenhaErro(true);
     } catch { setSenhaErro(true); }
