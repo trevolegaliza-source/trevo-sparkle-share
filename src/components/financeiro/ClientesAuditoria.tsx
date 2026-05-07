@@ -16,6 +16,7 @@ import { ClipboardCheck, Check, Pencil, Receipt, X, AlertTriangle, Phone, Calend
 import { Switch } from '@/components/ui/switch';
 import type { ClienteFinanceiro, LancamentoFinanceiro } from '@/hooks/useFinanceiroClientes';
 import { useAuditarLancamento, useAuditarTodosCliente, useAlterarValorLancamento, ETAPAS_PRE_DEFERIMENTO, invalidateFinanceiro } from '@/hooks/useFinanceiroClientes';
+import { gerarFaturamentoDeferimento } from '@/hooks/useFinanceiro';
 import ValoresAdicionaisModal from './ValoresAdicionaisModal';
 import { useHighlightOnModal } from '@/hooks/useHighlightOnModal';
 import { TIPO_PROCESSO_LABELS } from '@/types/financial';
@@ -478,6 +479,17 @@ function AuditoriaFicha({
         .eq('id', l.processo_id);
       if (error) throw error;
       toast.success('Processo marcado como deferido');
+
+      // Promove lancamento aguardando_deferimento → solicitacao_criada (ou cria
+      // do zero pra processos legado sem lancamento). Sem isso, lancamento fica
+      // travado em 'aguardando_deferimento' com data_vencimento='2099-12-31'.
+      const { data: procFull } = await supabase
+        .from('processos')
+        .select('*')
+        .eq('id', l.processo_id)
+        .single();
+      if (procFull) await gerarFaturamentoDeferimento(procFull as any);
+
       setDeferidoOpen(false);
       invalidateFinanceiro(qc);
       qc.invalidateQueries({ queryKey: ['processos'] });

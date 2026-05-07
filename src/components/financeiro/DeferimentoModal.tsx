@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { gerarFaturamentoDeferimento } from '@/hooks/useFinanceiro';
 
 interface ProcessoDeferimento {
   processo_id: string;
@@ -77,6 +78,15 @@ export default function DeferimentoModal({
           .from('processos')
           .update({ data_deferimento: data } as any)
           .eq('id', p.processo_id);
+
+        // Promove lancamento aguardando_deferimento → solicitacao_criada
+        // (ou cria do zero pra processos legado sem lancamento).
+        const { data: procFull } = await supabase
+          .from('processos')
+          .select('*')
+          .eq('id', p.processo_id)
+          .single();
+        if (procFull) await gerarFaturamentoDeferimento(procFull as any);
       }
 
       onConfirm(deferidos.map(p => p.processo_id));

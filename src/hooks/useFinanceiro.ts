@@ -574,19 +574,45 @@ export function useCreateProcesso() {
 }
 
 // Generate billing when process is deferred (for 'no_deferimento' clients)
+//
+// Dois cenários:
+//  (A) Fluxo NOVO — processo cadastrado já tem lancamento com
+//      etapa='aguardando_deferimento' e data_vencimento='2099-12-31' (placeholder).
+//      Aqui promovemos: etapa→'solicitacao_criada' e data_vencimento real.
+//  (B) Fluxo LEGADO — processo cadastrado antes do fix sem lancamento.
+//      Aqui criamos o lancamento do zero (comportamento original).
 export async function gerarFaturamentoDeferimento(processo: ProcessoDB) {
   const clienteId = processo.cliente_id;
-  // Fetch client to get momento_faturamento
   const { data: cliente } = await supabase.from('clientes').select('*').eq('id', clienteId).single();
   if (!cliente) return;
   const momentoFat = (cliente as any)?.momento_faturamento || 'na_solicitacao';
   if (momentoFat !== 'no_deferimento') return;
 
-  // Check if billing already exists for this process
-  const { data: existing } = await supabase.from('lancamentos').select('id').eq('processo_id', processo.id).eq('tipo', 'receber');
-  if (existing && existing.length > 0) return; // Already billed
-
   const { data: vencimento } = await supabase.rpc('calcular_vencimento', { p_cliente_id: clienteId });
+  const vencFinal = vencimento || new Date(Date.now() + 4 * 86400000).toISOString().split('T')[0];
+
+  const { data: existing } = await supabase
+    .from('lancamentos')
+    .select('id, etapa_financeiro')
+    .eq('processo_id', processo.id)
+    .eq('tipo', 'receber');
+
+  // (A) Promove lancamentos aguardando_deferimento — fluxo novo
+  const aguardando = (existing || []).filter((l: any) => l.etapa_financeiro === 'aguardando_deferimento');
+  if (aguardando.length > 0) {
+    const { error } = await supabase
+      .from('lancamentos')
+      .update({ etapa_financeiro: 'solicitacao_criada', data_vencimento: vencFinal } as any)
+      .in('id', aguardando.map((l: any) => l.id));
+    if (error) toast.error('Erro ao liberar faturamento: ' + error.message);
+    else toast.success('Faturamento liberado (Deferido)!');
+    return;
+  }
+
+  // Já existe lancamento em outra etapa — nada a fazer
+  if (existing && existing.length > 0) return;
+
+  // (B) Legado — cria lancamento do zero
   const valorFinal = Number(processo.valor) || 0;
   const desc = `${processo.tipo.charAt(0).toUpperCase() + processo.tipo.slice(1)} - ${processo.razao_social} (Deferido)`;
 
@@ -597,8 +623,9 @@ export async function gerarFaturamentoDeferimento(processo: ProcessoDB) {
     descricao: desc,
     valor: valorFinal,
     status: 'pendente',
-    data_vencimento: vencimento || new Date(Date.now() + 4 * 86400000).toISOString().split('T')[0],
-  });
+    data_vencimento: vencFinal,
+    etapa_financeiro: 'solicitacao_criada',
+  } as any);
   if (error) toast.error('Erro ao gerar faturamento: ' + error.message);
   else toast.success('Faturamento gerado automaticamente (Deferimento)!');
 }
