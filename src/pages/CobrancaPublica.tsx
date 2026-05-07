@@ -90,6 +90,68 @@ const fmtBRL = (v: number) =>
 
 const cobrancaShortId = (id: string) => `#${id.slice(0, 6)}`;
 
+// Normaliza tipo_processo (DB grava sem acento, lowercase) para exibição correta
+const normalizarProcesso = (raw: string | null | undefined): string => {
+  if (!raw) return '';
+  const k = raw
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+  const map: Record<string, string> = {
+    alteracao: 'alteração',
+    abertura: 'abertura',
+    encerramento: 'encerramento',
+    transformacao: 'transformação',
+  };
+  return map[k] || raw.toLowerCase();
+};
+
+// Confetti vanilla canvas (executa quando isPaga vira true)
+function dispararConfetti() {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'cobranca-confetti';
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d')!;
+  const cores = ['#16a34a', '#22c55e', '#86efac', '#fde047', '#fb923c', '#60a5fa'];
+  const particles = Array.from({ length: 140 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -20 - Math.random() * canvas.height * 0.5,
+    r: 4 + Math.random() * 6,
+    c: cores[Math.floor(Math.random() * cores.length)],
+    vx: (Math.random() - 0.5) * 4,
+    vy: 2 + Math.random() * 4,
+    rot: Math.random() * Math.PI * 2,
+    vrot: (Math.random() - 0.5) * 0.3,
+  }));
+  const start = performance.now();
+  const DURATION = 4500;
+  function frame(t: number) {
+    const elapsed = t - start;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.05;
+      p.rot += p.vrot;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.c;
+      ctx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2);
+      ctx.restore();
+    });
+    if (elapsed < DURATION) {
+      requestAnimationFrame(frame);
+    } else {
+      canvas.remove();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
 export default function CobrancaPublica() {
   const { token } = useParams<{ token: string }>();
   const [loading, setLoading] = useState(true);
@@ -127,6 +189,15 @@ export default function CobrancaPublica() {
     setMeta('name', 'twitter:description', description);
     setMeta('name', 'twitter:image', image);
   }, [cobranca]);
+
+  // Confetti ao detectar pagamento confirmado
+  const confettiDisparado = useRef(false);
+  useEffect(() => {
+    if (cobranca?.status === 'paga' && !confettiDisparado.current) {
+      confettiDisparado.current = true;
+      dispararConfetti();
+    }
+  }, [cobranca?.status]);
 
   // Fetch cobrança
   useEffect(() => {
@@ -286,8 +357,9 @@ export default function CobrancaPublica() {
     }
   };
 
-  const tipoPrincipal = cobranca.lancamentos[0]?.tipo_processo;
+  const tipoPrincipal = normalizarProcesso(cobranca.lancamentos[0]?.tipo_processo);
   const empresaPrincipal = cobranca.lancamentos[0]?.razao_social || cobranca.cliente_nome;
+  const multiplosProcessos = cobranca.lancamentos.length > 1;
 
   return (
     <div className="cobranca-public">
@@ -507,13 +579,14 @@ export default function CobrancaPublica() {
                       <img src={daniAvatar} alt="" />
                     </div>
                     <div className="dani-meta">
-                      <span className="dani-name">dani</span>
-                      <span className="dani-role">Assistente IA da Trevo</span>
+                      <span className="dani-role">Digital Assistant for National Incorporation</span>
                     </div>
                   </div>
                   <p className="dani-msg">
-                    {tipoPrincipal ? (
-                      <>Tem dúvida sobre a <b>{tipoPrincipal} da {empresaPrincipal}</b> ou sobre essa cobrança? Posso te ajudar agora.</>
+                    {multiplosProcessos ? (
+                      <>Tem dúvida referente aos <b>processos desta cobrança</b> ou sobre essa cobrança? Posso te ajudar agora.</>
+                    ) : tipoPrincipal ? (
+                      <>Tem dúvida referente ao processo de <b>{tipoPrincipal} da {empresaPrincipal}</b> ou sobre essa cobrança? Posso te ajudar agora.</>
                     ) : (
                       <>Posso te ajudar com qualquer dúvida sobre essa cobrança.</>
                     )}
@@ -543,7 +616,7 @@ export default function CobrancaPublica() {
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
-                    Esta é a primeira cobrança da {empresaPrincipal}.
+                    Esta é a primeira cobrança que você recebe da Trevo Legaliza.
                   </p>
                 </div>
               </section>
