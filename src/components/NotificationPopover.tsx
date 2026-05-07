@@ -133,7 +133,7 @@ export function NotificationPopover() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative" aria-label={`Notificações${naoLidas.length > 0 ? ` (${naoLidas.length} não lidas)` : ''}`}>
           <Bell className="h-4.5 w-4.5" />
           {naoLidas.length > 0 && (
             <Badge className="absolute -right-0.5 -top-0.5 h-5 min-w-[20px] rounded-full px-1 text-[10px] bg-destructive text-destructive-foreground border-0 animate-pulse">

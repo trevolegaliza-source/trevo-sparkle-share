@@ -185,7 +185,7 @@ export default function NovoClienteInline({ onClose, onCreated }: Props) {
     <Card className="border-primary/30">
       <CardHeader className="pb-3 flex-row items-center justify-between">
         <CardTitle className="text-sm">Novo Cliente (Rápido)</CardTitle>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} aria-label="Fechar">
           <X className="h-4 w-4" />
         </Button>
       </CardHeader>

@@ -62,7 +62,7 @@ export default function FilaBatch({ fila, onRemove, onClear, onSaveAll, isSaving
               </p>
               <p className="text-muted-foreground">{fmt(p.valorFinal)} (slot {p.slotNumero})</p>
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onRemove(p.id)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onRemove(p.id)} aria-label="Remover da fila">
               <X className="h-3 w-3" />
             </Button>
           </div>
