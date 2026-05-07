@@ -1,7 +1,124 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: **07/05/2026** (auditoria 2 da `/cobranca/:token` — UI honesta + a11y + normalizações).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: **07/05/2026** (Auditoria SISTÊMICA 38 achados novos — SEG/PERF/REL/A11Y/UX/DATA/INFRA).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 🧨 AUDITORIA SISTÊMICA — 07/05/2026 (Thales pediu *"auditoria extremamente completa e complexa"*)
+
+Varredura por subagent Explore em 7 vetores: SEGURANÇA, PERFORMANCE, CONFIABILIDADE, ACESSIBILIDADE, UX/FRONTEND, DADOS/BACKEND, INFRA/DEPLOY. **38 achados novos** (não duplicam itens das seções anteriores deste doc).
+
+**Distribuição:** 1 CRÍTICO · 28 IMPORTANTE · 9 NICE.
+
+### 🔴 CRÍTICO (1)
+
+| ID | Arquivo:linha | Descrição | Fix |
+|---|---|---|---|
+| **SEC-004** | `src/pages/PropostaPublica.tsx:306–414` | 4 promises com `.catch(() => {})` silencioso em RPCs (`criar_evento_proposta`, `salvar_selecao_proposta`, `verificar_senha_proposta`). Padrão que **já queimou em P0.3.1** — auto-folha falhou silencioso por 1 mês. | `.catch(e => console.error('RPC X falhou:', e))` + toast.error se ação for crítica. |
+
+### 🟡 IMPORTANTE — Segurança (4)
+
+| ID | Arquivo:linha | Descrição | Fix |
+|---|---|---|---|
+| **SEC-001** | `src/pages/PortfolioPublico.tsx:228` | `dangerouslySetInnerHTML` em `<style>` com `GLASS_CSS`. Anti-padrão. | Mover CSS pra arquivo `.css` importado. |
+| **SEC-002** | `src/pages/Catalogo.tsx:188` | Mesma coisa, duplicado. | Extrair `GLASS_CSS` em CSS único compartilhado. |
+| **SEC-003** | `src/components/ui/chart.tsx:70` | `dangerouslySetInnerHTML` em template CSS dinâmico. | Usar CSS custom properties via `style={}`. |
+| **SEC-007** | `src/components/contratos/ContractDropzone.tsx`, `ContractPreviewModal.tsx` | Upload de contratos sem validação MIME/tamanho. | `file.type === 'application/pdf' && file.size < 50_000_000`. |
+
+### 🟡 IMPORTANTE — Performance (3)
+
+| ID | Arquivo:linha | Descrição | Fix |
+|---|---|---|---|
+| **PERF-001** | `src/assets/` | 8 imagens PNG > 250KB, 3 > 1MB (dani-avatar 1.4MB, dani-logo-dark 1.4MB, trevo-logo 1.9MB). Impacto direto em FCP. | TinyPNG/WebP + lazy loading. |
+| **PERF-002** | `ClienteDetalhe.tsx` (2549 linhas), `ClienteAccordionFinanceiro.tsx` (2302), `OrcamentoNovo.tsx` (1253), `PropostaPublica.tsx` (1142) | 4 god components > 1000 linhas com 30-59 useState cada. | Quebrar em sub-componentes. |
+| **PERF-004** | `src/pages/PropostaPublica.tsx:317–329` | `salvarSelecaoSilencioso` com debounce em `useCallback([token])` — closures antigos vazam. | `useRef` pro timer + cleanup em useEffect. |
+
+### 🟡 IMPORTANTE — Confiabilidade (8)
+
+| ID | Arquivo:linha | Descrição | Fix |
+|---|---|---|---|
+| **SEC-005 / REL-001** | 7 arquivos (`ValoresAdicionaisModal.tsx:195`, `WhatsappLinkButton.tsx:55`, `ClienteAccordionFinanceiro.tsx:63,2040`, `ClientesContestados.tsx:34`, `lib/storage-utils.ts:90`) | `navigator.clipboard.writeText()` com `.catch(() => {})` silencioso. Sem feedback de falha de cópia em iframes. | `.catch(() => toast.error('Falha ao copiar'))`. |
+| **REL-002** | `src/components/contas-pagar/FluxoProximos15Dias.tsx:46` | `parseInt(localStorage.getItem(...) || '15', 10)` sem try/catch nem isNaN guard. | `try { const v = parseInt(...); return isNaN(v) ? 15 : v } catch { return 15 }`. |
+| **REL-003** | 10+ inputs (`ValoresAdicionaisModal:105,128`, `ClientesAuditoria:492`, `PacotesEditor:86`, `ItemCardSimples:32`, `ItemCardDetalhado:49–147`, etc) | `parseFloat(e.target.value)` sem guard NaN. Cálculos viram NaN silenciosamente. | `parseFloat(e.target.value) || 0`. |
+| **REL-005** | `src/lib/extrato-pdf.ts`, `orcamento-pdf.ts`, `relatorio-*.pdf.ts` | `URL.createObjectURL(blob)` sem null check. | `if (!blob) { toast.error('Erro PDF'); return }`. |
+| **REL-006** | `src/pages/PropostaPublica.tsx:356` | `await res.json()` sem `res.ok` check. Erro 4xx/5xx vira success. | `if (!res.ok) throw new Error(res.statusText)`. |
+| **REL-007** | `src/components/contratos/ContractDropzone.tsx:39` | `setTimeout` sem cleanup → setState em componente desmontado. | `useEffect cleanup return clearTimeout(id)`. |
+| **REL-008** | `src/hooks/useHighlightOnModal.ts:22` | Mesmo padrão, sem cleanup. | Mesmo fix. |
+| **SEC-006** | `src/lib/geo-cache.ts` | Cache GeoJSON in-memory sem TTL nem limite. Vaza memória em SPA long-lived. | LRU `maxEntries: 50` + TTL 30min. |
+
+### 🟡 IMPORTANTE — Acessibilidade (3)
+
+| ID | Arquivo:linha | Descrição | Fix |
+|---|---|---|---|
+| **A11Y-001** | `ContractPreviewModal.tsx:59`, `PortfolioPublico.tsx:232` | 2 `<img>` sem `alt`. WCAG 1.1.1. | `alt="Prévia do contrato"`. |
+| **A11Y-002** | Global (483 ocorrências de `text-muted-foreground`) | Possível contraste < 4.5:1 (WCAG AA). | Auditoria com devtools color contrast checker. |
+| **A11Y-003** | `Processos.tsx`, `Financeiro.tsx`, `ClienteDetalhe.tsx` | Buttons só com ícone sem `aria-label`. WCAG 4.1.2. | `aria-label="Editar configurações"`. |
+
+### 🟡 IMPORTANTE — UX (4)
+
+| ID | Arquivo:linha | Descrição | Fix |
+|---|---|---|---|
+| **UX-001** | `ClienteDetalhe.tsx` | 59+ useState sem agrupamento por seção. | Comentários `// ── Data Loading ──` etc. |
+| **UX-002** | `ItemCardDetalhado.tsx` (157l) + `ItemCardSimples.tsx` (80l) | 90% de sobreposição entre os 2. | `<OrcamentoItemCard variant="simples"\|"detalhado">`. |
+| **UX-003** | `PropostaPublica.tsx:397–440` | `handleAprovar()` sem loading state — usuário clica 2x. | `setProcessando(true)` + `<Button disabled={processando}>`. |
+| **UX-004** | Global (Financeiro, Processos, ClienteDetalhe) | AlertDialogs sem descrição clara da ação. Risco de delete acidental. | `<AlertDialogDescription>` sempre com "ação irreversível". |
+
+### 🟡 IMPORTANTE — Dados/Backend (3)
+
+| ID | Arquivo:linha | Descrição | Fix |
+|---|---|---|---|
+| **DATA-001** | `MIGRATION-cartao.sql`, `MIGRATION-cartao-tipo.sql` | Migrations sem índice em `cartao_id` foreign key. | `CREATE INDEX IF NOT EXISTS idx_cartao_faturas_cartao_id ON cartao_faturas(cartao_id)`. |
+| **DATA-002** | Modelo cartão (cartoes, cartao_compras, cartao_faturas) | RLS habilitada não confirmada. **Risco multi-tenant**. | Verificar `ALTER TABLE cartoes ENABLE ROW LEVEL SECURITY` + policy auth.uid. |
+| **DATA-003** | `src/lib/observacao-processo.ts` | Regex `AUTO_META_PATTERNS` hardcoded 4 etapas; não escalável. | ENUM no DB + query em runtime. |
+
+### 🟡 IMPORTANTE — Infra (3)
+
+| ID | Arquivo:linha | Descrição | Fix |
+|---|---|---|---|
+| **INFRA-001** | `vite.config.ts` | `build.sourcemap` não desabilitado em prod. Vaza código original. | `build: { sourcemap: false }`. |
+| **INFRA-002** | `package.json` script `build:dev` | Build sem minificação; se deployado por engano vira bundle 3-5x maior + console.log. | Documentar: prod usa `build` apenas. |
+| **INFRA-003** | Global (40 console.log) | Debug statements em código fonte. Vaza dados em DevTools prod. | ESLint `no-console: ["error", { allow: ["warn", "error"] }]`. |
+
+### 🟢 NICE TO HAVE (9)
+
+| ID | Item | Local |
+|---|---|---|
+| **SEC-008** | `SUPABASE_URL`/`SUPABASE_PUBLISHABLE_KEY` hardcoded em `client.ts` | Migrar pra `import.meta.env.VITE_*`. |
+| **PERF-005** | PDFs (4 libs jsPDF+autotable+html2canvas+d3) bundled sempre | Dynamic import nas funções de geração. |
+| **PERF-006** | `Catalogo.tsx` (1057 linhas) sem `memo()` em sub-componentes | Envolver `ItemCardSimples`, `ItemCardDetalhado` em memo. |
+| **REL-004** | CobrancaPublica `localStorage.setItem` sem confirmação de sucesso (já tem try/catch no get) | Mover try/catch pra cobrir setItem também. |
+| **A11Y-004** | Outras animações no app (tooltips, fade) não respeitam `prefers-reduced-motion` (só confetti respeita) | Helper `respectsReducedMotion()` global. |
+| **A11Y-005** | `src/components/ui/sidebar.tsx` (637 linhas) sem `aria-expanded`/`aria-current` | Adicionar nos collapsible groups. |
+| **UX-005** | Tabelas mobile com 8+ colunas scrolláveis sem indicator visual | `sticky left-0` na 1ª col + sombra. |
+| **UX-006** | `OrcamentoNovo.tsx` (1253l) sem seções visuais | Tabs ou sticky header com índice. |
+| **DATA-004** | `classificarPagamento()` duplicado no front | View no Supabase com `pagamento_status` computado. |
+| **INFRA-004** | `@testing-library/jest-dom` instalado mas zero testes escritos | Implementar OU remover. |
+| **INFRA-005** | D3 (~60KB) usado em 2 componentes só | Avaliar Leaflet (14KB). |
+| **INFRA-006** | `tailwindcss-animate` keyframes podem estar fora do tailwind.config | Auditar `globals.css`. |
+| **INFRA-007** | `AuthContext.tsx:38–61` comentário obsoleto sobre `setInterval` antigo | Remover comentário. |
+
+### 🛣️ Roadmap sugerido
+
+**Sprint 1 (1-2 dias, alto impacto baixo risco)**
+1. SEC-004 (catch silencioso em PropostaPublica) — **único CRÍTICO**
+2. SEC-005/REL-001 (clipboard sem feedback — 7 arquivos, fix mecânico)
+3. REL-003 (parseFloat NaN guard — 10+ inputs)
+4. INFRA-001 (sourcemap off em prod)
+5. PERF-001 (otimizar 3 imagens > 1MB)
+6. DATA-001 (índices nos cartoes_*)
+
+**Sprint 2 (1 semana)**
+- DATA-002 (RLS cartões — pré-requisito segurança multi-tenant)
+- REL-007/REL-008 (cleanup de timers)
+- A11Y-001 (alt nas imagens) + A11Y-003 (aria-label nos buttons)
+- INFRA-003 (ESLint no-console)
+
+**Sprint 3 (refactor maior)**
+- PERF-002 (quebrar god components)
+- UX-002 (unificar OrcamentoItemCard)
+- DATA-003 (ENUM tipo_processo no DB)
+- PERF-005 (dynamic import PDFs)
 
 ---
 
