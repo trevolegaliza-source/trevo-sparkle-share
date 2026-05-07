@@ -90,6 +90,9 @@ const fmtBRL = (v: number) =>
 
 const cobrancaShortId = (id: string) => `#${id.slice(0, 6)}`;
 
+// Normaliza WhatsApp do empresa_config (pode vir mascarado tipo "(11) 93492-7001")
+const onlyDigits = (s: string | null | undefined) => (s || '').replace(/\D/g, '');
+
 // Normaliza tipo_processo (DB grava sem acento, lowercase) para exibição correta
 const normalizarProcesso = (raw: string | null | undefined): string => {
   if (!raw) return '';
@@ -109,6 +112,10 @@ const normalizarProcesso = (raw: string | null | undefined): string => {
 
 // Confetti vanilla canvas (executa quando isPaga vira true)
 function dispararConfetti() {
+  // Respeita preferência de movimento reduzido (acessibilidade)
+  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
   const canvas = document.createElement('canvas');
   canvas.className = 'cobranca-confetti';
   canvas.width = window.innerWidth;
@@ -281,7 +288,7 @@ export default function CobrancaPublica() {
             <XCircle className="h-10 w-10 mx-auto" style={{ color: '#6b7280' }} />
             <h1>Cobrança cancelada</h1>
             <p>Esta cobrança foi cancelada. Em caso de dúvida, fale com a Dani.</p>
-            <a className="btn btn-secondary btn-w-full" href={`https://wa.me/${cobranca.empresa_config.whatsapp}`} target="_blank" rel="noopener">
+            <a className="btn btn-secondary btn-w-full" href={`https://wa.me/${onlyDigits(cobranca.empresa_config.whatsapp)}`} target="_blank" rel="noopener">
               Falar no WhatsApp
             </a>
           </div>
@@ -291,7 +298,8 @@ export default function CobrancaPublica() {
   }
 
   const empresa = cobranca.empresa_config;
-  const saudacao = cobranca.cliente_apelido || cobranca.cliente_nome;
+  const saudacao = cobranca.cliente_apelido || cobranca.cliente_nome || 'tudo bem';
+  const whatsappNum = onlyDigits(empresa.whatsapp);
   const isPaga = cobranca.status === 'paga';
 
   // Status pill (header) + due chip
@@ -305,6 +313,7 @@ export default function CobrancaPublica() {
   else if (diffDias !== null && diffDias < 0) { statusPillClass = 'danger'; statusPillLabel = `Em atraso · ${Math.abs(diffDias)}d`; }
   else if (diffDias !== null && diffDias === 0) { statusPillClass = 'warning'; statusPillLabel = 'Vence hoje'; }
   else if (diffDias !== null && diffDias === 1) { statusPillClass = 'warning'; statusPillLabel = 'Vence amanhã'; }
+  else if (diffDias !== null && diffDias <= 3) { statusPillClass = 'warning'; statusPillLabel = `Vence em ${diffDias} dias`; }
 
   let dueClass = '';
   let dueText = '';
@@ -560,7 +569,7 @@ export default function CobrancaPublica() {
                     <div className="detail-row" key={l.id || idx}>
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <p className="detail-name">{l.razao_social || l.descricao}</p>
-                        {l.tipo_processo && <span className="detail-tag">{l.tipo_processo}</span>}
+                        {l.tipo_processo && <span className="detail-tag">{normalizarProcesso(l.tipo_processo)}</span>}
                       </div>
                       <span className="detail-amount">{fmtBRL(l.valor)}</span>
                     </div>
@@ -586,15 +595,15 @@ export default function CobrancaPublica() {
                   </div>
                   <p className="dani-msg">
                     {multiplosProcessos ? (
-                      <>Tem dúvida referente aos <b>processos desta cobrança</b> ou sobre essa cobrança? Posso te ajudar agora.</>
+                      <>Tem dúvida sobre os <b>processos desta cobrança</b> ou sobre o pagamento? Posso te ajudar agora.</>
                     ) : tipoPrincipal ? (
-                      <>Tem dúvida referente ao processo de <b>{tipoPrincipal} da {empresaPrincipal}</b> ou sobre essa cobrança? Posso te ajudar agora.</>
+                      <>Tem dúvida sobre o processo de <b>{tipoPrincipal} da {empresaPrincipal}</b> ou sobre o pagamento? Posso te ajudar agora.</>
                     ) : (
                       <>Posso te ajudar com qualquer dúvida sobre essa cobrança.</>
                     )}
                   </p>
                   <a
-                    href={`https://wa.me/${empresa.whatsapp}?text=${encodeURIComponent(`Oi Dani, tenho uma dúvida sobre a cobrança ${cobrancaShortId(cobranca.id)}`)}`}
+                    href={`https://wa.me/${whatsappNum}?text=${encodeURIComponent(`Oi Dani, tenho uma dúvida sobre a cobrança ${cobrancaShortId(cobranca.id)}`)}`}
                     target="_blank"
                     rel="noopener"
                     className="btn-whatsapp"
@@ -618,7 +627,7 @@ export default function CobrancaPublica() {
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
-                    Esta é a primeira cobrança que você recebe da Trevo Legaliza.
+                    Cobrança emitida em {fmtDataHora(cobranca.created_at)}{cobranca.data_vencimento ? ` · Vence em ${fmtData(cobranca.data_vencimento)}` : ''}.
                   </p>
                 </div>
               </section>
