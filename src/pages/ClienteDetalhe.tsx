@@ -175,13 +175,6 @@ export default function ClienteDetalhe() {
     const jaAplicou = (cliente as any).desconto_boas_vindas_aplicado === true;
     const ehPrimeiro = (count ?? 0) === 0;
 
-    console.log('CHECK BOAS-VINDAS CLIENTE DETALHE:', {
-      clienteId: cliente.id,
-      count,
-      jaAplicou,
-      ehPrimeiro,
-    });
-
     if (ehPrimeiro && jaAplicou) {
       console.warn('Cliente com 0 processos e flag de boas-vindas já aplicada; habilitando switch para correção de legado.');
     }

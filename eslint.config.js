@@ -29,6 +29,8 @@ export default tseslint.config(
           ignoreRestSiblings: true,
         },
       ],
+      // INFRA-003: console.log vaza dados em prod. warn/error/info ok pra debug intencional.
+      "no-console": ["warn", { allow: ["warn", "error", "info"] }],
     },
   },
 );

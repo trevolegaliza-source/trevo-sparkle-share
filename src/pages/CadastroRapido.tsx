@@ -140,14 +140,6 @@ export default function CadastroRapido() {
     const ehPrimeiro = (count ?? 0) === 0;
     const mostrarBoasVindas = ehPrimeiro;
 
-    console.log('CHECK BOAS-VINDAS:', {
-      clienteId: cliente.id,
-      count,
-      jaAplicou,
-      ehPrimeiro,
-      mostrarBoasVindas,
-    });
-
     if (ehPrimeiro && jaAplicou) {
       console.warn('Cliente com 0 processos e flag de boas-vindas já aplicada; habilitando switch para correção de legado.');
     }
