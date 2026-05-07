@@ -18,4 +18,8 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // INFRA-001: nunca expor sourcemap em prod (vaza estrutura interna do código)
+    sourcemap: mode === "development",
+  },
 }));
