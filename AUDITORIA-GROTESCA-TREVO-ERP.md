@@ -30,6 +30,17 @@ Varredura por subagent Explore em 7 vetores: SEGURANÇA, PERFORMANCE, CONFIABILI
 
 **Fora de escopo (decisão Thales):** PERF-001 (otimização de imagens — destrutivo, requer ferramenta externa), DATA-001 (migration SQL — Lovable controla), PERF-002 (god components — refactor amplo), SEC-001/002/003 (`dangerouslySetInnerHTML` — design decision atual aceita).
 
+### 🟢 Sprint 2 — atacados em 07/05 (rodada 2, ao vivo com Thales)
+
+| ID | Status | Commit |
+|---|---|---|
+| UX-003 | ⚠️ FALSO ALARME — todos os 4 botões de aprovar/recusar já têm `disabled={processando}` |  |
+| UX-004 | ⚠️ FALSO ALARME — todos os 14 arquivos com AlertDialog já usam `AlertDialogDescription` |  |
+| A11Y-003 | ✅ PARCIAL — `aria-label` em 5 icon buttons sem title (Processos, Orcamentos, NotificationPopover, NovoClienteInline, FilaBatch). Demais ~40 já têm `title=` (fallback aceitável) | `c51d1f3` |
+| A11Y-005 | ✅ FIXADO — `aria-current="page"` nos `SidebarMenuButton`/`SidebarMenuSubButton` quando isActive | `c51d1f3` |
+| PERF-005 | ✅ FIXADO (via manual chunks) — `jspdf`/`html2canvas`/`d3` em chunks vendor separados pra cache long-term. Dynamic import dentro das libs pulado (refactor pesado, ROI baixo) | `849fb03` |
+| INFRA-003 | ✅ FIXADO — 2 `console.log` removidos (audit citou 40 mas só restavam 2) + ESLint `no-console` warn rule | `45f1b0f` |
+
 ### 🔴 CRÍTICO (1)
 
 | ID | Arquivo:linha | Descrição | Fix |
