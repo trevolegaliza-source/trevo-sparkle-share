@@ -1,7 +1,42 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: **07/05/2026** (link de pagamento público — redesign v2 + auditoria Thales + preview WhatsApp).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: **07/05/2026** (auditoria 2 da `/cobranca/:token` — UI honesta + a11y + normalizações).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 🔬 AUDITORIA 2 — `/cobranca/:token` (07/05/2026, requisitada por Thales pós-CB-6)
+
+Spec Thales: *"Agora faca mais uma auditoria! e atualize esse md"*. Critério: tudo que for seguro corrigir agora atacado, resto deferido com motivo. Plano descoberto **13 itens**, atacados **7 críticos+rápidos**, deferidos **6**.
+
+### 🔴 Críticos & 🟡 rápidos atacados ([`71f011f`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/71f011f))
+
+| ID | Item |
+|---|---|
+| **A2-1** | **UI mentindo no Histórico**. Texto era hardcoded `"Esta é a primeira cobrança que você recebe da Trevo Legaliza"`. Cliente que recebe a 10ª cobrança via mesma frase. **Fix**: substituído por data real `Cobrança emitida em DD/MM/YYYY HH:MM · Vence em DD/MM/YYYY` (sempre verdadeira sem precisar mexer no RPC). |
+| **A2-2** | **Tautologia na frase Dani** (`"...processos desta cobrança ou sobre essa cobrança?"`). Repetia "cobrança" 2x na mesma frase. **Fix**: 2ª ocorrência → "ou sobre o pagamento" (singular e plural). |
+| **A2-3** | **`detail-tag` mostrando tipo raw** (sem normalização). Dizia "alteracao" sem ç enquanto a frase Dani logo abaixo dizia "alteração" com ç — inconsistência visível na mesma página. **Fix**: aplicar `normalizarProcesso()` também na detail-tag. |
+| **A2-4** | **Status pill verde-tranquilo contradizia due chip âmbar** quando faltam 2-3 dias. Header dizia "Cobrança ativa" enquanto a due chip dizia "Vence em 2 dias" em âmbar. **Fix**: status pill agora é `warning` âmbar quando `diffDias <= 3`. |
+| **A2-5** | **`empresa.whatsapp` sem normalização** no link `wa.me/`. Se DB tem máscara `"(11) 93492-7001"`, link `wa.me/(11)%2093492-7001` quebra silenciosamente — usuário clica e WhatsApp abre tela vazia. **Fix**: helper `onlyDigits()` strip não-dígitos antes de montar URL. Aplicado nos 2 wa.me (card Dani + tela cobrança cancelada). |
+| **A2-6** | **`saudacao` sem fallback** — se `cliente_apelido` E `cliente_nome` estão vazios, renderiza `"Olá, ."` quebrado (sim, com a vírgula órfã). **Fix**: fallback `'tudo bem'` (saudação neutra que não exige nome). |
+| **A2-7** | **Confetti ignora `prefers-reduced-motion`** — pessoas com sensibilidade vestibular veem animação 4.5s sem opt-out. **Fix**: `dispararConfetti()` faz `return` early se `matchMedia('(prefers-reduced-motion: reduce)').matches`. Padrão WCAG 2.3.3. |
+
+### 🟢 Deferidos (próximos rounds)
+
+| ID | Item | Razão deferida |
+|---|---|---|
+| **A2-8** | **Sem Realtime** — cliente paga olhando a página, confetti só dispara em refresh. Cliente espera 30s+ sem feedback visual de que pagamento foi confirmado. | Precisa subscription Supabase Realtime em `cobrancas` filtrado por token. **Pré-requisito**: `ALTER PUBLICATION supabase_realtime ADD TABLE cobrancas;` no Supabase. Validar com Thales. |
+| **A2-9** | **`baixarExtrato` sem timeout** (sem `AbortController`). Edge function `cobranca-pdf` lenta deixa botão Baixar PDF travado indefinidamente. | Risco baixo (PDF rápido), mas vale `AbortSignal.timeout(15000)` num próximo round. |
+| **A2-10** | **Confetti dispara em todo refresh** se status já é `paga`. Cliente que volta na página vê confetti repetido. | Solução: localStorage `confetti_disparado:${cobranca.id}` com TTL. Polish, não bug. |
+| **A2-11** | **A11y tabs**: `role="tab"` sem `aria-controls` apontando pro panel correspondente. Screen reader não consegue navegar tab → panel. | Refactor: dar IDs aos `pay-panel` (`#panel-pix`, `#panel-boleto`) e `aria-controls` nos buttons. Pequeno mas mexe estrutura. |
+| **A2-12** | **Token Asaas em URL query** já listado em **C40** da seção Críticos da auditoria principal. | Bloqueado: stripping de headers customizados pelo Apps Script (cross-repo). |
+| **A2-13** | **`pix_payload` longo** (90+ chars) pode quebrar layout em viewport <360px. Não verifiquei em mobile estreito real. | Precisa `word-break: break-all` no `.pix-code` se confirmar. Test manual em mobile primeiro. |
+
+### Decisões / cuidados
+
+- **Histórico (A2-1)**: optei por NÃO criar campo `é_primeira_cobranca` no RPC porque (a) info redundante (basta `created_at` da cliente) e (b) próximo round vai querer "Última cobrança paga: DD/MM" — melhor refazer estrutura uma vez só. A frase nova é sempre verdadeira sem custo.
+- **A2-2 (frase Dani)**: tentei "ou sobre algum detalhe" antes mas ficou genérico demais. "Sobre o pagamento" mantém o foco transacional da página.
+- **A2-7 (a11y confetti)**: `dispararConfetti()` checa `window.matchMedia` defensivo (SSR-safe pra futuro), mesmo o app sendo SPA. Custo zero.
 
 ---
 
