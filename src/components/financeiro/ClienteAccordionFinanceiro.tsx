@@ -675,15 +675,21 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
       if (insertError) throw insertError;
 
       // Link lancamentos to extrato
+      // Guard: nunca rebaixar honorario_pago/cobranca_enviada → cobranca_gerada.
+      // Processo já pago entra no extrato pra constar no PDF, mas mantém badge Pago.
+      // Bug DERMAE 07/05/2026.
       for (const pid of processoIds) {
         await supabase
           .from('lancamentos')
-          .update({
-            extrato_id: (extrato as any).id,
-            etapa_financeiro: 'cobranca_gerada',
-          } as any)
+          .update({ extrato_id: (extrato as any).id } as any)
           .eq('processo_id', pid)
           .eq('tipo', 'receber');
+        await supabase
+          .from('lancamentos')
+          .update({ etapa_financeiro: 'cobranca_gerada' } as any)
+          .eq('processo_id', pid)
+          .eq('tipo', 'receber')
+          .not('etapa_financeiro', 'in', '("honorario_pago","cobranca_enviada")');
       }
 
       // Criar registro de cobrança pública

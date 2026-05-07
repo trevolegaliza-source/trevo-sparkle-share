@@ -234,6 +234,15 @@ export default function FinanceiroList({ processos }: FinanceiroListProps) {
     try {
       for (const p of selectedProcessos) {
         if (p.lancamento) {
+          // Guard: não rebaixar quem já está em estado mais avançado.
+          // honorario_pago/cobranca_enviada são posteriores a cobranca_gerada
+          // no fluxo. Sem isso, clicar "Marcar Faturado" em processo já pago
+          // (ja_pago=true no cadastro) volta o badge de "Pago" pra "Enviar"
+          // e some da Auditoria — bug DERMAE 07/05/2026.
+          if (
+            p.lancamento.etapa_financeiro === 'honorario_pago' ||
+            p.lancamento.etapa_financeiro === 'cobranca_enviada'
+          ) continue;
           await supabase
             .from('lancamentos')
             .update({

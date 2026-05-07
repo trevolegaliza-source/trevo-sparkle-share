@@ -91,15 +91,22 @@ export function useExtratos(clienteId?: string) {
 
       // Vincular lançamentos ao extrato (NÃO sobrescrever observacoes_financeiro;
       // esse campo é exclusivo do operador — metadata de extrato não vai pra lá)
+      //
+      // Guard: nunca rebaixar honorario_pago/cobranca_enviada para cobranca_gerada.
+      // Processo já pago entra no extrato pra constar no PDF, mas o badge dele
+      // permanece "Pago". Bug DERMAE 07/05/2026.
       for (const pid of input.processoIds) {
         await supabase
           .from('lancamentos')
-          .update({
-            extrato_id: extratoTyped.id,
-            etapa_financeiro: 'cobranca_gerada',
-          } as any)
+          .update({ extrato_id: extratoTyped.id } as any)
           .eq('processo_id', pid)
           .eq('tipo', 'receber');
+        await supabase
+          .from('lancamentos')
+          .update({ etapa_financeiro: 'cobranca_gerada' } as any)
+          .eq('processo_id', pid)
+          .eq('tipo', 'receber')
+          .not('etapa_financeiro', 'in', '("honorario_pago","cobranca_enviada")');
       }
 
       return extratoTyped;

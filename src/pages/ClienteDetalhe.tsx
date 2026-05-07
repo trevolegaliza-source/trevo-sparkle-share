@@ -2273,6 +2273,12 @@ export default function ClienteDetalhe() {
                 for (const p of selectedProcs) {
                   const lanc = lancamentos.find(l => l.processo_id === p.id && l.tipo === 'receber');
                   if (lanc) {
+                    // Guard: não rebaixar honorario_pago/cobranca_enviada.
+                    // Bug DERMAE 07/05/2026 — UI rebaixava processo já pago.
+                    if (
+                      lanc.etapa_financeiro === 'honorario_pago' ||
+                      lanc.etapa_financeiro === 'cobranca_enviada'
+                    ) continue;
                     await supabase
                       .from('lancamentos')
                       .update({
