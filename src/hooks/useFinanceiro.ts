@@ -457,7 +457,14 @@ export function useCreateProcesso() {
       if (welcomeDiscountInfo) descParts.push(`(Boas-vindas ${input.desconto_boas_vindas}%)`);
 
       const momentoFat = cliente.momento_faturamento || 'na_solicitacao';
-      const shouldCreateLancamento = input.ja_pago || momentoFat === 'na_solicitacao';
+      // Sempre criar lançamento — a RPC criar_processo_com_lancamento decide
+      // a etapa correta:
+      //  - ja_pago             → 'honorario_pago'
+      //  - no_deferimento      → 'aguardando_deferimento' (cobrança bloqueada até deferir)
+      //  - na_solicitacao/etc  → 'solicitacao_criada'
+      // Antes essa flag era `ja_pago || momentoFat==='na_solicitacao'`, o que deixava
+      // processos de clientes 'no_deferimento' invisíveis no Financeiro até deferir.
+      const shouldCreateLancamento = true;
 
       const lancDate = input.data_entrada || new Date().toISOString().split('T')[0];
 
