@@ -21,5 +21,15 @@ export default defineConfig(({ mode }) => ({
   build: {
     // INFRA-001: nunca expor sourcemap em prod (vaza estrutura interna do código)
     sourcemap: mode === "development",
+    rollupOptions: {
+      output: {
+        // PERF-005: isola libs pesadas em chunks separados pra cache long-term
+        // e evita re-download em deploys que não tocam essas libs.
+        manualChunks: {
+          'pdf-vendor': ['jspdf', 'jspdf-autotable', 'html2canvas'],
+          'd3-vendor': ['d3'],
+        },
+      },
+    },
   },
 }));
