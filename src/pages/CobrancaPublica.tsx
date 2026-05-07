@@ -82,9 +82,13 @@ const fmtDataExtenso = (iso: string | null | undefined) => {
   return d.toLocaleDateString('pt-BR', { weekday: 'long' });
 };
 
-const fmtBRLParts = (v: number) => {
-  const s = v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return { currency: 'R$', amount: s };
+const fmtDataHora = (iso: string | null | undefined) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  }).replace(',', ' ·');
 };
 
 const cobrancaShortId = (id: string) => `#${id.slice(0, 6)}`;
@@ -231,8 +235,7 @@ export default function CobrancaPublica() {
   else if (diffDias !== null && diffDias === 0) { statusPillClass = 'warning'; statusPillLabel = 'Vence hoje'; }
   else if (diffDias !== null && diffDias === 1) { statusPillClass = 'warning'; statusPillLabel = 'Vence amanhã'; }
 
-  const valor = fmtBRLParts(cobranca.total_geral);
-  const tipoPrincipal = cobranca.lancamentos[0]?.tipo_processo;
+  const valorFmt = cobranca.total_geral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const temAsaasPix = !!cobranca.asaas?.pix_payload;
   const pixValueToCopy = cobranca.asaas?.pix_payload || empresa.pix_chave;
@@ -318,8 +321,8 @@ export default function CobrancaPublica() {
                   <p className="hero-greet">Olá, <b>{saudacao}</b>. {isPaga ? 'Recebemos seu pagamento.' : 'Sua cobrança está pronta.'}</p>
                   <p className="hero-amount-label">{isPaga ? 'Valor pago' : 'Total a pagar'}</p>
                   <p className="hero-amount">
-                    <span className="currency">{valor.currency}</span>
-                    <span>{valor.amount}</span>
+                    <span className="currency">R$</span>
+                    <span>{valorFmt}</span>
                   </p>
                   {!isPaga && cobranca.data_vencimento && (
                     <p className="hero-due">
@@ -394,7 +397,7 @@ export default function CobrancaPublica() {
                                 <circle cx="12" cy="12" r="10" />
                                 <polyline points="12 6 12 12 16 14" />
                               </svg>
-                              Pagamento confirmado em segundos. Cole no app do banco ou escaneie o QR.
+                              Pagamento confirmado em segundos. Cole no app do seu banco ou escaneie o QR.
                             </p>
                           </div>
                         </div>
@@ -447,27 +450,24 @@ export default function CobrancaPublica() {
                     )}
                   </div>
                 )}
-
-                {isPaga && (
-                  <div className="pay-block" style={{ borderTop: '1px dashed var(--border)', paddingTop: 24 }}>
-                    <button className="btn btn-secondary btn-w-full" onClick={baixarExtrato}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                      Baixar comprovante (PDF)
-                    </button>
-                  </div>
-                )}
               </section>
 
+              {/* Trust strip */}
               <div className="trust">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                 </svg>
-                Cobrança emitida por <b style={{ color: 'var(--fg-1)', fontWeight: 600 }}>&nbsp;{empresa.nome}</b>&nbsp;·&nbsp;ambiente protegido por criptografia e validação bancária
+                Cobrança emitida por <b>&nbsp;Trevo Legaliza</b>&nbsp;·&nbsp;ambiente protegido por criptografia e validação bancária
               </div>
+
+              <button className="btn btn-secondary btn-w-full" style={{ marginTop: 16 }} onClick={baixarExtrato}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Baixar extrato em PDF
+              </button>
             </div>
 
             {/* COLUNA DIREITA */}
@@ -487,7 +487,7 @@ export default function CobrancaPublica() {
                   <div className="detail-divider"></div>
                   <div className="detail-total">
                     <span className="lbl">Total</span>
-                    <span className="val">{`R$\u00a0${cobranca.total_geral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</span>
+                    <span className="val">{`R$\u00a0${valorFmt}`}</span>
                   </div>
                 </div>
               </section>
@@ -520,7 +520,7 @@ export default function CobrancaPublica() {
 
           <div className="meta-bar">
             <span>Cobrança&nbsp;<span className="id">{cobrancaShortId(cobranca.id)}</span></span>
-            <span>Emitida em {fmtData(cobranca.created_at)}</span>
+            <span>Emitida em {fmtDataHora(cobranca.created_at)}</span>
           </div>
         </main>
 
