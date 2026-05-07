@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, FileBadge, Copy, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useGerarAsaasCobranca } from '@/hooks/useAsaas';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface Props {
   open: boolean;
@@ -75,12 +76,9 @@ export default function GerarAsaasModal({
   };
 
   const copyText = async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(`${label} copiado!`);
-    } catch {
-      toast.error('Não foi possível copiar.');
-    }
+    const ok = await copyToClipboard(text);
+    if (ok) toast.success(`${label} copiado!`);
+    else toast.error('Não foi possível copiar.');
   };
 
   return (

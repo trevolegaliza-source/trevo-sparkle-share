@@ -29,6 +29,7 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getCobrancaPublicUrl } from '@/lib/cobranca-url';
+import { copyToClipboard } from '@/lib/clipboard';
 import { useCobrancaAsaas, useGerarAsaasCobranca } from '@/hooks/useAsaas';
 import GerarAsaasModal from './GerarAsaasModal';
 
@@ -91,12 +92,9 @@ export default function DetalhesCobrancaModal({
     dataExpiracao !== null && new Date(dataExpiracao).getTime() < Date.now();
 
   const copyText = async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(`${label} copiado!`);
-    } catch {
-      toast.error('Não foi possível copiar.');
-    }
+    const ok = await copyToClipboard(text);
+    if (ok) toast.success(`${label} copiado!`);
+    else toast.error('Não foi possível copiar.');
   };
 
   const rotacionarToken = async () => {
