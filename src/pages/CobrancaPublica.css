@@ -506,6 +506,26 @@
   gap: 16px;
 }
 .cobranca-public .detail-row + .detail-row { margin-top: 14px; }
+.cobranca-public .detail-row-group + .detail-row-group { margin-top: 14px; }
+.cobranca-public .detail-subrow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  padding-left: 14px;
+  border-left: 2px solid var(--line);
+}
+.cobranca-public .detail-subname {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.35;
+  flex: 1; min-width: 0;
+}
+.cobranca-public .detail-subamount {
+  font-size: 12.5px; font-weight: 600;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
 .cobranca-public .detail-name {
   font-size: 15px; font-weight: 600;
   color: var(--ink-1);

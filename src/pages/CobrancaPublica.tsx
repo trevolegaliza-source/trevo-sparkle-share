@@ -586,12 +586,20 @@ export default function CobrancaPublica() {
                 <h2 className="side-title">Detalhes da cobrança</h2>
                 <div className="detail-card">
                   {cobranca.lancamentos.map((l, idx) => (
-                    <div className="detail-row" key={l.id || idx}>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <p className="detail-name">{l.razao_social || l.descricao}</p>
-                        {l.tipo_processo && <span className="detail-tag">{normalizarProcesso(l.tipo_processo)}</span>}
+                    <div className="detail-row-group" key={l.id || idx}>
+                      <div className="detail-row">
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <p className="detail-name">{l.razao_social || l.descricao}</p>
+                          {l.tipo_processo && <span className="detail-tag">{normalizarProcesso(l.tipo_processo)}</span>}
+                        </div>
+                        <span className="detail-amount">{fmtBRL(l.valor)}</span>
                       </div>
-                      <span className="detail-amount">{fmtBRL(l.valor)}</span>
+                      {(l.taxas || []).map((t, tIdx) => (
+                        <div className="detail-subrow" key={`${l.id || idx}-taxa-${tIdx}`}>
+                          <span className="detail-subname">{t.descricao}</span>
+                          <span className="detail-subamount">{fmtBRL(t.valor)}</span>
+                        </div>
+                      ))}
                     </div>
                   ))}
                   <div className="detail-divider"></div>
