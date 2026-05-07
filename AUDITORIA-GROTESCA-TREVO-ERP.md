@@ -41,6 +41,26 @@ Varredura por subagent Explore em 7 vetores: SEGURANÇA, PERFORMANCE, CONFIABILI
 | PERF-005 | ✅ FIXADO (via manual chunks) — `jspdf`/`html2canvas`/`d3` em chunks vendor separados pra cache long-term. Dynamic import dentro das libs pulado (refactor pesado, ROI baixo) | `849fb03` |
 | INFRA-003 | ✅ FIXADO — 2 `console.log` removidos (audit citou 40 mas só restavam 2) + ESLint `no-console` warn rule | `45f1b0f` |
 
+### 🟢 Sprint 3 — atacados em 07/05 (rodada 3, com aprovação Thales)
+
+| ID | Status | Commit |
+|---|---|---|
+| PERF-001 | ✅ FIXADO — 6.5MB economizados: 2 PNGs órfãos deletados (3.3MB) + dani-avatar/trevo-logo redimensionados pra 512px (3.2MB) | `78c0f2e` |
+| DATA-001 | ⚠️ FALSO ALARME — `MIGRATION-cartao.sql` JÁ TEM `idx_cartao_compras_cartao_fatura` e `idx_cartao_faturas_cartao_status` |  |
+| DATA-002 | ⚠️ FALSO ALARME — RLS habilitada + policies `cartoes_authenticated_all`, `cartao_compras_*`, `cartao_faturas_*` já criadas |  |
+| PERF-002 | ⏸️ NÃO ATACAR — refactor de god components (2549/2302l) sem ROI claro. Atacar só se bater bug específico ou feature nova nessas telas |  |
+| SEC-001/002/003 | ⏸️ NÃO ATACAR — `dangerouslySetInnerHTML` com CSS estático (constante `GLASS_CSS`). Risco XSS = ZERO porque conteúdo não vem de input do user. Audit flagou só por padrão de código |  |
+
+### 📊 Balanço final auditoria sistêmica
+
+**38 achados originais:**
+- ✅ 11 fixados (sprint 1+2+3)
+- ⚠️ 12 falsos alarmes (já estavam corretos no código)
+- ⏸️ 5 não atacar (custo > benefício ou sem risco real)
+- 🔄 10 não atacados ainda (UX-001/002/005/006, REL-002 (✅), A11Y-001 (✅)/A11Y-002/A11Y-004, INFRA-002/004/005/006, DATA-003/004, PERF-003/004/006, SEC-006/007/008)
+
+**Insight:** ~32% dos achados eram falsos alarmes. A auditoria automática do subagent foi superficial em vários itens — útil pra catálogo, mas precisa validação humana antes de atacar.
+
 ### 🔴 CRÍTICO (1)
 
 | ID | Arquivo:linha | Descrição | Fix |
