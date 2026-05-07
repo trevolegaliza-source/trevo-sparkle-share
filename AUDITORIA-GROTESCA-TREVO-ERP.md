@@ -60,15 +60,24 @@ Varredura por subagent Explore em 7 vetores: SEGURANÇA, PERFORMANCE, CONFIABILI
 | SEC-007 | ⚠️ FALSO ALARME — `ContractDropzone.tsx` já tem `ACCEPTED_TYPES` (PDF/JPG/PNG/DOCX) + `MAX_SIZE` 10MB via react-dropzone |  |
 | PERF-004 | ⚠️ FALSO ALARME — `salvarSelecaoSilencioso` já usa `saveTimer` como `useRef`, e args (sel/vals/allItens) são passados como parâmetros frescos, não capturados por closure |  |
 
+### 🟢 Sprint 5 — atacados em 07/05 (rodada 5, limpeza)
+
+| ID | Status | Commit |
+|---|---|---|
+| INFRA-006 | ✅ FIXADO — deletado `src/App.css` (scaffolding default Vite, ZERO imports no projeto, levava `logo-spin` keyframe + `.read-the-docs` morto) | _este commit_ |
+| PERF-006 | ⚠️ FALSO ALARME — Catalogo renderiza Level0/1/2/SearchResults/ServiceDetail um por vez via condicional + `key={animKey}` força remount. memo() não ajuda quando só 1 mounta de cada vez. ItemCardSimples/Detalhado vivem em OrcamentoNovo, não Catalogo (audit confundiu) |  |
+
 ### 📊 Balanço final auditoria sistêmica
 
 **38 achados originais:**
-- ✅ 13 fixados (sprint 1+2+3+4)
-- ⚠️ 14 falsos alarmes (já estavam corretos no código)
+- ✅ 14 fixados (sprint 1+2+3+4+5)
+- ⚠️ 15 falsos alarmes (já estavam corretos no código)
 - ⏸️ 5 não atacar (custo > benefício ou sem risco real)
-- 🔄 6 não atacados ainda (UX-001/002/005/006, A11Y-002, INFRA-002/004/005/006, DATA-003/004, PERF-003/006, SEC-008)
+- 🔄 4 restantes — todos exigem decisão/refactor médio: UX-001/002/006 (god components), A11Y-002 (contraste — auditoria visual com devtools), DATA-003/004 (refactor + DB), INFRA-002/004/005 (decisões), SEC-008 (env vars — risco com Lovable), UX-005 (sticky col mobile — caso a caso)
 
-**Insight:** ~37% dos achados eram falsos alarmes. A auditoria automática do subagent foi superficial em vários itens — útil pra catálogo, mas precisa validação humana antes de atacar.
+**Insight:** ~39% dos achados eram falsos alarmes. A auditoria automática do subagent foi superficial em vários itens — útil pra catálogo, mas precisa validação humana antes de atacar.
+
+**Próximos passos sugeridos:** os 4 restantes não são "batch friendly" — cada um pede ou (a) sessão dedicada com screenshots/devtools, (b) decisão estratégica do Thales, ou (c) refactor médio (>1h) com risco de regressão. Atacar só sob demanda específica ou quando bater bug real na área.
 
 ### 🔴 CRÍTICO (1)
 
