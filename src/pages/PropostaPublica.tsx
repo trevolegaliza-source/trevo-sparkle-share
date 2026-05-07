@@ -306,7 +306,7 @@ export default function PropostaPublica() {
         fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
           method: 'POST', headers: anonHeaders,
           body: JSON.stringify({ p_orcamento_id: orcData.id, p_tipo: 'visualizou', p_dados: { token } }),
-        }).catch(() => {});
+        }).catch(err => console.warn('[proposta] log visualizou falhou:', err));
 
         setLoading(false);
       } catch { setError('Erro ao carregar proposta.'); setLoading(false); }
@@ -324,7 +324,7 @@ export default function PropostaPublica() {
       await fetch(`${SUPABASE_URL}/rest/v1/rpc/salvar_selecao_proposta`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({ p_token: token, p_itens_selecionados: payload }),
-      }).catch(() => {});
+      }).catch(err => console.warn('[proposta] salvar_selecao falhou:', err));
     }, 1500);
   }, [token]);
 
@@ -411,7 +411,7 @@ export default function PropostaPublica() {
       fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({ p_orcamento_id: orc.id, p_tipo: 'aprovou', p_dados: { total: totalSel, itens_count: selecionados.size } }),
-      }).catch(() => {});
+      }).catch(err => console.warn('[proposta] log aprovou falhou:', err));
       setStatusFinal('aprovado');
       setShowAprovacao(false);
     } catch (err) { console.error(err); } finally { setProcessando(false); }
@@ -435,7 +435,7 @@ export default function PropostaPublica() {
       fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({ p_orcamento_id: orc.id, p_tipo: 'recusou', p_dados: { motivo: motivoRecusa } }),
-      }).catch(() => {});
+      }).catch(err => console.warn('[proposta] log recusou falhou:', err));
       setStatusFinal('recusado');
       setShowRecusa(false);
     } catch (err) { console.error(err); } finally { setProcessando(false); }
