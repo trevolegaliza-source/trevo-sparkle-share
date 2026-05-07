@@ -1,7 +1,38 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: 05/05/2026 (Editar config do processo após cadastro + coluna Pagamento em /processos).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: **07/05/2026** (link de pagamento público — redesign v2 + auditoria Thales + preview WhatsApp).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 🆕 LOTE COBRANÇA-PÚBLICA — 06–07/05/2026 (página `/cobranca/:token` + preview WhatsApp)
+
+Spec inicial Thales (06/05 noite): *"Refiz o HTML no Claude design e demorei horas mexendo nele. Quero que voce importe exatamente esse zip!"* → 2 iterações de design (1ª descartada após review do mobile, 2ª aprovada via `index-ed37df5d.html`) → auditoria detalhada com 3 screenshots → preview do link no WhatsApp passou por 3 ciclos.
+
+Página é `https://cobranca.trevolegaliza.com/cobranca/:token` — link que o cliente recebe pelo WhatsApp pra pagar.
+
+### Itens entregues
+
+| ID | Item | Commit |
+|---|---|---|
+| **CB-1** | Design v1 (zip `LP (1).zip` — Orbitron + mono uppercase + dani-logo horizontal grande). Implementado, deployado, **mas Thales viu no mobile e pediu redesign** ("ainda não está na versão nova"). | [`6479de6`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6479de6) |
+| **CB-2** | Design v2 final (`index-ed37df5d.html`): Inter sans 56px no valor, **due chip com 3 variantes** (`is-soon` âmbar / `is-overdue` vermelho / verde default), pay-tabs full-width verde sólido no ativo, card Dani limpo com avatar circular 40px, nova seção **Histórico** com link "Baixar PDF" (chama edge function `cobranca-pdf`), meta-bar centralizada `Cobrança #xxx · Emitida em DD/MM/YYYY HH:MM`, footer Trevo \| divider \| dani®. | [`075a88e`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/075a88e) |
+| **CB-3** | **Meta tags Open Graph corrigidas** — preview do link no WhatsApp mostrava print da tela de login do ERP (era a `og:image` antiga do Lovable preview, herdada do `index.html` do projeto). Trocado: `<title>` "Trevo Legaliza - ERP" → "Cobrança Trevo Legaliza"; description institucional → "Sua cobrança Trevo Legaliza. Pague via PIX ou Boleto em ambiente seguro"; `og:url` canônica adicionada. | [`1c78656`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/1c78656) |
+| **CB-4 (auditoria Thales — RTF + 3 screenshots)** | **Card Dani**: removido nome "dani" ao lado do logo; role trocada de "Assistente IA da Trevo" → "Digital Assistant for National Incorporation"; helper `normalizarProcesso()` converte tipo do DB (lowercase sem acento) → exibição correta com acentos (`alteração`, `abertura`, `encerramento`, `transformação`); frase singular vs plural ("Tem dúvida referente ao processo de **X da Y**" vs "aos **processos desta cobrança**"). **Histórico**: conjunção corrigida — "Esta é a primeira cobrança que você recebe da Trevo Legaliza" (era "primeira cobrança da PROCESSO TESTE" — gramaticalmente quebrado). **Footer**: logo Trevo 40 → 64px (opacity 0.85 → 0.95); logo Dani 36 → 56px; ® aproximado da logo (gap 4 → 0px, margin-left -2px); divider 44 → 60px. **Pagamento confirmado**: animação confetti vanilla canvas (140 partículas, 4.5s, dispara 1x via useRef quando `status === 'paga'`) — sem dependência nova. | [`6a32643`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/6a32643) |
+| **CB-5** | Preview WhatsApp formato pequeno. Antes era card grande (banner 1200×630), Thales pediu thumbnail compacta. `og:image` trocada pra 400×400, `twitter:card` `summary_large_image` → `summary`. Aplicado em `index.html` (estático) **e** no `useEffect` SEO de `CobrancaPublica.tsx` (que sobrescreve dinâmico no client). | [`578c376`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/578c376) |
+| **CB-6** | Arte oficial do Thales (`og-cobranca-sm.png` 400×400, 220 KB) substitui o draft Python que tinha sido gerado. | [`c24c317`](https://github.com/trevolegaliza-source/trevo-sparkle-share/commit/c24c317) |
+
+### Decisões técnicas relevantes
+
+- **Lovable é SPA estático (sem SSR)** → meta tags Open Graph são fixas no `index.html`. Não dá pra colocar nome do cliente / valor da cobrança no preview do WhatsApp (precisaria SSR ou edge function que retorna HTML). Aceito como tradeoff. O `useEffect` no `CobrancaPublica.tsx` sobrescreve `<title>` e meta-tags depois do load — funciona pra aba do navegador, **não funciona pro WhatsApp** (scraper só lê HTML estático).
+- **Cache do WhatsApp ~7 dias** — depois do Publish, primeiros clientes podem ver preview antigo. Workaround: link com `?v=N` em conversa de teste força nova entrada no cache.
+- **Confetti**: implementado vanilla pra evitar adicionar `canvas-confetti` (~50KB). 140 partículas + gravidade simples + rotação. CSS `.cobranca-confetti` `position:fixed; pointer-events:none; z-index:9999`. Limpa o `<canvas>` do DOM ao terminar.
+- **`normalizarProcesso()` map** cobre só os 4 tipos canônicos (alteração/abertura/encerramento/transformação). "DEMAIS PROCESSOS" do brief Thales é tratado pelo fallback `raw.toLowerCase()`.
+
+### Pendente
+
+- **Publish no Lovable** — Thales vai apertar manualmente, não auto.
+- **Verificar pós-deploy** no domínio real (`cobranca.trevolegaliza.com`) com cobrança ativa: due chip nos 3 estados, confetti em cobrança paga, og:image no [Facebook Debugger](https://developers.facebook.com/tools/debug/) (serve pra WhatsApp também).
 
 ---
 
