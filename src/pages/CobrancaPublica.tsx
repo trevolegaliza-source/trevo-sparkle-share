@@ -167,7 +167,7 @@ export default function CobrancaPublica() {
     if (!cobranca) return;
     const title = `Cobrança — ${cobranca.cliente_apelido || cobranca.cliente_nome} — Trevo Legaliza`;
     const description = `Cobrança oficial no valor de R$ ${Number(cobranca.total_geral).toFixed(2).replace('.', ',')}. Pague via PIX ou boleto com segurança.`;
-    const image = 'https://cobranca.trevolegaliza.com/og-cobranca.png';
+    const image = 'https://cobranca.trevolegaliza.com/og-cobranca-sm.png';
     document.title = title;
     const setMeta = (key: 'property' | 'name', value: string, content: string) => {
       let tag = document.querySelector(`meta[${key}="${value}"]`) as HTMLMetaElement | null;
@@ -181,10 +181,12 @@ export default function CobrancaPublica() {
     setMeta('property', 'og:title', title);
     setMeta('property', 'og:description', description);
     setMeta('property', 'og:image', image);
+    setMeta('property', 'og:image:width', '400');
+    setMeta('property', 'og:image:height', '400');
     setMeta('property', 'og:type', 'website');
     setMeta('property', 'og:site_name', 'Trevo Legaliza');
     setMeta('name', 'description', description);
-    setMeta('name', 'twitter:card', 'summary_large_image');
+    setMeta('name', 'twitter:card', 'summary');
     setMeta('name', 'twitter:title', title);
     setMeta('name', 'twitter:description', description);
     setMeta('name', 'twitter:image', image);
