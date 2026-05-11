@@ -172,7 +172,15 @@ const App = () => (
                       <RelatoriosFluxoCaixa />
                     </RequirePermission>
                   } />
-                  <Route path="/reconciliacao-trello" element={<ReconciliacaoTrello />} />
+                  <Route path="/reconciliacao-trello" element={
+                    /* PERM-005 (11/05/2026): rota estava sem RequirePermission —
+                       qualquer authenticated (operacional/visualizador) podia
+                       acessar dados de reconciliação Trello↔ERP via URL direta.
+                       Protegida com modulo='configuracoes' (admin-only). */
+                    <RequirePermission modulo="configuracoes">
+                      <ReconciliacaoTrello />
+                    </RequirePermission>
+                  } />
                   <Route path="/configuracoes" element={
                     <RequirePermission modulo="configuracoes">
                       <Configuracoes />
