@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMarcarProcessoPago } from '@/hooks/useFinanceiro';
-import { TIPO_PROCESSO_LABELS } from '@/types/process';
-import type { TipoProcesso } from '@/types/financial';
+import { TIPO_PROCESSO_LABELS, type TipoProcesso } from '@/types/financial';
 
 interface Props {
   processo: {
