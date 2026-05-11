@@ -45,6 +45,8 @@ import TrelloProvisionButton from '@/components/clientes/TrelloProvisionButton';
 import ProcessoEditModal from '@/components/financeiro/ProcessoEditModal';
 import ProcessoConfigEditModal from '@/components/processos/ProcessoConfigEditModal';
 import MarcarPagoProcessoModal from '@/components/processos/MarcarPagoProcessoModal';
+import MarcarDeferidoProcessoModal from '@/components/processos/MarcarDeferidoProcessoModal';
+import { useDesfazerDeferimento } from '@/hooks/useFinanceiro';
 import { PagamentoBadge, classificarPagamento } from '@/components/processos/PagamentoBadge';
 import { useColaboradores } from '@/hooks/useColaboradores';
 import { Textarea } from '@/components/ui/textarea';
@@ -108,6 +110,10 @@ export default function ClienteDetalhe() {
   // FEAT-001 (11/05/2026): marcar processo como pago depois de criado.
   const [markPaidModalOpen, setMarkPaidModalOpen] = useState(false);
   const [markPaidProcesso, setMarkPaidProcesso] = useState<ProcessoDB | null>(null);
+  // FEAT-002/003 (11/05/2026): marcar/desfazer deferimento direto no Cliente.
+  const [markDeferidoModalOpen, setMarkDeferidoModalOpen] = useState(false);
+  const [markDeferidoProcesso, setMarkDeferidoProcesso] = useState<ProcessoDB | null>(null);
+  const desfazerDeferimento = useDesfazerDeferimento();
   const [generatingExtrato, setGeneratingExtrato] = useState(false);
   const [showMarkFaturadoDialog, setShowMarkFaturadoDialog] = useState(false);
   const [showDeferimentoAlert, setShowDeferimentoAlert] = useState(false);
@@ -1120,36 +1126,87 @@ export default function ClienteDetalhe() {
                           {pago && <span className="ml-2 text-xs text-green-500 no-underline inline-block">✓ Pago</span>}
                         </TableCell>
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-0.5">
-                            {/* FEAT-001 (11/05/2026): marca processo como pago.
-                                Só aparece se ainda não está pago. */}
-                            {!pago && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
-                                title="Marcar como pago"
-                                onClick={() => {
-                                  setMarkPaidProcesso(p);
-                                  setMarkPaidModalOpen(true);
-                                }}
-                              >
-                                <CheckCircle className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              title="Editar configurações do processo"
-                              onClick={() => {
-                                setConfigEditProcesso(p);
-                                setConfigModalOpen(true);
-                              }}
-                            >
-                              <Settings className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                          {(() => {
+                            const lancProc = lancamentos.find(l => l.processo_id === p.id && l.tipo === 'receber');
+                            const isNoDeferimento = (cliente as any).momento_faturamento === 'no_deferimento';
+                            // FEAT-002: marcar deferido aparece se cliente é no_deferimento
+                            // e lançamento ainda está em aguardando_deferimento.
+                            const podeMarcarDeferido = !pago && isNoDeferimento
+                              && lancProc?.etapa_financeiro === 'aguardando_deferimento';
+                            // FEAT-003: desfazer deferimento aparece se cliente é
+                            // no_deferimento, processo já tem data_deferimento,
+                            // e lançamento NÃO foi enviado/pago ainda (anti-rebaixamento).
+                            const podeDesfazerDeferimento = !pago && isNoDeferimento
+                              && (p as any).data_deferimento != null
+                              && lancProc
+                              && ['solicitacao_criada', 'cobranca_gerada'].includes(lancProc.etapa_financeiro as string);
+                            return (
+                              <div className="flex items-center justify-center gap-0.5">
+                                {/* FEAT-002 (11/05/2026): marcar deferido. */}
+                                {podeMarcarDeferido && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                    title="Marcar como deferido"
+                                    onClick={() => {
+                                      setMarkDeferidoProcesso(p);
+                                      setMarkDeferidoModalOpen(true);
+                                    }}
+                                  >
+                                    <Check className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                {/* FEAT-003 (11/05/2026): desfazer deferimento (engano). */}
+                                {podeDesfazerDeferimento && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                                    title="Desfazer deferimento (marcou por engano)"
+                                    disabled={desfazerDeferimento.isPending}
+                                    onClick={() => {
+                                      if (!confirm(`Desfazer deferimento de "${p.razao_social}"? O lançamento volta para "aguardando deferimento".`)) return;
+                                      desfazerDeferimento.mutate(
+                                        { processoId: p.id },
+                                        { onSuccess: () => cliente && loadAll(cliente.id, { silent: true }) },
+                                      );
+                                    }}
+                                  >
+                                    <Undo2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                {/* FEAT-001 (11/05/2026): marca processo como pago.
+                                    Só aparece se ainda não está pago. */}
+                                {!pago && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                                    title="Marcar como pago"
+                                    onClick={() => {
+                                      setMarkPaidProcesso(p);
+                                      setMarkPaidModalOpen(true);
+                                    }}
+                                  >
+                                    <CheckCircle className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  title="Editar configurações do processo"
+                                  onClick={() => {
+                                    setConfigEditProcesso(p);
+                                    setConfigModalOpen(true);
+                                  }}
+                                >
+                                  <Settings className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                       </TableRow>
                       );
@@ -2291,6 +2348,14 @@ export default function ClienteDetalhe() {
         open={markPaidModalOpen}
         onOpenChange={setMarkPaidModalOpen}
         processo={markPaidProcesso}
+        onSuccess={() => cliente && loadAll(cliente.id, { silent: true })}
+      />
+
+      {/* FEAT-002 (11/05/2026): Marcar processo como deferido. */}
+      <MarcarDeferidoProcessoModal
+        open={markDeferidoModalOpen}
+        onOpenChange={setMarkDeferidoModalOpen}
+        processo={markDeferidoProcesso}
         onSuccess={() => cliente && loadAll(cliente.id, { silent: true })}
       />
 

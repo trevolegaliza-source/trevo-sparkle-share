@@ -606,6 +606,63 @@ export function useMarcarProcessoPago() {
   });
 }
 
+// FEAT-002 (11/05/2026): marca processo como deferido direto da tela do
+// cliente. RPC public.marcar_deferimento é atômica e faz:
+//   - processo: data_deferimento = p_data_deferimento
+//   - lancamento aguardando_deferimento → 'solicitacao_criada' com
+//     vencimento real (via calcular_vencimento)
+// Reusa a lógica do DeferimentoModal de lote, mas pra 1 processo.
+export function useMarcarDeferimento() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ processoId, dataDeferimento }: { processoId: string; dataDeferimento: string }) => {
+      const { data, error } = await supabase.rpc('marcar_deferimento' as any, {
+        p_processo_id: processoId,
+        p_data_deferimento: dataDeferimento,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['processos_db'] });
+      qc.invalidateQueries({ queryKey: ['processos_financeiro'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos_receber'] });
+      invalidateFinanceiro(qc);
+      toast.success('Deferimento registrado! Lançamento liberado para cobrança.');
+    },
+    onError: (e: Error) => toast.error('Erro ao marcar deferido: ' + e.message),
+  });
+}
+
+// FEAT-003 (11/05/2026): desfazer deferimento marcado por engano.
+// RPC public.desfazer_deferimento é atômica e:
+//   - guard: bloqueia se lançamento já saiu pra cobrança_enviada ou pago
+//   - processo: data_deferimento = NULL
+//   - lancamento: etapa volta pra 'aguardando_deferimento', vencimento
+//     volta pra placeholder '2099-12-31'
+export function useDesfazerDeferimento() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ processoId }: { processoId: string }) => {
+      const { data, error } = await supabase.rpc('desfazer_deferimento' as any, {
+        p_processo_id: processoId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['processos_db'] });
+      qc.invalidateQueries({ queryKey: ['processos_financeiro'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos_receber'] });
+      invalidateFinanceiro(qc);
+      toast.success('Deferimento desfeito. Lançamento voltou para "aguardando deferimento".');
+    },
+    onError: (e: Error) => toast.error('Erro ao desfazer deferimento: ' + e.message),
+  });
+}
+
 // Generate billing when process is deferred (for 'no_deferimento' clients)
 //
 // Dois cenários:
