@@ -533,10 +533,21 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
     (l) => (l as any).auditado === true && l.status !== 'pago' && !l.extrato_id
   );
 
+  // UX-009 (11/05/2026): se houver seleção, devolve só os selecionados;
+  // senão, mantém o comportamento legado (devolve todos elegíveis do cliente).
+  // Antes só dava pra devolver todos, exigindo re-auditar processos
+  // que estavam ok.
+  const selectedDesauditarIds = lancsParaDesauditar
+    .filter((l) => selected.has(l.id))
+    .map((l) => l.id);
+  const idsToDesauditar = selectedDesauditarIds.length > 0
+    ? selectedDesauditarIds
+    : lancsParaDesauditar.map((l) => l.id);
+
   async function handleDesauditar() {
     setDesauditando(true);
     try {
-      const ids = lancsParaDesauditar.map((l) => l.id);
+      const ids = idsToDesauditar;
       if (ids.length === 0) {
         toast.warning('Nenhum processo elegível para desauditar (já possuem extrato ou estão pagos).');
         return;
@@ -548,6 +559,8 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
       if (error) throw error;
       toast.success(`${ids.length} processo${ids.length > 1 ? 's' : ''} devolvido${ids.length > 1 ? 's' : ''} para auditoria`);
       invalidateFinanceiro(queryClient);
+      // Limpa seleção pra não ficar resquício depois da operação.
+      setSelected(new Set());
     } catch (err: any) {
       toast.error('Erro ao desauditar: ' + (err?.message || 'Erro'));
     } finally {
@@ -800,7 +813,9 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
                 }}
               >
                 <Undo2 className="h-3 w-3" />
-                Voltar pra Auditoria
+                {selectedDesauditarIds.length > 0
+                  ? `Voltar pra Auditoria (${selectedDesauditarIds.length})`
+                  : 'Voltar pra Auditoria'}
               </Button>
             )}
             <MoverParaMenu cliente={cliente} />
@@ -863,7 +878,15 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
           <AlertDialogHeader>
             <AlertDialogTitle>Devolver para auditoria?</AlertDialogTitle>
             <AlertDialogDescription>
-              {lancsParaDesauditar.length} processo{lancsParaDesauditar.length > 1 ? 's' : ''} de <strong>{cliente.cliente_apelido || cliente.cliente_nome}</strong> voltará{lancsParaDesauditar.length > 1 ? 'ão' : ''} para a aba <strong>Auditoria</strong>. Processos com extrato já gerado ou já pagos não serão afetados.
+              {selectedDesauditarIds.length > 0 ? (
+                <>
+                  <strong>{selectedDesauditarIds.length}</strong> processo{selectedDesauditarIds.length > 1 ? 's' : ''} selecionado{selectedDesauditarIds.length > 1 ? 's' : ''} de <strong>{cliente.cliente_apelido || cliente.cliente_nome}</strong> voltará{selectedDesauditarIds.length > 1 ? 'ão' : ''} para a aba <strong>Auditoria</strong>.
+                </>
+              ) : (
+                <>
+                  Nenhum selecionado — <strong>todos os {lancsParaDesauditar.length}</strong> processos auditados de <strong>{cliente.cliente_apelido || cliente.cliente_nome}</strong> voltarão para a aba <strong>Auditoria</strong>. Processos com extrato já gerado ou já pagos não serão afetados.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
