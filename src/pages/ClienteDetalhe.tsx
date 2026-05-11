@@ -706,8 +706,12 @@ export default function ClienteDetalhe() {
           <Button variant="outline" size="sm" className="gap-1.5 text-xs text-foreground" onClick={() => { setSelectedRelatorioProcessos(new Set()); setShowRelatorioDialog(true); }}>
             <FileBarChart className="h-3.5 w-3.5" /> Gerar Relatório
           </Button>
+          {/* UX-011 (11/05/2026): renomeado de "Gerar Cobrança" pra "Baixar resumo .txt".
+              O botão NÃO gera cobrança real (sem Asaas, sem extrato, sem cobrança no
+              banco) — só baixa um arquivo de texto local. Antes a label enganava.
+              Cobrança real é o botão "Gerar Extrato" (ou via /financeiro → Auditoria). */}
           <Button variant="outline" size="sm" className="gap-1.5 text-xs text-foreground" onClick={() => { setSelectedCobrancaProcessos(new Set()); setShowCobrancaDialog(true); }}>
-            <Receipt className="h-3.5 w-3.5" /> Gerar Cobrança
+            <FileText className="h-3.5 w-3.5" /> Baixar resumo (.txt)
           </Button>
           <TrelloProvisionButton cliente={cliente} onProvisioned={() => loadAll(cliente.id, { silent: true })} />
           {isArchived ? (
@@ -1272,9 +1276,11 @@ export default function ClienteDetalhe() {
                         if (error) {
                           toast.error('Erro ao gerar fatura: ' + error.message);
                         } else {
+                          // UX-020 (11/05/2026): antes navegava pra /financeiro automaticamente,
+                          // tirando o usuário do cliente em que estava operando. Agora só
+                          // refresh silencioso + toast — usuário decide se quer sair.
                           toast.success('Fatura mensal gerada!');
                           loadAll(cliente.id, { silent: true });
-                          navigate('/financeiro');
                         }
                       }}
                     >
@@ -2255,17 +2261,17 @@ export default function ClienteDetalhe() {
         </DialogContent>
       </Dialog>
 
-      {/* Gerar Cobrança Dialog */}
+      {/* Baixar resumo Dialog (antes "Gerar Cobrança" — UX-011) */}
       <Dialog open={showCobrancaDialog} onOpenChange={setShowCobrancaDialog}>
         <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Receipt className="h-5 w-5" /> Gerar Cobrança</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Baixar resumo (.txt)</DialogTitle>
           </DialogHeader>
           {(() => {
             const pendentes = lancamentos.filter(l => l.tipo === 'receber' && l.status === 'pendente');
             return (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">Processos com cobrança pendente para envio de boleto:</p>
+                <p className="text-sm text-muted-foreground">Gera um arquivo <code>.txt</code> local com os processos pendentes — útil pra controle interno. <strong>Não envia cobrança nem gera boleto.</strong> Pra cobrança real, use "Gerar Extrato".</p>
                 {pendentes.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma cobrança pendente.</p>
                 ) : (
@@ -2316,11 +2322,11 @@ export default function ClienteDetalhe() {
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a'); a.href = url; a.download = `cobranca_${cliente.codigo_identificador}_${Date.now()}.txt`; a.click();
                       URL.revokeObjectURL(url);
-                      toast.success(`Cobrança gerada: ${totalCobranca.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`);
+                      toast.success(`Arquivo baixado: ${totalCobranca.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`);
                       setShowCobrancaDialog(false);
                     }}
                   >
-                    Gerar Cobrança ({selectedCobrancaProcessos.size})
+                    Baixar .txt ({selectedCobrancaProcessos.size})
                   </Button>
                 </DialogFooter>
               </div>

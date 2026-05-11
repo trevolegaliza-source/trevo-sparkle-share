@@ -33,12 +33,81 @@ Auditoria de **fluxo & premissas** disparou batch pós-auditoria. Thales: "traba
 | **FEAT-003** | ✅ ENTREGUE (SQL manual) | Não dava pra desfazer deferimento marcado por engano. | Botão Undo amarelo na mesma coluna — só aparece se processo tem `data_deferimento` mas lançamento ainda em `solicitacao_criada`/`cobranca_gerada`. RPC `desfazer_deferimento` (guard anti-rebaixamento `honorario_pago`/`cobranca_enviada`). | _este commit_ |
 | **UX-008** | ⏸️ PROTELADO | Notificações cobrança/pagamento caem em `/financeiro` genérico. Resolver exige adicionar FK em `notificacoes` + atualizar edge function `asaas-webhook` + roteamento. **Bloqueador:** `asaas-webhook/index.txt` (em vez de `index.ts`) — função desabilitada de deploy. Precisa confirmação do Thales sobre por que. | (estado anterior preservado abaixo) |
 
-### 🟡 Backlog ainda em aberto
+### 🟢 Quick fixes pós-auditoria de fluxo (atacados nessa sessão)
 
-| ID | Descrição | Esboço do fix |
+Auditoria proativa de fluxo (não de código) — Thales pediu pra eu enxergar problemas que ele vivencia mas não tinha me reportado. Agent varreu 8 fluxos críticos e levantou 27 achados; depois de triagem manual destes 3 saíram já fixados, os outros viraram backlog.
+
+| ID | Status | Descrição | Fix aplicado |
+|---|---|---|---|
+| **UX-011** | ✅ FIXADO | Botão "Gerar Cobrança" no `ClienteDetalhe` baixava um `.txt` local — não criava cobrança/Asaas/extrato. Label enganosa: usuário acha que cobra, na verdade só baixa arquivo. | Renomeado pra "Baixar resumo (.txt)" + ícone trocado de `Receipt` pra `FileText` + descrição honesta no dialog. Funcionalidade mantida (útil pra controle interno); só não engana mais. |
+| **UX-020** | ✅ FIXADO | "Gerar Fatura Mensal" pra mensalista criava lançamento e **redirecionava pra `/financeiro`**, tirando o usuário do cliente em que estava operando. Bate com a queixa do Thales "tela me leva pra outro lugar". | Removido `navigate('/financeiro')`. Apenas toast + `loadAll(silent)`. |
+| **REL-013** | ✅ FIXADO | Channel realtime de notificações em `NotificationPopover.tsx:71-89` subscrevia INSERTs **sem filter `empresa_id`**. RLS bloqueia SELECT, mas o payload do realtime passa direto pelo WebSocket — em multi-tenant, toast/sino disparava pra eventos de outras empresas. Hoje só tem 1 empresa ativa, mas é vulnerabilidade pronta pra estourar. | Channel passa a usar `filter: empresa_id=eq.{id}` + nome do canal por empresa (`notificacoes_realtime_${empresaId}`). Async init protegido por flag `cancelled` no cleanup. |
+
+### 🟡 Backlog mapeado pela auditoria de fluxo (atacar depois)
+
+24 achados restantes da auditoria de fluxo, triados.
+
+| ID | Severidade | Local | Problema | Esboço fix |
+|---|---|---|---|---|
+| **FEAT-004** | 🔴 | `FinanceiroList.tsx:62-89` + `ContasReceberLista` + `MarcarPagoProcessoModal` | **3 caminhos diferentes** pra "marcar pago" com comportamentos divergentes: (a) modal com data retroativa via RPC `marcar_processo_pago` (atômico, com tenant check), (b) bulk em `ContasReceberLista` com `data=hoje` sem confirmação, (c) `handleDesfazerPagamento` faz UPDATE bruto sem tenant check. | Consolidar tudo na RPC `marcar_processo_pago`. Bulk deve pedir data via modal. |
+| **REL-014** | 🔴 | `ClienteAccordionFinanceiro.tsx:610-766` | `executarGeracaoExtrato` faz 5 awaits sequenciais (upload PDF → insert extrato → update N lancamentos → insert cobranca). Se cobrança falhar (linha 738), `console.error` silencioso e `toast.success` mente — extrato existe sem cobrança. | RPC `gerar_extrato_completo` ou ao menos `toast.warning` quando cobrança falha. |
+| **UX-013** | 🔴 | `DeferimentoModal.tsx:75-90` | `for`-loop com `await` sem rollback. Se 3º de 5 processos falha, 2 primeiros já têm `data_deferimento` salvo, mas toast mostra erro como se nada tivesse mudado. | `Promise.allSettled` + relatório por processo OR RPC bulk `marcar_deferimento_em_lote`. |
+| **UX-014** | 🔴 | `ClienteDetalhe.tsx:2363-2407` | Dialog "Marcar como Faturado" pós-extrato lê `selectedProcessosTab.size` mas `gerarExtratoClienteDetalhe(procs)` aceita lista arbitrária. Se chamado com lista diferente, counts/ações dessincronizadas. | Passar `procsToGenerate` pro dialog em vez de ler state global. |
+| **UX-015** | 🔴 | `ContasReceberLista.tsx:88-94` | `handleMarcarLote` marca todos como pagos com `data=hoje`, sem AlertDialog, sem confirmação. Master clica e N lançamentos viram pagos. Sem undo evidente. | Mesmo padrão do `MarcarPagoProcessoModal` — modal com data input e confirmação. |
+| **UX-019** | 🔴 | `ClienteAccordionFinanceiro.tsx:515-631` | "Ativar/Desativar Método Trevo" faz 4 awaits encadeados (fetch etiquetas → update processo → update lancamento). Sem rollback. Toast "ativado" mas estado fica inconsistente se algum await falhar no meio. | RPC `ativar_metodo_trevo` / `desativar_metodo_trevo` atômicas. |
+| **UX-008** | 🟡 | `NotificationPopover.handleClick` | (já mapeado) Notificações de pagamento/cobrança caem em `/financeiro` genérico. Bloqueador: `asaas-webhook/index.txt` (Thales: "deixa assim"). | Adicionar `cliente_id` em `notificacoes` (via migration), atualizar publishers OU resolver no front com lookup. Atacar quando webhook for revisitado. |
+| **UX-012** | 🟡 | `ClientesAuditoria.tsx:427-451` | Excluir processo dispara cascade DELETE (`lancamentos` + `processos`) com AlertDialog simples. Em outras telas (arquivar cliente) exige `PasswordConfirmDialog`. Inconsistente. | Decisão de produto: pedir password ou ao menos digitar nome do processo. |
+| **UX-016** | 🟡 | `ClienteDetalhe.tsx:1827-1857` | Alert de boas-vindas: clicar "Não, obrigado" (`AlertDialogCancel`) chama `setShowNovoProcesso(true)` — abre o modal mesmo. Tecnicamente correto (fluxo: pular boas-vindas e seguir), mas label ambígua. | Renomear pra "Pular desconto" ou similar. |
+| **UX-017** | 🟡 | `CobrancaPublica.tsx:387` | `tipoPrincipal`/`empresaPrincipal` usam apenas `lancamentos[0]` no card da Dani. Em cobrança consolidada com 5 processos diferentes, mensagem vira "dúvida sobre abertura da X" ignorando os outros 4. | Usar `multiplosProcessos` (já checked no código) pra fallback genérico. |
+| **UX-018** | 🟡 | `Dashboard.tsx:144 vs 463` | Alerta auditoria usa `navigate('/financeiro', { state: { tab: 'auditoria' } })`; outros usam `?tab=vencidos`. 2 convenções no mesmo componente. | Padronizar querystring (sobrevive refresh). |
+| **REL-015** | 🟡 | `Dashboard.tsx:147-151` | "Clientes sem extrato" filtra só `etapa_financeiro === 'solicitacao_criada'`. Processos `aguardando_deferimento` somem do alerta. | Incluir `aguardando_deferimento` ou criar alerta próprio "Aguardando deferimento". |
+| **UX-023** | 🟡 | `ClienteDetalhe` (cliente PRÉ-PAGO) | Recarga é feita sobrescrevendo `saldo_prepago` no form de edit cadastro. Tabela `prepago_movimentacoes` existe mas **não tem leitura no front**. Histórico de recargas/débitos invisível. | Botão "Recarregar saldo" com modal que insere em `prepago_movimentacoes` + lista de movimentações na ficha. |
+| **UX-024** | 🟡 | `CobrancaPublica.tsx:114-127` | Dedup de confetti via `localStorage` (24h). Refresh em D+2 dispara confetti de novo — "celebração" recorrente desconfortável. | Marcador no banco (`cobrancas.confetti_visto_em`) ou timestamp permanente. |
+| **UX-026** | 🟢 | `Dashboard.tsx:434-447` | "Tudo em dia!" aparece mesmo quando há alertas em módulos sem permissão. Usuário não-master vê verde com problemas reais escondidos. | Texto condicional ("Sem alertas no seu escopo"). |
+| **UX-027** | 🟢 | `CobrancaPublica.tsx:466-484` | Tab "Boleto" some quando `temBoleto=false`. Se usuário tinha state="boleto" stuck, perde sem aviso. | Tab sempre visível com estado "Gerando..." quando indisponível. |
+
+### 🔴 DECISION-001 — kanban operacional (análise consolidada)
+
+Thales: *"meu sistema nao tem que ver em que etapa o processo está! Apenas saber se ele existe."* + *"PROCESSOS > KANBAN — pode tirar essa merda"*.
+
+**Achado crítico via SQL:** banco já usa o kanban como **binário** na prática.
+
+| Etapa | Processos | % |
 |---|---|---|
-| **UX-008** | Notificações de pagamento/cobrança caem em `/financeiro` genérico. | Migration `ALTER TABLE notificacoes ADD COLUMN cliente_id uuid REFERENCES clientes(id)` + atualizar publishers (edge function `asaas-webhook` + RPCs) + handler de click. **Bloqueado:** `asaas-webhook/index.txt` — investigar antes de mexer. |
-| **DECISION-001** | Thales: *"meu sistema nao tem que ver em que etapa o processo está! Apenas saber se ele existe."* + *"PROCESSOS > KANBAN — pode tirar essa merda"*. | **Decisão de produto pendente.** ERP atualmente espelha um kanban operacional (recebidos → mat → … → finalizados) que duplica o Trello. Hipóteses: (a) remover kanban inteiro e deixar `processo.etapa` com 2 estados (`ativo` / `finalizado`); (b) esconder UI de kanban; (c) opcional por cliente. Refactor médio — afeta `Processos.tsx`, `Dashboard.tsx`, RPCs que filtram por `etapa`. |
+| `recebidos` | 117 | 76% |
+| `registro` | 23 | 15% |
+| `finalizados` | 11 | 7% |
+| `concluido` | 2 (zombies — DATA-005) | 1% |
+
+**14 das 18 etapas do `KANBAN_STAGES` (analise_documental, contrato, viabilidade, dbe, vre, taxa_paga, assinaturas, assinado, em_analise, mat, inscricao_me, alvaras, conselho, arquivo) — ZERO processos.** UI inteira é teatro.
+
+**Onde o kanban está enraizado:**
+- `src/types/process.ts` — enum `KANBAN_STAGES` (18 valores) + `KanbanStage` type
+- `src/pages/Processos.tsx` (710 linhas) — página inteira é kanban + lista, drag-and-drop
+- `src/pages/Dashboard.tsx:215-221, 488-514` — pipeline + alertas baseados em etapa
+- `src/components/financeiro/{ClientesAuditoria,FinanceiroList,ClienteAccordionFinanceiro}.tsx` — `ETAPAS_DEFERIDAS`, `ETAPAS_PRE_DEFERIMENTO`, coluna "Etapa"
+- `src/pages/{Clientes,ClienteDetalhe}.tsx` — badges, contagens "processos ativos"
+- `src/pages/Documentos.tsx:57` — seta `etapa='analise_documental'` (única etapa intermediária ainda escrita)
+- `src/hooks/{useProcessos,useProcessosFinanceiro,useFinanceiroClientes}.ts` — leem etapa
+- `src/lib/relatorio-*.ts` — relatórios PDF filtram por etapa
+- RPCs: `criar_processo_com_lancamento` (seta `recebidos`/`finalizados`), `marcar_processo_pago` (seta `finalizados`)
+
+**3 caminhos:**
+
+| Caminho | Esforço | Risco | Resultado |
+|---|---|---|---|
+| **A) Reforma radical** | 8-12h | médio | `processo.etapa` vira binária (`ativo`/`finalizado`). Remove página `/processos`, drag-and-drop, badges de etapa, KANBAN_STAGES. Dashboard só mostra "ativos/finalizados". Migra dados (`'recebidos'`/`'registro'` → `'ativo'`; `'finalizados'`/`'concluido'` → `'finalizado'`). |
+| **B) Esconder UI, manter schema** | 3-4h | baixo | Schema intacto. Remove rota `/processos` do menu (e redireciona pra `/clientes`). Esconde badges. Reversível. Dado "fantasma" sobra no banco. |
+| **C) Não fazer nada** | 0h | nenhum | Thales ignora a aba `/processos`. UI continua enganosa pra outros operadores futuros. |
+
+**Recomendação: A em 4 fases.**
+
+1. **Fase 1 (esta sessão):** documentar decisão + roadmap. ✅
+2. **Fase 2 (1 sessão, 3h):** esconder UI — remove rota `/processos` do menu, remove badges de etapa em `ClienteDetalhe`/`Clientes`/`Dashboard`, mantém schema. Reversível. Entrega valor imediato.
+3. **Fase 3 (1 sessão, 4h):** simplificar enum — migration `etapa` text só aceita `'ativo'`/`'finalizado'`; UPDATE em massa pra normalizar; RPCs atualizadas; remover `KANBAN_STAGES` do TS.
+4. **Fase 4 (1 sessão, 2h):** limpeza — remove arquivo `Processos.tsx` inteiro, remove dependência `@hello-pangea/dnd` (drag-and-drop) se só era usada lá, remove relatórios filtrados por etapa.
+
+**Próximo passo:** Thales aprova roadmap A na próxima sessão dedicada. Não atacar fora dessa sessão (refactor com tela própria).
 
 **Insights:**
 - O zombie SEPI **não foi causado pelo código atual** — os 3 únicos lugares que escrevem `etapa='concluido'` no front+banco estavam mortos/inexistentes. Provável: SQL manual histórico ou código antigo já revertido. Mesmo assim a arma carregada (hook morto) foi removida pra fechar a porta.

@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { getEmpresaId } from '@/lib/storage-path';
 
 interface Notificacao {
   id: string;
@@ -64,32 +65,55 @@ export function NotificationPopover() {
 
   const naoLidas = notificacoes.filter(n => !n.lida);
 
-  // Realtime — escuta INSERTs em notificacoes (filtrados por RLS por empresa).
-  // Dispara toast e invalida query pra atualizar sino instantaneamente,
-  // sem depender do polling de 15s.
+  // Realtime — escuta INSERTs em notificacoes da empresa atual.
+  // REL-013 (11/05/2026): antes filtrava só por RLS no SELECT. Realtime
+  // passa o payload do INSERT direto pelo WebSocket — RLS não bloqueia
+  // payload (só bloqueia SELECT). Em multi-tenant, isso vazaria toast
+  // pra usuário de outra empresa.
+  // Fix: filter='empresa_id=eq.{id}' no channel.on(). Resolve no servidor.
   useEffect(() => {
-    const channel = supabase
-      .channel('notificacoes_realtime')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notificacoes' },
-        (payload) => {
-          const n = payload.new as Notificacao;
-          qc.invalidateQueries({ queryKey: ['notificacoes'] });
+    let channelRef: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
 
-          if (n.tipo === 'pagamento') {
-            toast.success(n.titulo, { description: n.mensagem, duration: 8000 });
-          } else if (n.tipo === 'cobranca' || n.tipo === 'recusa') {
-            toast.warning(n.titulo, { description: n.mensagem, duration: 8000 });
-          } else {
-            toast(n.titulo, { description: n.mensagem, duration: 6000 });
+    (async () => {
+      let empresaId: string;
+      try {
+        empresaId = await getEmpresaId();
+      } catch {
+        // Sem sessão (ex: rotas públicas tipo /cobranca/:token) — sem realtime
+        return;
+      }
+      if (cancelled) return;
+
+      channelRef = supabase
+        .channel(`notificacoes_realtime_${empresaId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notificacoes',
+            filter: `empresa_id=eq.${empresaId}`,
+          },
+          (payload) => {
+            const n = payload.new as Notificacao;
+            qc.invalidateQueries({ queryKey: ['notificacoes'] });
+
+            if (n.tipo === 'pagamento') {
+              toast.success(n.titulo, { description: n.mensagem, duration: 8000 });
+            } else if (n.tipo === 'cobranca' || n.tipo === 'recusa') {
+              toast.warning(n.titulo, { description: n.mensagem, duration: 8000 });
+            } else {
+              toast(n.titulo, { description: n.mensagem, duration: 6000 });
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    })();
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channelRef) supabase.removeChannel(channelRef);
     };
   }, [qc]);
 
