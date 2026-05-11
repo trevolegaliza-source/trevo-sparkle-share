@@ -1,7 +1,53 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: **11/05/2026** (bug zumbi SEPI/ASLAN consertado + cleanup `useMoveEtapaFinanceiro` morto + scroll sino + view sentinela).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: **11/05/2026 noite** — auditoria de fluxo completa pré-release Letícia/secretária + 6 fixes adicionais (SEC-014, SEC-015, PERM-005, UX-028, UX-029, UX-100).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 📚 Auditoria de fluxo completa — 11/05/2026 noite
+
+Disparada por: Thales pediu auditoria de DESIGN/UX (não de código), véspera do release pra Letícia + secretária.
+
+Resultado detalhado em **[`docs/auditoria-fluxo-completa/`](./docs/auditoria-fluxo-completa/)**:
+- **17 telas auditadas** + **5 anexos transversais** (permissões, banco, edge functions, code review, personas)
+- **~120 achados** novos com IDs (UX-028 a UX-123, REL-013 a REL-021, SEC-009 a SEC-018, PERM-001 a PERM-010, INT-001, SUG-DATA-001 a 003, SUG-NAV-1 a 7, SUG-PERM-008 a 010)
+- **Veredito GO/NO-GO** por tela
+- **6 fixes aplicados em produção** após auditoria (commits abaixo)
+
+### 🔴 Bloqueadores pré-release atacados nesta sessão
+
+| ID | Status | Resumo | Commit |
+|---|---|---|---|
+| **SEC-015** | ✅ FIXADO | Master podia se auto-desativar via Gestão de Usuários (1-clique self-DoS) | `disabled={isMe}` nos botões Desativar/Remover |
+| **SEC-014** | ✅ FIXADO | Label "Remover" enganava — função só desativa, não deleta | Renomeado pra "Desativar permanente" + tooltip explicativo |
+| **PERM-005** | ✅ FIXADO | `/reconciliacao-trello` sem `RequirePermission` — qualquer authenticated acessava | Adicionado `<RequirePermission modulo="configuracoes">` |
+| **UX-028** | ✅ FIXADO | Logo Trevo no sidebar não navegava pra Dashboard | Envolvido com `<Link to="/">` |
+| **UX-029** | ✅ FIXADO | `roleLabel` não mapeava 'gerente' — Letícia ia ver string vazia | Mapeamento completo |
+| **UX-100** | ✅ FIXADO | Drag de processo pra `registro`/`finalizados` disparava cobrança sem aviso | `confirm()` pré-drop só pra cliente `no_deferimento` |
+
+### 🟡 Achados críticos mapeados (não atacados, em backlog)
+
+| ID | Severidade | Descrição |
+|---|---|---|
+| **INT-001** | 🔴 | Orçamento "Convertido" é só rótulo — não cria processo/lancamento/cobrança (Thales reclamou explicitamente). Detalhes em `12-orcamentos.md`. |
+| **PERM-008** | 🔴 (futuro) | RLS de `cartoes`, `cartao_compras`, `cartao_faturas` permissivo (`qual='true'`). OK hoje (1 empresa), dívida multi-tenant. |
+| **PERM-009** | 🟡 (futuro) | RLS de `contatos_estado`, `notas_estado`, `precos_tiers` permissivo |
+| **PERM-004** | 🔴 | `usePermissions` falha silenciosa sem profile → estado fantasma |
+| **REL-014** | 🔴 | `executarGeracaoExtrato` 5 awaits sequenciais sem rollback |
+| **UX-013** | 🔴 | `DeferimentoModal` for-loop sem rollback (lote parcial) |
+| **UX-015** | 🔴 | Bulk "Marcar Pagos" sem confirm/data |
+| **UX-019** | 🔴 | "Ativar Método Trevo" 4 awaits sem rollback |
+| **FEAT-004** | 🔴 | 3 caminhos diferentes de "marcar pago" (consolidar via RPC) |
+| **REL-017** | 🔴 | Race condition no register (1s wait pra trigger DB) |
+| **REL-019** | 🔴 | `/reset-password` não existe — link de reset cai em 404 |
+| **DECISION-001** | 🔴 | Kanban operacional (já mapeado anteriormente — 4 fases roadmap) |
+
+Demais 100+ achados são UX/polish — ver docs individuais.
+
+### 📝 SQL pendente nessa sessão (opcional, não bloqueia release)
+
+Nenhum. Todos os 6 fixes foram puramente código.
 
 ---
 
