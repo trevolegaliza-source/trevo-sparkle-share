@@ -49,7 +49,15 @@ export function AppLayout() {
     ? user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1).replace(/[._-]/g, ' ')
     : 'Usuário');
   const initials = (displayName || '??').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const roleLabel = role === 'master' ? 'Administrador' : role === 'financeiro' ? 'Financeiro' : role === 'operacional' ? 'Operacional' : role === 'visualizador' ? 'Visualizador' : '';
+  // UX-029 (11/05/2026): 'gerente' não estava mapeado — Letícia aparecia
+  // sem label de role no avatar. Mapeamento completo agora.
+  const roleLabel =
+    role === 'master' ? 'Administrador'
+    : role === 'gerente' ? 'Gerente'
+    : role === 'financeiro' ? 'Financeiro'
+    : role === 'operacional' ? 'Operacional'
+    : role === 'visualizador' ? 'Visualizador'
+    : '';
 
   return (
     <div className="min-h-screen bg-background">

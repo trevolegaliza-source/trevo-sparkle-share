@@ -58,7 +58,9 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
     >
       {/* Logo + Close (mobile) */}
       <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-3">
-        <div className="flex items-center gap-2.5 min-w-0">
+        {/* UX-028 (11/05/2026): logo agora navega pra Dashboard.
+            Padrão consagrado em webapps — Thales reclamou explícito. */}
+        <Link to="/" onClick={onClose} className="flex items-center gap-2.5 min-w-0 hover:opacity-80 transition-opacity" title="Ir para o início">
           <img src={logoTrevo} alt="Trevo Legaliza" className="h-10 w-10 object-contain shrink-0 logo-pulse" />
           {expanded && (
             <div className="flex flex-col min-w-0">
@@ -66,7 +68,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
               <span className="text-[10px] text-sidebar-foreground/60">Controladoria & Gestão</span>
             </div>
           )}
-        </div>
+        </Link>
         <Button
           variant="ghost"
           size="icon"

@@ -310,14 +310,30 @@ export default function Processos() {
     if (!result.destination) return;
     const newEtapa = result.destination.droppableId as KanbanStage;
     const procId = result.draggableId;
-    updateEtapa.mutate({ id: procId, etapa: newEtapa });
 
+    // UX-100 (11/05/2026): drag pra 'registro' ou 'finalizados' disparava
+    // gerarFaturamentoDeferimento (que promove lancamento de cliente
+    // no_deferimento). Side-effect escondido — user arrastava pra organizar
+    // visualmente e virava cobrança real ao cliente. Confirm antes.
     if (DEFERIMENTO_STAGES.includes(newEtapa)) {
       const proc = (processos || []).find(p => p.id === procId);
-      if (proc) {
+      const cliente = (proc as any)?.cliente;
+      const isNoDeferimento = cliente?.momento_faturamento === 'no_deferimento';
+      if (proc && isNoDeferimento) {
+        const ok = window.confirm(
+          `Mover "${proc.razao_social}" para "${newEtapa}"?\n\n`
+          + `Este cliente fatura no DEFERIMENTO — esta ação vai liberar a cobrança imediatamente.\n\n`
+          + `Confirma?`
+        );
+        if (!ok) return; // cancela o drag — processo não muda de etapa
+        updateEtapa.mutate({ id: procId, etapa: newEtapa });
         await gerarFaturamentoDeferimento(proc as any);
+        return;
       }
     }
+
+    // Caminho normal — sem side-effect financeiro
+    updateEtapa.mutate({ id: procId, etapa: newEtapa });
   }, [updateEtapa, processos]);
 
   return (
