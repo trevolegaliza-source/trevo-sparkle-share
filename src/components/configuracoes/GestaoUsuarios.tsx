@@ -567,8 +567,15 @@ export default function GestaoUsuarios() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {/* SEC-015 (11/05/2026): master não pode se auto-desativar/remover.
+                              Sem este guard, 1 clique acidental tranca o admin fora do sistema
+                              (precisaria outro master pra reverter). */}
                           {status === 'ativo' && (
-                            <DropdownMenuItem onClick={() => setDeactivateUser(p)}>
+                            <DropdownMenuItem
+                              onClick={() => setDeactivateUser(p)}
+                              disabled={isMe}
+                              title={isMe ? 'Você não pode se auto-desativar' : undefined}
+                            >
                               <UserX className="h-3.5 w-3.5 mr-2" /> Desativar
                             </DropdownMenuItem>
                           )}
@@ -577,8 +584,16 @@ export default function GestaoUsuarios() {
                               <UserCheck className="h-3.5 w-3.5 mr-2" /> Reativar
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirm(p)}>
-                            <UserX className="h-3.5 w-3.5 mr-2" /> Remover
+                          {/* SEC-014 (11/05/2026): label era "Remover" mas a função apenas
+                              desativa permanentemente (não deleta auth.user nem profile).
+                              Renomeado pra ser honesto sobre o efeito. */}
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setDeleteConfirm(p)}
+                            disabled={isMe}
+                            title={isMe ? 'Você não pode se auto-remover' : 'Marca o usuário como removido (não deleta auth.user)'}
+                          >
+                            <UserX className="h-3.5 w-3.5 mr-2" /> Desativar permanente
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
