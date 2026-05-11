@@ -222,8 +222,14 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
         .eq('status', 'pago')
         .order('created_at', { ascending: false });
 
-      if (dataInicio) pagosQ = pagosQ.gte('data_vencimento', dataInicio);
-      if (dataFim) pagosQ = pagosQ.lte('data_vencimento', dataFim);
+      // REL-012 (11/05/2026) — antes filtrava por data_vencimento. Bug óbvio:
+      // pagamento atrasado (data_pagamento > mês do vencimento) sumia da aba
+      // "Pagos no período". Ex: cobrança da FATO (3 lancamentos com venc 19/04
+      // e 20/04, pagos em 11/05) não aparecia em "este_mes" (Maio). O conceito
+      // de "Pagos no período = Maio" é "pagamentos que ACONTECERAM em Maio",
+      // não "pagamentos cujo vencimento foi em Maio".
+      if (dataInicio) pagosQ = pagosQ.gte('data_pagamento', dataInicio);
+      if (dataFim) pagosQ = pagosQ.lte('data_pagamento', dataFim);
 
       const [pendingRes, pagosRes] = await Promise.all([pendingQ, pagosQ]);
       if (pendingRes.error) throw pendingRes.error;

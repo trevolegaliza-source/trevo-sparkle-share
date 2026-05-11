@@ -18,6 +18,8 @@ Disparado por: Thales reportou processo SEPI cadastrado pra ASLAN não aparecia 
 | **UX-008** | ⏸️ DEFERIDO | Notificações de pagamento/cobrança caem em `/financeiro` genérico (sem filtrar pelo lançamento específico) porque tabela `notificacoes` só tem FK `orcamento_id` — não tem `processo_id`/`lancamento_id`. | Migration: `ALTER TABLE notificacoes ADD COLUMN processo_id uuid REFERENCES processos(id), ADD COLUMN lancamento_id uuid REFERENCES lancamentos(id)` + atualizar publishers e roteamento em `NotificationPopover.handleClick`. Thales escolheu fazer junto, mas precisa migration — vai ficar pra próxima sessão dedicada. | — |
 | **FEAT-001** | ✅ ENTREGUE (SQL manual) | Antes só era possível marcar processo como pago **no momento do cadastro** (checkbox "Já pago"). Cadastros retroativos ficavam pendentes no Financeiro. | Botão verde ✓ na coluna Ações de cada processo em `ClienteDetalhe.tsx` (só aparece se o processo não está pago). Abre modal pedindo a data de pagamento (default: hoje, aceita retroativa). Backend: RPC `marcar_processo_pago` (SQL no fim deste doc) — atômica, tenant check, espelha o comportamento de `ja_pago=true` (lançamento → pago/honorario_pago/confirmado, processo → finalizados). | _este commit_ |
 | **DATA-006** | ✅ FIXADO (SQL manual) | Constraint `lancamentos_valor_positivo_check` (`valor > 0`) bloqueava UPDATE em lançamentos legados com valor 0 (processos de cortesia, ex: CSP PARTICIPAÇÕES). Constraint estava `NOT VALID` (não revalidou histórico), mas trava qualquer UPDATE nessas linhas. 8 lançamentos com valor 0 no banco (5 já pagos — caso normal de cortesia/franquia). | Trocada por `lancamentos_valor_nao_negativo_check` (`valor >= 0`). Mantém proteção contra negativos. Front não dependia dela (greps confirmam: só lógicas de UI condicional, nenhuma invariante). | _este commit_ |
+| **REL-012** | ✅ FIXADO | Aba "Pagos no período" em `/financeiro → Historico` filtrava por `data_vencimento` em vez de `data_pagamento`. Resultado: pagamento atrasado (cliente paga em Maio um boleto que venceu em Abril — caso comum) sumia do mês em que foi efetivamente recebido. Cliente FATO: cobrança paga em 11/05 com 3 lançamentos (2 venc Abril + 1 venc Maio) só mostrava 1 dos 3 em "este_mes". | `useFinanceiroClientes.ts:225-226` — trocado `data_vencimento` por `data_pagamento` no filtro de período pros pagos. Pendentes seguem sem filtro de período (lógica anterior preservada). | _este commit_ |
+| **DATA-007** | ✅ FIXADO (SQL manual) | Processo RCB AGROPECUARIA antigo (lanc `9399d050…`, processo `080872dc…`) da FATO foi marcado deferido por engano em 06/05. Como o cliente é `no_deferimento`, lançamento subiu pra `solicitacao_criada` com vencimento real, e processo ganhou `data_deferimento`. Caso pontual confirmado pelo Thales. | Reverter: `processos.data_deferimento=NULL` + `lancamentos.etapa_financeiro='aguardando_deferimento'` + `lancamentos.data_vencimento='2099-12-31'`. Etapa operacional do processo (`registro`) preservada — independente do financeiro. SQL no fim deste doc. | _este commit_ |
 
 ### 🟡 Backlog acumulado nessa sessão (atacar em sessão dedicada)
 
@@ -159,6 +161,24 @@ COMMENT ON FUNCTION public.marcar_processo_pago(uuid, date) IS
 ALTER TABLE public.lancamentos DROP CONSTRAINT IF EXISTS lancamentos_valor_positivo_check;
 ALTER TABLE public.lancamentos
   ADD CONSTRAINT lancamentos_valor_nao_negativo_check CHECK (valor >= 0);
+```
+
+**SQL pra rodar no SQL editor (desfaz deferimento errado DATA-007 — RCB antigo da FATO):**
+```sql
+-- Reverte deferimento marcado por engano. Cliente FATO é no_deferimento;
+-- lançamento volta pra estado original "aguardando deferimento" com placeholder
+-- de vencimento. data_deferimento do processo é limpa. Etapa operacional
+-- (registro) preservada — financeiro e operacional são independentes.
+UPDATE public.lancamentos
+   SET etapa_financeiro = 'aguardando_deferimento',
+       data_vencimento  = '2099-12-31'::date,
+       updated_at       = NOW()
+ WHERE id = '9399d050-897a-4d96-b980-f24cbab67ed4';
+
+UPDATE public.processos
+   SET data_deferimento = NULL,
+       updated_at       = NOW()
+ WHERE id = '080872dc-e02c-4f15-bbef-88fcb0b252e4';
 ```
 
 ---
