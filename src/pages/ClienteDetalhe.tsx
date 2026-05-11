@@ -117,6 +117,12 @@ export default function ClienteDetalhe() {
   const [showBoasVindasAlert, setShowBoasVindasAlert] = useState(false);
   const [boasVindasPct, setBoasVindasPct] = useState('50');
   const [aplicarBoasVindas, setAplicarBoasVindas] = useState(false);
+
+  // UX-010 (11/05/2026): aba controlada pra preservar contexto após refresh.
+  // Antes: <Tabs defaultValue=...> + loadAll setando loading=true → Skeleton
+  // remontava a árvore inteira e Tabs voltava pra aba default. Toda vez que
+  // o usuário cadastrava processo na aba "Processos", caía pra "Financeiro".
+  const [activeTab, setActiveTab] = useState('financeiro-config');
   const [isFirstProcessNovo, setIsFirstProcessNovo] = useState(false);
 
   const [showNovoProcesso, setShowNovoProcesso] = useState(false);
@@ -345,7 +351,7 @@ export default function ClienteDetalhe() {
           setIsFirstProcessNovo(false);
           setProcessoForm({ ...defaultProcessoForm });
           setAplicarBoasVindas(false);
-          loadAll(cliente.id);
+          loadAll(cliente.id, { silent: true });
         },
       }
     );
@@ -356,8 +362,12 @@ export default function ClienteDetalhe() {
     loadAll(id);
   }, [id]);
 
-  const loadAll = async (clienteId: string) => {
-    setLoading(true);
+  // UX-010 (11/05/2026): param `silent` pra refresh não disparar Skeleton.
+  // Carregamento inicial (vindo do useEffect) chama sem silent → loading=true
+  // → mostra skeleton. Refresh pós-mutação chama silent=true → não mostra
+  // skeleton → árvore não remonta → aba/scroll/seleção preservados.
+  const loadAll = async (clienteId: string, { silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) setLoading(true);
     const [cRes, pRes, lRes] = await Promise.all([
       supabase.from('clientes').select('*').eq('id', clienteId).maybeSingle(),
       supabase.from('processos').select('*').eq('cliente_id', clienteId).order('created_at', { ascending: false }),
@@ -386,7 +396,7 @@ export default function ClienteDetalhe() {
     updateCliente.mutate(payload as any, {
       onSuccess: () => {
         setEditing(false);
-        loadAll(cliente.id);
+        loadAll(cliente.id, { silent: true });
         toast.success('Parâmetros atualizados!');
         qcRef.invalidateQueries({ queryKey: ['financeiro_clientes'] });
       },
@@ -524,7 +534,7 @@ export default function ClienteDetalhe() {
       });
       toast.success('Dados cadastrais e honorários atualizados!');
       setShowEditCadastro(false);
-      loadAll(cliente.id);
+      loadAll(cliente.id, { silent: true });
     } catch (err: any) {
       toast.error('Erro: ' + (err?.message || 'Desconhecido'));
     } finally {
@@ -693,7 +703,7 @@ export default function ClienteDetalhe() {
           <Button variant="outline" size="sm" className="gap-1.5 text-xs text-foreground" onClick={() => { setSelectedCobrancaProcessos(new Set()); setShowCobrancaDialog(true); }}>
             <Receipt className="h-3.5 w-3.5" /> Gerar Cobrança
           </Button>
-          <TrelloProvisionButton cliente={cliente} onProvisioned={() => loadAll(cliente.id)} />
+          <TrelloProvisionButton cliente={cliente} onProvisioned={() => loadAll(cliente.id, { silent: true })} />
           {isArchived ? (
             <Button variant="outline" size="sm" className="gap-1.5 text-xs text-primary" onClick={() => setShowArchivePassword(true)}>
               <ArchiveRestore className="h-3.5 w-3.5" /> Desarquivar
@@ -738,8 +748,8 @@ export default function ClienteDetalhe() {
         </Card>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="financeiro-config" className="space-y-4">
+      {/* Tabs — UX-010: controlado pra preservar aba após refresh do loadAll */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className={cn("grid w-full", isPrePago ? "grid-cols-7" : "grid-cols-6")}>
           <TabsTrigger value="financeiro-config" className="text-xs gap-1"><Settings className="h-3.5 w-3.5" />Financeiro</TabsTrigger>
           <TabsTrigger value="honorarios" className="text-xs gap-1"><List className="h-3.5 w-3.5" />Serviços</TabsTrigger>
@@ -1206,7 +1216,7 @@ export default function ClienteDetalhe() {
                           toast.error('Erro ao gerar fatura: ' + error.message);
                         } else {
                           toast.success('Fatura mensal gerada!');
-                          loadAll(cliente.id);
+                          loadAll(cliente.id, { silent: true });
                           navigate('/financeiro');
                         }
                       }}
@@ -1231,7 +1241,7 @@ export default function ClienteDetalhe() {
                 <ClienteDetalheFaturasAuditoria
                   lancamentos={lancNaoAuditados}
                   clienteApelido={cliente.apelido || cliente.nome}
-                  onReload={() => loadAll(cliente.id)}
+                  onReload={() => loadAll(cliente.id, { silent: true })}
                   isMaster={permIsMaster}
                 />
               )}
@@ -1254,7 +1264,7 @@ export default function ClienteDetalhe() {
                     </TableHeader>
                     <TableBody>
                       {lancAuditadosPendentes.map(l => (
-                        <AuditedLancRow key={l.id} l={l} isMaster={permIsMaster} onReload={() => loadAll(cliente.id)} />
+                        <AuditedLancRow key={l.id} l={l} isMaster={permIsMaster} onReload={() => loadAll(cliente.id, { silent: true })} />
                       ))}
                     </TableBody>
                   </Table>
@@ -1352,7 +1362,7 @@ export default function ClienteDetalhe() {
         {/* ── Pré-Pago ── */}
         {isPrePago && (
           <TabsContent value="prepago">
-            <PrepagoTab cliente={cliente} onReload={() => loadAll(cliente.id)} />
+            <PrepagoTab cliente={cliente} onReload={() => loadAll(cliente.id, { silent: true })} />
           </TabsContent>
         )}
 
@@ -1372,7 +1382,7 @@ export default function ClienteDetalhe() {
                     if (!cliente) return;
                     const payload: any = { id: cliente.id, observacoes: (editForm as any).observacoes || null };
                     updateCliente.mutate(payload, {
-                      onSuccess: () => { setEditing(false); loadAll(cliente.id); toast.success('Observações salvas!'); },
+                      onSuccess: () => { setEditing(false); loadAll(cliente.id, { silent: true }); toast.success('Observações salvas!'); },
                     });
                   }} disabled={updateCliente.isPending}><Save className="h-3.5 w-3.5" />Salvar</Button>
                 </div>
@@ -2090,9 +2100,9 @@ export default function ClienteDetalhe() {
         onConfirm={() => {
           if (!cliente) return;
           if (isArchived) {
-            unarchiveCliente.mutate(cliente.id, { onSuccess: () => loadAll(cliente.id) });
+            unarchiveCliente.mutate(cliente.id, { onSuccess: () => loadAll(cliente.id, { silent: true }) });
           } else {
-            archiveCliente.mutate(cliente.id, { onSuccess: () => loadAll(cliente.id) });
+            archiveCliente.mutate(cliente.id, { onSuccess: () => loadAll(cliente.id, { silent: true }) });
           }
         }}
       />
@@ -2281,7 +2291,7 @@ export default function ClienteDetalhe() {
         open={markPaidModalOpen}
         onOpenChange={setMarkPaidModalOpen}
         processo={markPaidProcesso}
-        onSuccess={() => cliente && loadAll(cliente.id)}
+        onSuccess={() => cliente && loadAll(cliente.id, { silent: true })}
       />
 
       {/* Mark as Faturado after extrato */}
@@ -2320,7 +2330,7 @@ export default function ClienteDetalhe() {
                 }
                 toast.success('Processos marcados como faturados!');
                 setSelectedProcessosTab(new Set());
-                loadAll(cliente!.id);
+                loadAll(cliente!.id, { silent: true });
               } catch (err: any) {
                 toast.error('Erro: ' + err.message);
               }
