@@ -156,7 +156,10 @@ export function NotificationPopover() {
             </Button>
           )}
         </div>
-        <ScrollArea className="max-h-[420px]">
+        {/* UX-007 (11/05/2026): trocado max-h-[420px] por h-[420px].
+            Radix ScrollArea Viewport usa h-full; sem altura concreta no Root
+            o overflow interno não calcula e o scroll trava. */}
+        <ScrollArea className="h-[420px]">
           {notificacoes.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
               Nenhuma notificação ainda

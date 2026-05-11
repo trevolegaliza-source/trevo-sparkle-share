@@ -1,7 +1,50 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: **07/05/2026** (Auditoria SISTÊMICA 38 achados novos — SEG/PERF/REL/A11Y/UX/DATA/INFRA).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: **11/05/2026** (bug zumbi SEPI/ASLAN consertado + cleanup `useMoveEtapaFinanceiro` morto + scroll sino + view sentinela).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 🟢 Sessão 11/05/2026 — bug zumbi SEPI/ASLAN + cleanup
+
+Disparado por: Thales reportou processo SEPI cadastrado pra ASLAN não aparecia no Financeiro. Investigação via MCP Supabase (read-only) descobriu cadeia maior.
+
+| ID | Status | Achado | Fix | Commit |
+|---|---|---|---|---|
+| **DATA-005** | ✅ FIXADO (manual SQL) | Processo SEPI (id `201233c9-...`) zumbi: etapa `concluido` sem lançamento. Único caso em todo o banco (n=1). | INSERT do lançamento via SQL editor — R$ 870, pago 12/02/2026, etapa `honorario_pago`, `confirmado_recebimento=true`. | _este commit_ |
+| **REL-009** | ✅ FIXADO | `useMoveEtapaFinanceiro` (linhas 87-146 de `useProcessosFinanceiro.ts`) era código morto (zero imports/chamadas) e era o **único caminho do front** que escrevia `etapa='concluido'` em `processos`. Bug latente: INSERT do lancamento + UPDATE da etapa não eram atômicos. | Removido o hook inteiro. Comentário no lugar explica o porquê pra histórico. | _este commit_ |
+| **UX-007** | ✅ FIXADO | Scroll do sino de notificações travado. `<ScrollArea className="max-h-[420px]">` não funciona com Radix porque o Viewport interno usa `h-full` — sem altura concreta no Root, overflow não calcula. | Trocado por `h-[420px]` em `NotificationPopover.tsx:159`. | _este commit_ |
+| **MON-001** | ✅ FIXADO (SQL manual) | Não havia sentinela detectando processos zumbis. | View `public.processos_zombies` lista processos em etapa terminal sem lançamento. Idealmente sempre vazia. SQL no fim deste doc. | _este commit_ |
+| **UX-008** | ⏸️ DEFERIDO | Notificações de pagamento/cobrança caem em `/financeiro` genérico (sem filtrar pelo lançamento específico) porque tabela `notificacoes` só tem FK `orcamento_id` — não tem `processo_id`/`lancamento_id`. | Migration: `ALTER TABLE notificacoes ADD COLUMN processo_id uuid REFERENCES processos(id), ADD COLUMN lancamento_id uuid REFERENCES lancamentos(id)` + atualizar publishers e roteamento em `NotificationPopover.handleClick`. Thales escolheu fazer junto, mas precisa migration — vai ficar pra próxima sessão dedicada. | — |
+
+**Insights:**
+- O zombie SEPI **não foi causado pelo código atual** — os 3 únicos lugares que escrevem `etapa='concluido'` no front+banco estavam mortos/inexistentes. Provável: SQL manual histórico ou código antigo já revertido. Mesmo assim a arma carregada (hook morto) foi removida pra fechar a porta.
+- **Read-only MCP funcionou:** `apply_migration` da view foi bloqueada pelo servidor MCP (como esperado), forçando rodar manual no SQL editor. Salvaguarda OK.
+
+**SQL pra rodar no SQL editor do Supabase (cria a view MON-001):**
+```sql
+CREATE OR REPLACE VIEW public.processos_zombies AS
+SELECT
+  p.id              AS processo_id,
+  p.razao_social,
+  p.etapa,
+  p.cliente_id,
+  c.nome            AS cliente_nome,
+  p.valor,
+  p.created_at,
+  p.empresa_id
+FROM public.processos p
+LEFT JOIN public.clientes c ON c.id = p.cliente_id
+WHERE p.etapa IN ('concluido', 'finalizados')
+  AND COALESCE(p.is_archived, false) = false
+  AND NOT EXISTS (
+    SELECT 1 FROM public.lancamentos l
+    WHERE l.processo_id = p.id
+  );
+
+COMMENT ON VIEW public.processos_zombies IS
+'Sentinela MON-001: processos em etapa terminal sem lancamento. Idealmente sempre vazia.';
+```
 
 ---
 

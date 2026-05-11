@@ -84,66 +84,20 @@ export function useProcessosFinanceiro() {
   });
 }
 
-/** Move a processo's financial stage */
-export function useMoveEtapaFinanceiro() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      processo,
-      targetEtapa,
-    }: {
-      processo: ProcessoFinanceiro;
-      targetEtapa: EtapaFinanceiro;
-    }) => {
-      if (processo.lancamento) {
-        const updates: any = {
-          etapa_financeiro: targetEtapa,
-          updated_at: new Date().toISOString(),
-        };
-        if (targetEtapa === 'honorario_pago') {
-          updates.status = 'pago';
-          updates.data_pagamento = new Date().toISOString().split('T')[0];
-        }
-        if (targetEtapa === 'honorario_vencido') {
-          updates.status = 'atrasado';
-        }
-        const { error } = await supabase
-          .from('lancamentos')
-          .update(updates)
-          .eq('id', processo.lancamento.id);
-        if (error) throw error;
-      } else {
-        const vencimento = new Date(Date.now() + 4 * 86400000).toISOString().split('T')[0];
-        const { error } = await supabase.from('lancamentos').insert({
-          tipo: 'receber',
-          cliente_id: processo.cliente_id,
-          processo_id: processo.id,
-          descricao: `${processo.tipo.charAt(0).toUpperCase() + processo.tipo.slice(1)} - ${processo.razao_social}`,
-          valor: processo.valor || 0,
-          status: targetEtapa === 'honorario_pago' ? 'pago' : 'pendente',
-          data_vencimento: vencimento,
-          etapa_financeiro: targetEtapa,
-        });
-        if (error) throw error;
-      }
-
-      // If marked as paid, also update processo
-      if (targetEtapa === 'honorario_pago') {
-        await supabase
-          .from('processos')
-          .update({ etapa: 'concluido', updated_at: new Date().toISOString() })
-          .eq('id', processo.id);
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['processos_financeiro'] });
-      qc.invalidateQueries({ queryKey: ['lancamentos'] });
-      qc.invalidateQueries({ queryKey: ['financeiro_dashboard'] });
-      qc.invalidateQueries({ queryKey: ['processos_db'] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
+// REMOVIDO 11/05/2026 (REL-009) — `useMoveEtapaFinanceiro` era código morto
+// (zero importações em todo o repo) e era o único caminho do front que escrevia
+// `processos.etapa = 'concluido'`. Ele tinha um bug latente: o INSERT do
+// lancamento e o UPDATE da etapa do processo NÃO eram atômicos — se o INSERT
+// falhasse silenciosamente OU o lancamento fosse deletado depois, o processo
+// ficava em 'concluido' SEM lancamento (estado zumbi).
+//
+// Caso histórico real (consertado): processo SEPI/ASLAN
+// (id 201233c9-71aa-47f5-8e2f-444ca48e09e3) ficou zumbi e não aparecia no
+// Financeiro. Auditoria via SQL confirmou n=1 no banco inteiro — não é bug
+// sistêmico ativo, mas o código morto era uma arma carregada. Removido para
+// fechar essa porta. Sentinela: view `public.processos_zombies` no banco
+// (MON-001) lista qualquer processo em etapa 'concluido' / 'finalizados' sem
+// lancamento — checar periodicamente.
 
 /** Update lancamento fields */
 export function useUpdateLancamentoFinanceiro() {
