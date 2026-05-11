@@ -573,6 +573,39 @@ export function useCreateProcesso() {
   });
 }
 
+// FEAT-001 (11/05/2026): marcar processo como pago DEPOIS de criado.
+// Antes só era possível no cadastro (checkbox ja_pago). Espelha o
+// comportamento do ja_pago=true:
+//   - lancamento: status='pago', etapa_financeiro='honorario_pago',
+//     confirmado_recebimento=true, data_pagamento=p_data_pagamento
+//   - processo: etapa='finalizados'
+// Atomicidade garantida pela RPC public.marcar_processo_pago (tenant check
+// no banco). Se o processo não tiver lancamento ainda (caso edge), a RPC
+// cria do zero usando o valor do processo.
+export function useMarcarProcessoPago() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ processoId, dataPagamento }: { processoId: string; dataPagamento: string }) => {
+      const { data, error } = await supabase.rpc('marcar_processo_pago' as any, {
+        p_processo_id: processoId,
+        p_data_pagamento: dataPagamento,
+      });
+      if (error) throw error;
+      return data as string; // lancamento_id
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['processos_db'] });
+      qc.invalidateQueries({ queryKey: ['processos_financeiro'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos_receber'] });
+      qc.invalidateQueries({ queryKey: ['financeiro_dashboard'] });
+      invalidateFinanceiro(qc);
+      toast.success('Processo marcado como pago!');
+    },
+    onError: (e: Error) => toast.error('Erro ao marcar pago: ' + e.message),
+  });
+}
+
 // Generate billing when process is deferred (for 'no_deferimento' clients)
 //
 // Dois cenários:

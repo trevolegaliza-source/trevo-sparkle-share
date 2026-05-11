@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Building2, User, Settings, FileText, DollarSign, Download, Trash2, Edit2, Save, X, Plus, FileBarChart, Receipt, Archive, ArchiveRestore, ExternalLink, Eye, Pencil, List, Check, ClipboardCheck, Undo2 } from 'lucide-react';
+import { ArrowLeft, Building2, User, Settings, FileText, DollarSign, Download, Trash2, Edit2, Save, X, Plus, FileBarChart, Receipt, Archive, ArchiveRestore, ExternalLink, Eye, Pencil, List, Check, CheckCircle, ClipboardCheck, Undo2 } from 'lucide-react';
 import { EtiquetasDisplay, EtiquetasEdit } from '@/components/EtiquetasBadges';
 import { useAuditarLancamento, useAuditarTodosCliente, useAlterarValorLancamento } from '@/hooks/useFinanceiroClientes';
 import ValoresAdicionaisModal from '@/components/financeiro/ValoresAdicionaisModal';
@@ -44,6 +44,7 @@ import { useServiceNegotiations } from '@/hooks/useServiceNegotiations';
 import TrelloProvisionButton from '@/components/clientes/TrelloProvisionButton';
 import ProcessoEditModal from '@/components/financeiro/ProcessoEditModal';
 import ProcessoConfigEditModal from '@/components/processos/ProcessoConfigEditModal';
+import MarcarPagoProcessoModal from '@/components/processos/MarcarPagoProcessoModal';
 import { PagamentoBadge, classificarPagamento } from '@/components/processos/PagamentoBadge';
 import { useColaboradores } from '@/hooks/useColaboradores';
 import { Textarea } from '@/components/ui/textarea';
@@ -104,6 +105,9 @@ export default function ClienteDetalhe() {
   const [editProcesso, setEditProcesso] = useState<ProcessoFinanceiro | null>(null);
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [configEditProcesso, setConfigEditProcesso] = useState<ProcessoDB | null>(null);
+  // FEAT-001 (11/05/2026): marcar processo como pago depois de criado.
+  const [markPaidModalOpen, setMarkPaidModalOpen] = useState(false);
+  const [markPaidProcesso, setMarkPaidProcesso] = useState<ProcessoDB | null>(null);
   const [generatingExtrato, setGeneratingExtrato] = useState(false);
   const [showMarkFaturadoDialog, setShowMarkFaturadoDialog] = useState(false);
   const [showDeferimentoAlert, setShowDeferimentoAlert] = useState(false);
@@ -1106,18 +1110,36 @@ export default function ClienteDetalhe() {
                           {pago && <span className="ml-2 text-xs text-green-500 no-underline inline-block">✓ Pago</span>}
                         </TableCell>
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            title="Editar configurações do processo"
-                            onClick={() => {
-                              setConfigEditProcesso(p);
-                              setConfigModalOpen(true);
-                            }}
-                          >
-                            <Settings className="h-3.5 w-3.5" />
-                          </Button>
+                          <div className="flex items-center justify-center gap-0.5">
+                            {/* FEAT-001 (11/05/2026): marca processo como pago.
+                                Só aparece se ainda não está pago. */}
+                            {!pago && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                                title="Marcar como pago"
+                                onClick={() => {
+                                  setMarkPaidProcesso(p);
+                                  setMarkPaidModalOpen(true);
+                                }}
+                              >
+                                <CheckCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Editar configurações do processo"
+                              onClick={() => {
+                                setConfigEditProcesso(p);
+                                setConfigModalOpen(true);
+                              }}
+                            >
+                              <Settings className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                       );
@@ -2252,6 +2274,14 @@ export default function ClienteDetalhe() {
         open={configModalOpen}
         onOpenChange={setConfigModalOpen}
         processo={configEditProcesso}
+      />
+
+      {/* FEAT-001 (11/05/2026): Marcar processo como pago. */}
+      <MarcarPagoProcessoModal
+        open={markPaidModalOpen}
+        onOpenChange={setMarkPaidModalOpen}
+        processo={markPaidProcesso}
+        onSuccess={() => cliente && loadAll(cliente.id)}
       />
 
       {/* Mark as Faturado after extrato */}

@@ -16,6 +16,7 @@ Disparado por: Thales reportou processo SEPI cadastrado pra ASLAN não aparecia 
 | **UX-007** | ✅ FIXADO | Scroll do sino de notificações travado. `<ScrollArea className="max-h-[420px]">` não funciona com Radix porque o Viewport interno usa `h-full` — sem altura concreta no Root, overflow não calcula. | Trocado por `h-[420px]` em `NotificationPopover.tsx:159`. | _este commit_ |
 | **MON-001** | ✅ FIXADO (SQL manual) | Não havia sentinela detectando processos zumbis. | View `public.processos_zombies` lista processos em etapa terminal sem lançamento. Idealmente sempre vazia. SQL no fim deste doc. | _este commit_ |
 | **UX-008** | ⏸️ DEFERIDO | Notificações de pagamento/cobrança caem em `/financeiro` genérico (sem filtrar pelo lançamento específico) porque tabela `notificacoes` só tem FK `orcamento_id` — não tem `processo_id`/`lancamento_id`. | Migration: `ALTER TABLE notificacoes ADD COLUMN processo_id uuid REFERENCES processos(id), ADD COLUMN lancamento_id uuid REFERENCES lancamentos(id)` + atualizar publishers e roteamento em `NotificationPopover.handleClick`. Thales escolheu fazer junto, mas precisa migration — vai ficar pra próxima sessão dedicada. | — |
+| **FEAT-001** | ✅ ENTREGUE (SQL manual) | Antes só era possível marcar processo como pago **no momento do cadastro** (checkbox "Já pago"). Cadastros retroativos ficavam pendentes no Financeiro. | Botão verde ✓ na coluna Ações de cada processo em `ClienteDetalhe.tsx` (só aparece se o processo não está pago). Abre modal pedindo a data de pagamento (default: hoje, aceita retroativa). Backend: RPC `marcar_processo_pago` (SQL no fim deste doc) — atômica, tenant check, espelha o comportamento de `ja_pago=true` (lançamento → pago/honorario_pago/confirmado, processo → finalizados). | _este commit_ |
 
 **Insights:**
 - O zombie SEPI **não foi causado pelo código atual** — os 3 únicos lugares que escrevem `etapa='concluido'` no front+banco estavam mortos/inexistentes. Provável: SQL manual histórico ou código antigo já revertido. Mesmo assim a arma carregada (hook morto) foi removida pra fechar a porta.
@@ -44,6 +45,98 @@ WHERE p.etapa IN ('concluido', 'finalizados')
 
 COMMENT ON VIEW public.processos_zombies IS
 'Sentinela MON-001: processos em etapa terminal sem lancamento. Idealmente sempre vazia.';
+```
+
+**SQL pra rodar no SQL editor do Supabase (cria a RPC FEAT-001):**
+```sql
+CREATE OR REPLACE FUNCTION public.marcar_processo_pago(
+  p_processo_id uuid,
+  p_data_pagamento date
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_empresa_id uuid;
+  v_proc_empresa uuid;
+  v_proc_cliente uuid;
+  v_proc_valor numeric;
+  v_proc_tipo text;
+  v_proc_razao text;
+  v_lanc_id uuid;
+BEGIN
+  -- Tenant check (mesmo padrão de criar_processo_com_lancamento)
+  v_empresa_id := public.get_empresa_id();
+  IF v_empresa_id IS NULL THEN
+    RAISE EXCEPTION 'Usuário não possui empresa associada';
+  END IF;
+
+  SELECT empresa_id, cliente_id, valor, tipo::text, razao_social
+    INTO v_proc_empresa, v_proc_cliente, v_proc_valor, v_proc_tipo, v_proc_razao
+    FROM public.processos
+   WHERE id = p_processo_id;
+
+  IF v_proc_empresa IS NULL THEN
+    RAISE EXCEPTION 'Processo não encontrado';
+  END IF;
+  IF v_proc_empresa != v_empresa_id THEN
+    RAISE EXCEPTION 'Processo não pertence à sua empresa';
+  END IF;
+
+  -- Busca lancamento receber do processo (pega o mais antigo se houver mais de um)
+  SELECT id INTO v_lanc_id
+    FROM public.lancamentos
+   WHERE processo_id = p_processo_id AND tipo = 'receber'
+   ORDER BY created_at ASC
+   LIMIT 1;
+
+  IF v_lanc_id IS NOT NULL THEN
+    -- Atualiza lancamento existente (promoção a 'pago' nunca rebaixa nada)
+    UPDATE public.lancamentos
+       SET status = 'pago'::public.status_financeiro,
+           etapa_financeiro = 'honorario_pago',
+           confirmado_recebimento = true,
+           data_pagamento = p_data_pagamento,
+           updated_at = NOW()
+     WHERE id = v_lanc_id;
+  ELSE
+    -- Caso edge: processo sem lancamento (não deveria acontecer no fluxo
+    -- normal pós criar_processo_com_lancamento, mas cobre legados)
+    INSERT INTO public.lancamentos (
+      tipo, cliente_id, processo_id, descricao, valor, status,
+      data_vencimento, data_pagamento, etapa_financeiro, empresa_id,
+      confirmado_recebimento
+    )
+    VALUES (
+      'receber'::public.tipo_lancamento,
+      v_proc_cliente,
+      p_processo_id,
+      INITCAP(v_proc_tipo) || ' - ' || v_proc_razao,
+      COALESCE(v_proc_valor, 0),
+      'pago'::public.status_financeiro,
+      p_data_pagamento,
+      p_data_pagamento,
+      'honorario_pago',
+      v_empresa_id,
+      true
+    )
+    RETURNING id INTO v_lanc_id;
+  END IF;
+
+  -- Promove processo a 'finalizados' (espelha ja_pago=true do cadastro)
+  UPDATE public.processos
+     SET etapa = 'finalizados',
+         updated_at = NOW()
+   WHERE id = p_processo_id;
+
+  RETURN v_lanc_id;
+END;
+$function$;
+
+COMMENT ON FUNCTION public.marcar_processo_pago(uuid, date) IS
+'FEAT-001 (11/05/2026): marca processo como pago retroativamente. Atualiza/cria lancamento e promove processo a finalizados. Mesmo comportamento do ja_pago=true do cadastro.';
 ```
 
 ---
