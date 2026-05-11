@@ -21,16 +21,24 @@ Disparado por: Thales reportou processo SEPI cadastrado pra ASLAN não aparecia 
 | **REL-012** | ✅ FIXADO | Aba "Pagos no período" em `/financeiro → Historico` filtrava por `data_vencimento` em vez de `data_pagamento`. Resultado: pagamento atrasado (cliente paga em Maio um boleto que venceu em Abril — caso comum) sumia do mês em que foi efetivamente recebido. Cliente FATO: cobrança paga em 11/05 com 3 lançamentos (2 venc Abril + 1 venc Maio) só mostrava 1 dos 3 em "este_mes". | `useFinanceiroClientes.ts:225-226` — trocado `data_vencimento` por `data_pagamento` no filtro de período pros pagos. Pendentes seguem sem filtro de período (lógica anterior preservada). | _este commit_ |
 | **DATA-007** | ✅ FIXADO (SQL manual) | Processo RCB AGROPECUARIA antigo (lanc `9399d050…`, processo `080872dc…`) da FATO foi marcado deferido por engano em 06/05. Como o cliente é `no_deferimento`, lançamento subiu pra `solicitacao_criada` com vencimento real, e processo ganhou `data_deferimento`. Caso pontual confirmado pelo Thales. | Reverter: `processos.data_deferimento=NULL` + `lancamentos.etapa_financeiro='aguardando_deferimento'` + `lancamentos.data_vencimento='2099-12-31'`. Etapa operacional do processo (`registro`) preservada — independente do financeiro. SQL no fim deste doc. | _este commit_ |
 
-### 🟡 Backlog acumulado nessa sessão (atacar em sessão dedicada)
+### 🟢 Batch UX entregue nessa sessão (após auditoria de contadores)
 
-Dores identificadas pelo Thales enquanto auditava contadores. Anotadas pra atacar **junto**, sem interromper o fluxo da auditoria.
+Auditoria de **fluxo & premissas** disparou batch pós-auditoria. Thales: "trabalha de forma reativa, eu não quero isso; faz auditoria de design, não só de código."
 
-| ID | Origem | Descrição | Esboço do fix |
+| ID | Status | Descrição | Fix |
 |---|---|---|---|
-| **FEAT-002** | Cliente FATO 11/05 | Pra clientes `no_deferimento`, marcar deferido só existe em `/financeiro → Auditoria → DeferimentoModal`. Lugar errado mentalmente — usuário cadastra processo em `CLIENTES`, espera operar a partir dali. | Botão "Marcar deferido" na coluna Ações do processo em `ClienteDetalhe.tsx`, condicional: cliente `no_deferimento` + lançamento `aguardando_deferimento`. Reusa RPC `promover_lancamento_ao_deferir`. Espelho do FEAT-001. |
-| **FEAT-003** | Cliente FATO 11/05 | Não dá pra desfazer um deferimento marcado por engano. Lançamento volta pra `aguardando_deferimento` + vencimento volta pra placeholder `2099-12-31` + processo perde `data_deferimento`. | Botão "Desfazer deferimento" no processo (só se lançamento NÃO está em `cobranca_enviada`/`honorario_pago` — guard anti-rebaixamento) + RPC `desfazer_deferimento`. |
-| **UX-009** | Cliente FATO 11/05 | "Devolver para auditoria" (em `ClienteAccordionFinanceiro`) age em **TODOS** os processos do cliente — não dá pra escolher 1 ou alguns. Thales teve que devolver os 5, re-auditar 4. | Adicionar checkbox de seleção na lista de "Auditados — Prontos para cobrar" e fazer "Devolver" agir só na seleção. Provavelmente reuso do padrão `selectedPagar` já existente no mesmo componente. |
-| **DECISION-001** | Cliente FATO 11/05 | Thales: *"meu sistema nao tem que ver em que etapa o processo está! Apenas saber se ele existe."* + *"se cliente é no_deferimento, ele nao deve tentar trakear o processo, apenas me avisar quando eu tentar gerar a cobrança."* + *"PROCESSOS > KANBAN — pode tirar essa merda"*. | **Decisão de produto pendente.** O ERP atualmente espelha um kanban operacional (recebidos → mat → … → finalizados) que duplica o Trello. Hipóteses: (a) remover kanban operacional inteiro e deixar processo com 2 estados só (`ativo` / `finalizado`); (b) manter como atualmente mas esconder kanban da UI; (c) tornar kanban opcional por cliente. Precisa sessão dedicada de design — afeta `Processos.tsx`, `Dashboard.tsx`, RPCs que filtram por `etapa`. |
+| **UX-010** | ✅ FIXADO | Cadastrar processo (ou qualquer mutação) em `ClienteDetalhe.tsx` jogava você de volta pra aba "Financeiro". `loadAll(id)` → `setLoading(true)` → `<Skeleton/>` early return → Tabs com `defaultValue` remontava → volta pra aba default. Achado em <2min de auditoria de fluxo. | `<Tabs>` controlado via `useState`. `loadAll` aceita `{ silent: true }` pra refresh pós-mutação não disparar skeleton. 12 chamadas convertidas pra silent. | _este commit_ |
+| **UX-009** | ✅ FIXADO | "Devolver pra auditoria" agia em **todos** os processos do cliente. Sem seleção. | Reaproveita checkbox de seleção que já existia. `selected.size > 0` → devolve só selecionados. `=0` → fallback no comportamento legado (todos). Botão mostra contagem. | _este commit_ |
+| **FEAT-002** | ✅ ENTREGUE (SQL manual) | Marcar deferido só existia em `/financeiro → Auditoria → DeferimentoModal`. Lugar errado mentalmente — usuário cadastra processo em `CLIENTES`, espera operar dali. | Botão Check verde na coluna Ações do processo em `ClienteDetalhe.tsx` — só aparece se cliente `no_deferimento` + lançamento `aguardando_deferimento`. RPC `marcar_deferimento` (atômica, tenant check). Coexiste com DeferimentoModal de lote. | _este commit_ |
+| **FEAT-003** | ✅ ENTREGUE (SQL manual) | Não dava pra desfazer deferimento marcado por engano. | Botão Undo amarelo na mesma coluna — só aparece se processo tem `data_deferimento` mas lançamento ainda em `solicitacao_criada`/`cobranca_gerada`. RPC `desfazer_deferimento` (guard anti-rebaixamento `honorario_pago`/`cobranca_enviada`). | _este commit_ |
+| **UX-008** | ⏸️ PROTELADO | Notificações cobrança/pagamento caem em `/financeiro` genérico. Resolver exige adicionar FK em `notificacoes` + atualizar edge function `asaas-webhook` + roteamento. **Bloqueador:** `asaas-webhook/index.txt` (em vez de `index.ts`) — função desabilitada de deploy. Precisa confirmação do Thales sobre por que. | (estado anterior preservado abaixo) |
+
+### 🟡 Backlog ainda em aberto
+
+| ID | Descrição | Esboço do fix |
+|---|---|---|
+| **UX-008** | Notificações de pagamento/cobrança caem em `/financeiro` genérico. | Migration `ALTER TABLE notificacoes ADD COLUMN cliente_id uuid REFERENCES clientes(id)` + atualizar publishers (edge function `asaas-webhook` + RPCs) + handler de click. **Bloqueado:** `asaas-webhook/index.txt` — investigar antes de mexer. |
+| **DECISION-001** | Thales: *"meu sistema nao tem que ver em que etapa o processo está! Apenas saber se ele existe."* + *"PROCESSOS > KANBAN — pode tirar essa merda"*. | **Decisão de produto pendente.** ERP atualmente espelha um kanban operacional (recebidos → mat → … → finalizados) que duplica o Trello. Hipóteses: (a) remover kanban inteiro e deixar `processo.etapa` com 2 estados (`ativo` / `finalizado`); (b) esconder UI de kanban; (c) opcional por cliente. Refactor médio — afeta `Processos.tsx`, `Dashboard.tsx`, RPCs que filtram por `etapa`. |
 
 **Insights:**
 - O zombie SEPI **não foi causado pelo código atual** — os 3 únicos lugares que escrevem `etapa='concluido'` no front+banco estavam mortos/inexistentes. Provável: SQL manual histórico ou código antigo já revertido. Mesmo assim a arma carregada (hook morto) foi removida pra fechar a porta.
@@ -161,6 +169,154 @@ COMMENT ON FUNCTION public.marcar_processo_pago(uuid, date) IS
 ALTER TABLE public.lancamentos DROP CONSTRAINT IF EXISTS lancamentos_valor_positivo_check;
 ALTER TABLE public.lancamentos
   ADD CONSTRAINT lancamentos_valor_nao_negativo_check CHECK (valor >= 0);
+```
+
+**SQL pra rodar no SQL editor (cria as RPCs FEAT-002 + FEAT-003):**
+```sql
+-- FEAT-002: marca processo como deferido (atualiza processo + promove lancamento).
+CREATE OR REPLACE FUNCTION public.marcar_deferimento(
+  p_processo_id uuid,
+  p_data_deferimento date
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_empresa_caller uuid;
+  v_processo RECORD;
+  v_lanc_id uuid;
+  v_vencimento date;
+BEGIN
+  v_empresa_caller := public.get_empresa_id();
+
+  SELECT id, cliente_id, razao_social, tipo, valor, empresa_id, data_deferimento
+    INTO v_processo
+    FROM public.processos
+   WHERE id = p_processo_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Processo não encontrado';
+  END IF;
+  IF v_processo.empresa_id <> v_empresa_caller THEN
+    RAISE EXCEPTION 'Processo não pertence à sua empresa';
+  END IF;
+
+  UPDATE public.processos
+     SET data_deferimento = p_data_deferimento,
+         updated_at = NOW()
+   WHERE id = p_processo_id;
+
+  v_vencimento := public.calcular_vencimento(v_processo.cliente_id);
+
+  SELECT id INTO v_lanc_id
+    FROM public.lancamentos
+   WHERE processo_id = p_processo_id
+     AND tipo = 'receber'
+     AND etapa_financeiro = 'aguardando_deferimento'
+   ORDER BY created_at
+   LIMIT 1
+   FOR UPDATE;
+
+  IF v_lanc_id IS NOT NULL THEN
+    UPDATE public.lancamentos
+       SET etapa_financeiro = 'solicitacao_criada',
+           data_vencimento  = v_vencimento,
+           updated_at       = NOW()
+     WHERE id = v_lanc_id;
+    RETURN jsonb_build_object('ok', true, 'acao', 'promovido', 'lancamento_id', v_lanc_id);
+  END IF;
+
+  -- Fallback legado: processo sem lancamento (não deveria acontecer pós-fix LUANNA)
+  INSERT INTO public.lancamentos (
+    tipo, cliente_id, processo_id, descricao, valor, status,
+    data_vencimento, created_at, etapa_financeiro, empresa_id
+  )
+  VALUES (
+    'receber'::public.tipo_lancamento,
+    v_processo.cliente_id,
+    p_processo_id,
+    INITCAP(v_processo.tipo::text) || ' - ' || v_processo.razao_social || ' (Deferido)',
+    COALESCE(v_processo.valor, 0),
+    'pendente'::public.status_financeiro,
+    v_vencimento,
+    NOW(),
+    'solicitacao_criada',
+    v_processo.empresa_id
+  )
+  RETURNING id INTO v_lanc_id;
+
+  RETURN jsonb_build_object('ok', true, 'acao', 'criado', 'lancamento_id', v_lanc_id);
+END;
+$function$;
+
+COMMENT ON FUNCTION public.marcar_deferimento(uuid, date) IS
+'FEAT-002 (11/05/2026): marca processo como deferido direto da tela do cliente. Espelha o DeferimentoModal de lote.';
+
+-- FEAT-003: desfaz deferimento marcado por engano. Guard anti-rebaixamento.
+CREATE OR REPLACE FUNCTION public.desfazer_deferimento(
+  p_processo_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_empresa_caller uuid;
+  v_processo_empresa uuid;
+  v_lanc_id uuid;
+  v_lanc_etapa text;
+BEGIN
+  v_empresa_caller := public.get_empresa_id();
+
+  SELECT empresa_id INTO v_processo_empresa
+    FROM public.processos
+   WHERE id = p_processo_id;
+
+  IF v_processo_empresa IS NULL THEN
+    RAISE EXCEPTION 'Processo não encontrado';
+  END IF;
+  IF v_processo_empresa <> v_empresa_caller THEN
+    RAISE EXCEPTION 'Processo não pertence à sua empresa';
+  END IF;
+
+  -- Guard: bloqueia se lançamento já saiu pra cobranca_enviada ou foi pago
+  -- (consistente com a guard DERMAE em 4 caminhos do front).
+  SELECT id, etapa_financeiro::text
+    INTO v_lanc_id, v_lanc_etapa
+    FROM public.lancamentos
+   WHERE processo_id = p_processo_id
+     AND tipo = 'receber'
+   ORDER BY created_at
+   LIMIT 1
+   FOR UPDATE;
+
+  IF v_lanc_id IS NULL THEN
+    RAISE EXCEPTION 'Processo sem lançamento de receber';
+  END IF;
+  IF v_lanc_etapa IN ('cobranca_enviada', 'honorario_pago') THEN
+    RAISE EXCEPTION 'Lançamento já foi enviado/pago — não pode rebaixar (etapa: %)', v_lanc_etapa;
+  END IF;
+
+  UPDATE public.processos
+     SET data_deferimento = NULL,
+         updated_at       = NOW()
+   WHERE id = p_processo_id;
+
+  UPDATE public.lancamentos
+     SET etapa_financeiro = 'aguardando_deferimento',
+         data_vencimento  = '2099-12-31'::date,
+         updated_at       = NOW()
+   WHERE id = v_lanc_id;
+
+  RETURN jsonb_build_object('ok', true, 'lancamento_id', v_lanc_id);
+END;
+$function$;
+
+COMMENT ON FUNCTION public.desfazer_deferimento(uuid) IS
+'FEAT-003 (11/05/2026): desfaz deferimento marcado por engano. Guard anti-rebaixamento.';
 ```
 
 **SQL pra rodar no SQL editor (desfaz deferimento errado DATA-007 — RCB antigo da FATO):**
