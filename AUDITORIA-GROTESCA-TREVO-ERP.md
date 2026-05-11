@@ -17,6 +17,7 @@ Disparado por: Thales reportou processo SEPI cadastrado pra ASLAN não aparecia 
 | **MON-001** | ✅ FIXADO (SQL manual) | Não havia sentinela detectando processos zumbis. | View `public.processos_zombies` lista processos em etapa terminal sem lançamento. Idealmente sempre vazia. SQL no fim deste doc. | _este commit_ |
 | **UX-008** | ⏸️ DEFERIDO | Notificações de pagamento/cobrança caem em `/financeiro` genérico (sem filtrar pelo lançamento específico) porque tabela `notificacoes` só tem FK `orcamento_id` — não tem `processo_id`/`lancamento_id`. | Migration: `ALTER TABLE notificacoes ADD COLUMN processo_id uuid REFERENCES processos(id), ADD COLUMN lancamento_id uuid REFERENCES lancamentos(id)` + atualizar publishers e roteamento em `NotificationPopover.handleClick`. Thales escolheu fazer junto, mas precisa migration — vai ficar pra próxima sessão dedicada. | — |
 | **FEAT-001** | ✅ ENTREGUE (SQL manual) | Antes só era possível marcar processo como pago **no momento do cadastro** (checkbox "Já pago"). Cadastros retroativos ficavam pendentes no Financeiro. | Botão verde ✓ na coluna Ações de cada processo em `ClienteDetalhe.tsx` (só aparece se o processo não está pago). Abre modal pedindo a data de pagamento (default: hoje, aceita retroativa). Backend: RPC `marcar_processo_pago` (SQL no fim deste doc) — atômica, tenant check, espelha o comportamento de `ja_pago=true` (lançamento → pago/honorario_pago/confirmado, processo → finalizados). | _este commit_ |
+| **DATA-006** | ✅ FIXADO (SQL manual) | Constraint `lancamentos_valor_positivo_check` (`valor > 0`) bloqueava UPDATE em lançamentos legados com valor 0 (processos de cortesia, ex: CSP PARTICIPAÇÕES). Constraint estava `NOT VALID` (não revalidou histórico), mas trava qualquer UPDATE nessas linhas. 8 lançamentos com valor 0 no banco (5 já pagos — caso normal de cortesia/franquia). | Trocada por `lancamentos_valor_nao_negativo_check` (`valor >= 0`). Mantém proteção contra negativos. Front não dependia dela (greps confirmam: só lógicas de UI condicional, nenhuma invariante). | _este commit_ |
 
 **Insights:**
 - O zombie SEPI **não foi causado pelo código atual** — os 3 únicos lugares que escrevem `etapa='concluido'` no front+banco estavam mortos/inexistentes. Provável: SQL manual histórico ou código antigo já revertido. Mesmo assim a arma carregada (hook morto) foi removida pra fechar a porta.
@@ -137,6 +138,16 @@ $function$;
 
 COMMENT ON FUNCTION public.marcar_processo_pago(uuid, date) IS
 'FEAT-001 (11/05/2026): marca processo como pago retroativamente. Atualiza/cria lancamento e promove processo a finalizados. Mesmo comportamento do ja_pago=true do cadastro.';
+```
+
+**SQL pra rodar no SQL editor (relaxa constraint DATA-006):**
+```sql
+-- Antes: CHECK (valor > 0) NOT VALID — bloqueava UPDATE em lancamentos com valor 0
+-- (processos de cortesia, mensalistas dentro de franquia). 8 registros legados.
+-- Depois: CHECK (valor >= 0) — aceita zero, mantém proteção contra negativos.
+ALTER TABLE public.lancamentos DROP CONSTRAINT IF EXISTS lancamentos_valor_positivo_check;
+ALTER TABLE public.lancamentos
+  ADD CONSTRAINT lancamentos_valor_nao_negativo_check CHECK (valor >= 0);
 ```
 
 ---
