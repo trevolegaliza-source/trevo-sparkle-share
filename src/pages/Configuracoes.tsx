@@ -5,13 +5,86 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Webhook, Loader2, CheckCircle2, Palette, BookOpen, Lock } from 'lucide-react';
+import { Shield, Webhook, Loader2, CheckCircle2, Palette, BookOpen, Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
 import PlanoContasTab from '@/components/configuracoes/PlanoContasTab';
 import GestaoUsuarios from '@/components/configuracoes/GestaoUsuarios';
 import { MfaEnroll } from '@/components/auth/MfaEnroll';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
+
+// FEAT-MEU-PERFIL (12/05/2026): card de trocar senha pro user logado.
+// Antes só era possível via email recovery (REL-019, ainda dependendo de master
+// pra Letícia/secretária quando a rota /reset-password não existia).
+function TrocarSenhaCard() {
+  const [pass, setPass] = useState('');
+  const [pass2, setPass2] = useState('');
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleTrocar = async () => {
+    if (pass.length < 8) { toast.error('Senha deve ter no mínimo 8 caracteres.'); return; }
+    if (pass !== pass2) { toast.error('As senhas não conferem.'); return; }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pass });
+      if (error) throw error;
+      toast.success('Senha trocada com sucesso!');
+      setPass('');
+      setPass2('');
+    } catch (err: any) {
+      toast.error('Erro: ' + (err?.message || 'tente novamente'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="border-border/60">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base"><KeyRound className="h-4 w-4 text-primary" />Trocar senha</CardTitle>
+        <CardDescription>Defina uma nova senha (mínimo 8 caracteres). Aplica só pra você.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3 max-w-md">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Nova senha</Label>
+          <div className="relative">
+            <Input
+              type={show ? 'text' : 'password'}
+              value={pass}
+              onChange={e => setPass(e.target.value)}
+              placeholder="••••••••"
+              minLength={8}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShow(!show)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label={show ? 'Esconder senha' : 'Mostrar senha'}
+            >
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Confirmar nova senha</Label>
+          <Input
+            type="password"
+            value={pass2}
+            onChange={e => setPass2(e.target.value)}
+            placeholder="••••••••"
+            minLength={8}
+          />
+        </div>
+        <Button onClick={handleTrocar} disabled={loading || !pass || !pass2} size="sm" className="gap-1.5">
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+          Trocar senha
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Configuracoes() {
   const { isMaster } = usePermissions();
@@ -107,7 +180,11 @@ export default function Configuracoes() {
           <GestaoUsuarios />
         </TabsContent>
 
-        <TabsContent value="seguranca">
+        <TabsContent value="seguranca" className="space-y-4">
+          {/* FEAT-MEU-PERFIL (12/05/2026): qualquer user logado pode trocar a
+              própria senha aqui — antes só via email recovery (REL-019). */}
+          <TrocarSenhaCard />
+
           <Card className="border-border/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base"><Lock className="h-4 w-4 text-primary" />Autenticação em Dois Fatores (2FA)</CardTitle>
