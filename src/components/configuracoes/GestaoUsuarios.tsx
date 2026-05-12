@@ -17,6 +17,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { ROLES, MODULOS_DISPONIVEIS, GRUPOS_MODULOS, getRoleInfo, type RoleValue } from '@/constants/roles';
 import { MfaEnroll } from '@/components/auth/MfaEnroll';
+import { validatePassword } from '@/lib/password-validator';
 
 interface Profile {
   id: string;
@@ -505,7 +506,8 @@ export default function GestaoUsuarios() {
   // FEAT-USR-SET-PASS: chama edge function definir-senha-usuario
   const handleDefinirSenha = async () => {
     if (!setPassUser) return;
-    if (novaSenha.length < 8) { toast.error('Senha mínima de 8 caracteres'); return; }
+    const v = validatePassword(novaSenha);
+    if (!v.ok) { toast.error(v.reason ?? 'Senha inválida'); return; }
     if (novaSenha !== novaSenha2) { toast.error('As senhas não conferem'); return; }
     setDefinindoSenha(true);
     try {
@@ -540,7 +542,8 @@ export default function GestaoUsuarios() {
   // UX-USR-CREATE: cria usuário com senha imediata (sem email), bypassa rate limit
   const handleCriarComSenha = async () => {
     if (!inviteEmail.trim()) { toast.error('Informe o email'); return; }
-    if (inviteSenha.length < 8) { toast.error('Senha mínima de 8 caracteres'); return; }
+    const v = validatePassword(inviteSenha);
+    if (!v.ok) { toast.error(v.reason ?? 'Senha inválida'); return; }
     if (inviteSenha !== inviteSenha2) { toast.error('As senhas não conferem'); return; }
     setInviting(true);
     try {

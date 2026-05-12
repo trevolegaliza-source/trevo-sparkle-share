@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, Eye, EyeOff, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
 import logoTrevo from '@/assets/logo-trevo.png';
+import { validatePassword } from '@/lib/password-validator';
 
 // REL-019 (12/05/2026): rota /reset-password que faltava. Link do email
 // de recovery do Supabase cai aqui com um hash `#access_token=...&type=recovery`.
@@ -37,8 +38,9 @@ export default function ResetPassword() {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pass.length < 8) {
-      toast.error('Senha deve ter no mínimo 8 caracteres.');
+    const v = validatePassword(pass);
+    if (!v.ok) {
+      toast.error(v.reason ?? 'Senha inválida.');
       return;
     }
     if (pass !== pass2) {
@@ -110,7 +112,7 @@ export default function ResetPassword() {
             {hasSession === 'ok' && !done && (
               <form onSubmit={handleReset} className="space-y-4 mt-4">
                 <p className="text-xs text-muted-foreground text-center">
-                  Defina sua nova senha (mínimo 8 caracteres).
+                  Defina sua nova senha (mínimo 10 caracteres com letra e número).
                 </p>
                 <div className="space-y-2">
                   <Label className="text-foreground/70">Nova senha</Label>
@@ -121,7 +123,7 @@ export default function ResetPassword() {
                       onChange={e => setPass(e.target.value)}
                       placeholder="••••••••"
                       required
-                      minLength={8}
+                      minLength={10}
                       autoFocus
                       className="bg-foreground/5 border-foreground/10 pr-10"
                       style={{ fontSize: '16px' }}
@@ -144,7 +146,7 @@ export default function ResetPassword() {
                     onChange={e => setPass2(e.target.value)}
                     placeholder="••••••••"
                     required
-                    minLength={8}
+                    minLength={10}
                     className="bg-foreground/5 border-foreground/10"
                     style={{ fontSize: '16px' }}
                   />

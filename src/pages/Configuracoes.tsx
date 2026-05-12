@@ -13,24 +13,65 @@ import { RecoveryCodesCard } from '@/components/auth/RecoveryCodesCard';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
+import { validatePassword, type PasswordStrength } from '@/lib/password-validator';
+
+// SEC-026 (12/05/2026): indicador visual de força. Reusável.
+function PasswordStrengthBar({ strength, valid }: { strength: PasswordStrength; valid: boolean }) {
+  const bars = [
+    valid ? (strength === 'fraca' ? 'bg-destructive' : strength === 'media' ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-destructive',
+    valid && strength !== 'fraca' ? (strength === 'media' ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-muted',
+    valid && strength === 'forte' ? 'bg-emerald-500' : 'bg-muted',
+  ];
+  const label = valid ? strength : 'fraca';
+  const labelColor = !valid || strength === 'fraca' ? 'text-destructive' : strength === 'media' ? 'text-amber-500' : 'text-emerald-500';
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex gap-1 flex-1">
+        {bars.map((cls, i) => (
+          <div key={i} className={`h-1 flex-1 rounded transition-colors ${cls}`} />
+        ))}
+      </div>
+      <span className={`text-[10px] font-medium uppercase ${labelColor}`}>{label}</span>
+    </div>
+  );
+}
 
 // FEAT-MEU-PERFIL (12/05/2026): card de trocar senha pro user logado.
-// Antes só era possível via email recovery (REL-019, ainda dependendo de master
-// pra Letícia/secretária quando a rota /reset-password não existia).
+// SEC-026 (12/05/2026): pede senha atual (anti session-hijack onde alguém
+// pega o navegador aberto e troca a senha em 5s) + valida força com
+// password-validator (anti "12345678", "password", etc).
 function TrocarSenhaCard() {
+  const [senhaAtual, setSenhaAtual] = useState('');
   const [pass, setPass] = useState('');
   const [pass2, setPass2] = useState('');
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const validacao = validatePassword(pass);
+
   const handleTrocar = async () => {
-    if (pass.length < 8) { toast.error('Senha deve ter no mínimo 8 caracteres.'); return; }
+    if (!senhaAtual) { toast.error('Informe sua senha atual.'); return; }
+    if (!validacao.ok) { toast.error(validacao.reason ?? 'Senha inválida.'); return; }
     if (pass !== pass2) { toast.error('As senhas não conferem.'); return; }
     setLoading(true);
     try {
+      // Revalida a senha atual antes de trocar. signInWithPassword
+      // sobrescreve a sessão JWT em memória mas não desloga o user —
+      // continua com o mesmo profile/role.
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData?.user?.email;
+      if (!email) throw new Error('Sessão sem email associado');
+      const { error: reAuthErr } = await supabase.auth.signInWithPassword({ email, password: senhaAtual });
+      if (reAuthErr) {
+        toast.error('Senha atual incorreta.');
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({ password: pass });
       if (error) throw error;
       toast.success('Senha trocada com sucesso!');
+      setSenhaAtual('');
       setPass('');
       setPass2('');
     } catch (err: any) {
@@ -44,9 +85,19 @@ function TrocarSenhaCard() {
     <Card className="border-border/60">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base"><KeyRound className="h-4 w-4 text-primary" />Trocar senha</CardTitle>
-        <CardDescription>Defina uma nova senha (mínimo 8 caracteres). Aplica só pra você.</CardDescription>
+        <CardDescription>Defina uma nova senha. Mínimo 10 caracteres com letra e número. Aplica só pra você.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 max-w-md">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Senha atual</Label>
+          <Input
+            type="password"
+            value={senhaAtual}
+            onChange={e => setSenhaAtual(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="current-password"
+          />
+        </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Nova senha</Label>
           <div className="relative">
@@ -55,7 +106,8 @@ function TrocarSenhaCard() {
               value={pass}
               onChange={e => setPass(e.target.value)}
               placeholder="••••••••"
-              minLength={8}
+              minLength={10}
+              autoComplete="new-password"
               className="pr-10"
             />
             <button
@@ -67,6 +119,14 @@ function TrocarSenhaCard() {
               {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
+          {pass.length > 0 && (
+            <div className="space-y-1">
+              <PasswordStrengthBar strength={validacao.strength} valid={validacao.ok} />
+              {!validacao.ok && validacao.reason && (
+                <p className="text-[10px] text-destructive">{validacao.reason}</p>
+              )}
+            </div>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Confirmar nova senha</Label>
@@ -75,10 +135,14 @@ function TrocarSenhaCard() {
             value={pass2}
             onChange={e => setPass2(e.target.value)}
             placeholder="••••••••"
-            minLength={8}
+            minLength={10}
+            autoComplete="new-password"
           />
+          {pass2.length > 0 && pass !== pass2 && (
+            <p className="text-[10px] text-destructive">As senhas não conferem.</p>
+          )}
         </div>
-        <Button onClick={handleTrocar} disabled={loading || !pass || !pass2} size="sm" className="gap-1.5">
+        <Button onClick={handleTrocar} disabled={loading || !senhaAtual || !validacao.ok || pass !== pass2} size="sm" className="gap-1.5">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
           Trocar senha
         </Button>
