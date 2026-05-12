@@ -7,6 +7,16 @@
 
 ## 📊 STATUS CONSOLIDADO (leia primeiro)
 
+### 🚨 SEC-028 — VULNERABILIDADE CRÍTICA descoberta na madrugada 13/05
+
+**Atacante anônimo pode trocar a senha master do Thales via REST API.**
+
+Função `set_master_password_hash` tem check `IF get_user_role() <> 'master'` que **falha por NULL bypass** quando chamada por anon (sem JWT). `get_user_role()` retorna NULL pra anon, e `NULL <> 'master'` = NULL = `IF FALSE` em PL/pgSQL → UPDATE roda sem auth. Atacante via `curl POST /rest/v1/rpc/set_master_password_hash` troca o hash.
+
+Confirmado em produção via SQL test. Fix em `docs/sql/sec-028-funcoes-anon-cleanup.sql` — Thales precisa rodar **antes de tudo**.
+
+Mesmo arquivo SQL revoga EXECUTE de anon em 30+ funções que não precisavam estar abertas (RPCs de mutação, triggers, master password). Defesa em profundidade — na prática quase todas têm `get_empresa_id()` que retorna NULL pra anon e bloqueia, mas a porta não devia estar aberta.
+
 ### ✅ Concluído 12/05/2026
 **Segurança:** SEC-019 (notif vazando entre roles), SEC-021 (TOTP obrigatório pra todos), SEC-022 (timeout role-aware), SEC-023 (botão master Resetar 2FA), SEC-024 (recovery codes pro master), SEC-025 (alerta login novo no sino), SEC-026 (senha atual em trocar senha), SEC-027 (validação de força).
 **Bugs:** UX-130 (Acesso Restrito no login de gerente/operacional), REL-006 estendido (PropostaPublica handleAprovar/handleRecusar), PERF-004 cleanup.

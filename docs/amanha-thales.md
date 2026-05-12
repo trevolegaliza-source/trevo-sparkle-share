@@ -4,6 +4,41 @@ Sessão noturna de Claude rodou enquanto você dormia. Resumo curto, ordenado pe
 
 ---
 
+## 🚨 0. URGENTE — VULNERABILIDADE CRÍTICA descoberta (SEC-028)
+
+Investigando o banco com MCP Supabase (read-only) eu descobri uma **vulnerabilidade real**:
+
+**Atacante anônimo pode trocar tua senha master via REST API**.
+
+A função `set_master_password_hash` tem check `IF get_user_role() <> 'master'` que falha por **NULL bypass** quando chamada sem JWT:
+- `get_user_role()` retorna NULL pra anon
+- `NULL <> 'master'` retorna NULL (não TRUE)
+- `IF NULL THEN ... END IF` em PL/pgSQL = FALSE → **não dispara o RAISE EXCEPTION**
+- UPDATE roda sem auth
+
+Confirmado em produção via teste SQL `SELECT (NULL <> 'master')` retornando NULL. A função tem `EXECUTE` aberto pra `anon`.
+
+**Como atacar (teórico):**
+```bash
+curl -X POST 'https://aahhauquuicvtwtrxyan.supabase.co/rest/v1/rpc/set_master_password_hash' \
+  -H "apikey: <ANON_KEY publica>" \
+  -H "Content-Type: application/json" \
+  -d '{"p_hash":"$2a$..."}'
+```
+→ E pronto, atacante define a senha master pra qualquer coisa que ele queira.
+
+**Fix pronto em** `docs/sql/sec-028-funcoes-anon-cleanup.sql`:
+1. Reescreve `set_master_password_hash` com `COALESCE(get_user_role(), '')` (mata o NULL bypass)
+2. REVOKE EXECUTE de anon em 30+ funções que não precisam (master password, mutações, triggers)
+3. Fix `function_search_path_mutable` em 3 funções
+4. Hardening da view `processos_zombies`
+
+**Você precisa rodar este SQL antes de qualquer outra coisa hoje**. Copia o conteúdo do arquivo, cola no Supabase SQL Editor, Run.
+
+Não consegui rodar autônomo (MCP é read-only proposital — confirmado HANDOFF).
+
+---
+
 ## 🔴 1. DNS Hostinger (parou no meio ontem)
 
 **Onde parou:** Resend SMTP configurado no Supabase, mas domínio `trevolegaliza.com` está **"Not Started"** no Resend → emails recusados.
