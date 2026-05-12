@@ -242,6 +242,13 @@ export default function PropostaPublica() {
   // Save silencioso (debounce)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // PERF-004 (12/05/2026): cleanup do debounce no unmount. Sem isso, se
+  // user navega pra outra rota com setTimeout pendente, o fetch dispara
+  // sem ninguém consumir — inofensivo mas sujo.
+  useEffect(() => () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+  }, []);
+
   // Force light theme
   useEffect(() => {
     document.documentElement.classList.remove('dark');
