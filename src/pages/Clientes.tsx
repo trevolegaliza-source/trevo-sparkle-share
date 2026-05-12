@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Users, Search, UserX, FileText, Download, Trash2, Archive, Eye, ShieldAlert } from 'lucide-react';
+import { Plus, Users, Search, UserX, FileText, Download, Trash2, Archive, Eye, ShieldAlert, Pencil } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -439,6 +439,14 @@ export default function Clientes() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
+                          {/* UX-082 (12/05/2026): edit por duplo-clique quebrava
+                              em mobile/tablet (gesto não existe). Botão dedicado
+                              + tooltip mantém também o atalho desktop. */}
+                          {!(client as any).is_archived && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar cliente" onClick={() => openEdit(client)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           {(client as any).is_archived ? (
                             <Button variant="ghost" size="icon" className="h-7 w-7" title="Desarquivar" onClick={() => handleUnarchive(client.id)}>
                               <Archive className="h-3.5 w-3.5" />
@@ -463,7 +471,7 @@ export default function Clientes() {
               </TableBody>
             </Table>
           )}
-          <p className="text-[11px] text-muted-foreground mt-3">💡 Dê um duplo-clique para editar um cliente</p>
+          <p className="text-[11px] text-muted-foreground mt-3">💡 Clique no nome para abrir o cliente, ou no ✏️ para editar parâmetros direto.</p>
         </CardContent>
       </Card>
 
