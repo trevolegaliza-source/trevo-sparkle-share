@@ -1,7 +1,44 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: **12/05/2026 noite** — SEC-019 fix imediato (notificações vazando entre roles da mesma empresa) + SEC-020 mapeado.
+> **Doc vivo.** Atualizado a cada commit. Última atualização: **12/05/2026 noite/13/05 madrugada** — bloco de segurança + polish + RFC atomicidade financeira + re-verificação noturna eliminando ruído stale.
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 📊 STATUS CONSOLIDADO (leia primeiro)
+
+### ✅ Concluído 12/05/2026
+**Segurança:** SEC-019 (notif vazando entre roles), SEC-021 (TOTP obrigatório pra todos), SEC-022 (timeout role-aware), SEC-023 (botão master Resetar 2FA), SEC-024 (recovery codes pro master), SEC-025 (alerta login novo no sino), SEC-026 (senha atual em trocar senha), SEC-027 (validação de força).
+**Bugs:** UX-130 (Acesso Restrito no login de gerente/operacional), REL-006 estendido (PropostaPublica handleAprovar/handleRecusar), PERF-004 cleanup.
+**Polish:** REL-015, UX-024, UX-026, UX-027.
+**Docs:** RFC atomicidade financeira ([`docs/rfc/atomicidade-financeira.md`](./docs/rfc/atomicidade-financeira.md)) + checklist amanhã ([`docs/amanha-thales.md`](./docs/amanha-thales.md)).
+
+### 🔴 Próximas bombas (RFC pronta, aguarda decisão Thales)
+**Atomicidade financeira** — 5 fluxos sem rollback (REL-014 gerar extrato, UX-013 deferimento lote, UX-015+FEAT-004 marcar pago, UX-019 ativar Trevo). Plano em 4 sub-fases com fallback. **Antes precisa Thales responder 5 perguntas de schema das tabelas extratos/cobrancas.**
+
+### 🟡 Outros pendentes reais (sem ataque autônomo)
+- **DECISION-001 Fase 2** — esconder kanban operacional ("tira essa merda")
+- **SEC-020** — refactor estrutural notificação (`destinatario_id` + tabela leituras per-user)
+- **A11Y-002** (contraste WCAG — precisa audit visual com devtools)
+- **A11Y-003** (aria-label em buttons só com ícone — caso a caso)
+- **PERF-001** (3 imagens >1MB — HANDOFF "destrutivo")
+- **PERF-002** (god components — refactor amplo)
+- **UX-001/002** (agrupar useStates, unificar ItemCard)
+- **UX-004** (AlertDialogs sem descrição — varredura caso a caso)
+- **DATA-001/002/003** (índice cartão FK, RLS cartoes, AUTO_META_PATTERNS)
+- **INFRA-002/005/006** (build doc, D3→Leaflet, tailwindcss-animate audit)
+- **SEC-001/002/003** (HANDOFF: "decisão atual aceita", não atacar)
+- **SEC-008** (env vars — HANDOFF: "risco com Lovable")
+
+### ⏳ Decisões pendentes Thales
+- **TESTE FINANCEIRO** — limpar (Excluir DEFINITIVO) ou manter? (pendente desde 12/05 manhã)
+- **asaas-webhook `.txt`** — HANDOFF: "deixa assim se não prejudica". Re-revisitar quando tocar webhook.
+- **30 lançamentos fantasma** (HANDOFF débito #2) — `status='pago'` + `confirmado_recebimento=false` em produção. Origem não diagnosticada.
+
+### 📂 Pendentes específicos do bloco de auth (post-Onda 4)
+- Configurar DNS Hostinger pra Resend (Thales parou no meio em 12/05 noite)
+- Verificar domínio no Resend
+- Trocar Sender Email no Supabase de `onboarding@resend.dev` (atalho) → `nao-responda@trevolegaliza.com`
 
 ---
 
