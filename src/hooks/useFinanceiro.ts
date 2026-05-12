@@ -34,6 +34,10 @@ const normalizeClienteInsert = (cliente: Record<string, any>): Record<string, an
 export function useClientes(searchTerm?: string) {
   return useQuery({
     queryKey: ['clientes', searchTerm ?? ''],
+    // UX-073 (12/05/2026): cliente não muda toda hora. Cache de 5min reduz
+    // round-trips no Supabase em telas que reusam o hook (Cadastro Rápido,
+    // Clientes, ClienteDetalhe). Mutação invalida via queryClient.
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.from('clientes').select('*').order('nome');
       if (error) throw error;

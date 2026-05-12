@@ -18,9 +18,13 @@ interface Props {
   clienteNome: string;
   processos: ProcessoSalvo[];
   totalEconomia: number;
+  // UX-069 (12/05/2026): callback opcional pra cadastrar mais processo pro
+  // MESMO cliente sem refazer step 1. Se não passado, "Cadastrar Mais" age
+  // como antes (reseta tudo).
+  onCadastrarMaisDesteCliente?: () => void;
 }
 
-export default function FeedbackSucesso({ open, onClose, clienteNome, processos, totalEconomia }: Props) {
+export default function FeedbackSucesso({ open, onClose, clienteNome, processos, totalEconomia, onCadastrarMaisDesteCliente }: Props) {
   const navigate = useNavigate();
   const total = processos.reduce((s, p) => s + p.valorFinal, 0);
 
@@ -60,8 +64,13 @@ export default function FeedbackSucesso({ open, onClose, clienteNome, processos,
           )}
 
           <div className="flex flex-col gap-2 pt-2">
-            <Button onClick={onClose} className="gap-2">
-              <Plus className="h-4 w-4" /> Cadastrar Mais
+            {onCadastrarMaisDesteCliente && (
+              <Button onClick={onCadastrarMaisDesteCliente} className="gap-2">
+                <Plus className="h-4 w-4" /> Mais 1 para {clienteNome}
+              </Button>
+            )}
+            <Button onClick={onClose} variant={onCadastrarMaisDesteCliente ? 'outline' : 'default'} className="gap-2">
+              <Plus className="h-4 w-4" /> Cadastrar Outro Cliente
             </Button>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1 gap-2" onClick={() => navigate('/processos')}>

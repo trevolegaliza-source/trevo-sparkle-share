@@ -60,6 +60,10 @@ export default function CadastroRapido() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [savedProcessos, setSavedProcessos] = useState<ProcessoSalvo[]>([]);
   const [totalEconomia, setTotalEconomia] = useState(0);
+  // UX-069: precisamos do clienteId pós-save pra oferecer "Mais 1 pra este cliente"
+  // (clienteId é resetado em saveProcessos pra preparar o próximo fluxo).
+  const [lastSavedClienteId, setLastSavedClienteId] = useState<string | null>(null);
+  const [lastSavedClienteNome, setLastSavedClienteNome] = useState('');
   const [isFirstProcess, setIsFirstProcess] = useState(false);
   const isSubmitting = useRef(false);
   const prefillApplied = useRef(false);
@@ -378,6 +382,9 @@ export default function CadastroRapido() {
       // Decide desfecho
       if (failed.length === 0) {
         // Tudo salvou
+        // UX-069: captura cliente antes do reset pra possibilitar "Mais 1 pra este cliente"
+        setLastSavedClienteId(clienteId);
+        setLastSavedClienteNome(selectedCliente?.apelido || selectedCliente?.nome || '');
         setSavedProcessos(saved);
         setTotalEconomia(economia);
         setFeedbackOpen(true);
@@ -549,9 +556,20 @@ export default function CadastroRapido() {
       <FeedbackSucesso
         open={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
-        clienteNome={selectedCliente?.apelido || selectedCliente?.nome || ''}
+        clienteNome={lastSavedClienteNome}
         processos={savedProcessos}
         totalEconomia={totalEconomia}
+        // UX-069 (12/05/2026): "+1 pra este cliente" repõe o cliente que
+        // acabou de ser salvo e volta pro step 2. Caso o cliente tenha sido
+        // arquivado entre o save e o click (raro), o effect de prefill cuida.
+        onCadastrarMaisDesteCliente={lastSavedClienteId ? () => {
+          setClienteId(lastSavedClienteId);
+          setProcessoForm(INITIAL_PROCESSO);
+          setValorForm(INITIAL_VALOR);
+          setStep(2);
+          setCompletedSteps([1]);
+          setFeedbackOpen(false);
+        } : undefined}
       />
     </div>
   );
