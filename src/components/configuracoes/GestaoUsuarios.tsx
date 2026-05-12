@@ -102,6 +102,12 @@ export default function GestaoUsuarios() {
   const [excluirDefinitivo, setExcluirDefinitivo] = useState<Profile | null>(null);
   const [excluindo, setExcluindo] = useState(false);
   const [confirmExcluirTexto, setConfirmExcluirTexto] = useState('');
+  // FEAT-USR-SET-PASS (12/05/2026): master define senha sem depender de email
+  // (resolve rate limit do SMTP do Supabase).
+  const [setPassUser, setSetPassUser] = useState<Profile | null>(null);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [novaSenha2, setNovaSenha2] = useState('');
+  const [definindoSenha, setDefinindoSenha] = useState(false);
 
   // Invite modal state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -446,6 +452,41 @@ export default function GestaoUsuarios() {
     }
   };
 
+  // FEAT-USR-SET-PASS: chama edge function definir-senha-usuario
+  const handleDefinirSenha = async () => {
+    if (!setPassUser) return;
+    if (novaSenha.length < 8) { toast.error('Senha mínima de 8 caracteres'); return; }
+    if (novaSenha !== novaSenha2) { toast.error('As senhas não conferem'); return; }
+    setDefinindoSenha(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error('Sessão expirada');
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/definir-senha-usuario`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            apikey: SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ user_id: setPassUser.id, nova_senha: novaSenha }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error || `HTTP ${response.status}`);
+      toast.success(`Senha de ${setPassUser.nome || setPassUser.email} definida. Comunique por canal externo (WhatsApp).`);
+      setSetPassUser(null);
+      setNovaSenha('');
+      setNovaSenha2('');
+    } catch (e: any) {
+      toast.error('Erro: ' + (e.message || 'tente novamente'));
+    } finally {
+      setDefinindoSenha(false);
+    }
+  };
+
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
       toast.error('Informe o email');
@@ -647,6 +688,18 @@ export default function GestaoUsuarios() {
                               <UserCheck className="h-3.5 w-3.5 mr-2" /> Reativar
                             </DropdownMenuItem>
                           )}
+                          {/* FEAT-USR-SET-PASS: master define senha direto (sem email) */}
+                          <DropdownMenuItem
+                            onClick={() => setSetPassUser(p)}
+                            disabled={isMe || p.role === 'master'}
+                            title={
+                              isMe ? 'Use Configurações → Segurança → Trocar senha' :
+                              p.role === 'master' ? 'Não é permitido alterar senha de outro master' :
+                              'Define a senha sem enviar email (sem rate limit)'
+                            }
+                          >
+                            <Lock className="h-3.5 w-3.5 mr-2" /> Definir senha
+                          </DropdownMenuItem>
                           {/* SEC-014: desativa (preserva histórico) */}
                           <DropdownMenuItem
                             className="text-destructive"
@@ -903,6 +956,43 @@ export default function GestaoUsuarios() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* FEAT-USR-SET-PASS (12/05/2026): master define senha sem email. */}
+      <Dialog
+        open={!!setPassUser}
+        onOpenChange={o => { if (!o) { setSetPassUser(null); setNovaSenha(''); setNovaSenha2(''); } }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-primary" />
+              Definir senha — {setPassUser?.nome || setPassUser?.email}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Define uma senha imediatamente, sem enviar email de recovery.
+              Útil quando o SMTP do Supabase está em rate limit.
+              Comunique a nova senha por WhatsApp privado.
+            </p>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nova senha (mínimo 8 caracteres)</Label>
+              <Input type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} autoFocus />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Confirmar nova senha</Label>
+              <Input type="password" value={novaSenha2} onChange={e => setNovaSenha2(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setSetPassUser(null); setNovaSenha(''); setNovaSenha2(''); }} disabled={definindoSenha}>Cancelar</Button>
+            <Button onClick={handleDefinirSenha} disabled={definindoSenha || novaSenha.length < 8 || novaSenha !== novaSenha2}>
+              {definindoSenha ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
+              Definir senha
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* FEAT-USR-DELETE: exclusão de fato (profile + auth.user).
           Operação irreversível — exige digitar nome/email pra confirmar. */}

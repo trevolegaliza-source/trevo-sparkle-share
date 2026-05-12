@@ -55,6 +55,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Agora: o trigger DB já cria profile com empresa_id correto. Aqui só
     // tocamos ultimo_acesso e disparamos notificação se for primeiro login.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // REL-019-fix (12/05/2026): quando o user clica num link de recovery
+      // do email, supabase-js processa o hash e emite `PASSWORD_RECOVERY`.
+      // Sem esse handler, ele virava sessão "logada normal" e caía na home
+      // (Dashboard) — sem trocar a senha que era o objetivo do link.
+      // Agora redireciona pra /reset-password se ainda não estiver lá.
+      if (event === 'PASSWORD_RECOVERY') {
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/reset-password')) {
+          window.location.replace('/reset-password');
+          return;
+        }
+      }
+
       setSession(session);
 
       if (session?.user) {
