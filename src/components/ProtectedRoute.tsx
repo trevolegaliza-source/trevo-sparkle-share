@@ -7,6 +7,14 @@ import { MfaEnroll } from '@/components/auth/MfaEnroll';
 import { Loader2, Clock, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import logoTrevo from '@/assets/logo-trevo.png';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+
+// SessionTimeoutGuard só roda o hook depois que o auth+mfa passaram.
+// Antes desse ponto, role é desconhecido e o timeout não faz sentido.
+function SessionTimeoutGuard({ children }: { children: React.ReactNode }) {
+  useSessionTimeout();
+  return <>{children}</>;
+}
 
 // audit fix #33 — timeout do spinner. Se profile/MFA fetch travar
 // (rede instável, edge fora do ar), o usuário ficava preso em spinner
@@ -74,7 +82,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         } else {
           setMfaStatus('needs_verify');
         }
-      } else if (profile?.role === 'master' && profile?.ativo !== false) {
+      } else if (profile?.ativo !== false) {
+        // SEC-021 (12/05/2026): TOTP obrigatório pra TODOS os roles ativos.
+        // Antes: só master era forçado — Letícia (gerente) e secretária
+        // (operacional) entravam só com senha. Agora qualquer login sem
+        // factor verificado cai em forceSetup no próximo login.
         setMfaStatus('needs_enroll');
       } else {
         setMfaStatus('none');
@@ -210,5 +222,5 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return <SessionTimeoutGuard>{children}</SessionTimeoutGuard>;
 }

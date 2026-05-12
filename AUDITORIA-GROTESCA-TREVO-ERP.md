@@ -5,16 +5,25 @@
 
 ---
 
-## 🚨 Sessão 12/05/2026 noite — vazamento de notificações entre roles
+## 🚨 Sessão 12/05/2026 noite — vazamento de notificações entre roles + endurecimento de auth
 
-**Disparo:** Thales notou que as notificações da conta master estavam aparecendo também pra Letícia (gerente).
+**Disparo:** Thales notou que as notificações da conta master estavam aparecendo também pra Letícia (gerente). Em seguida pediu reforço de segurança no login pra outros usuários.
 
-**Causa raiz:** tabela `notificacoes` modelada como "notificação da empresa" — só tem `empresa_id`, não tem `destinatario_id`. RLS + filtro realtime (REL-013) trancam por empresa, mas qualquer usuário da mesma empresa vê tudo. Campo `lida` também é compartilhado (se um marca, todos veem como lida).
+**Causa raiz (notificações):** tabela `notificacoes` só tem `empresa_id`, não tem `destinatario_id`. RLS + filtro realtime (REL-013) trancam por empresa, mas qualquer usuário da mesma empresa vê tudo. Campo `lida` também é compartilhado.
+
+**Causa raiz (auth):** TOTP obrigatório só pro master. Gerente/operacional/financeiro entravam só com email+senha. Senha vazada = ERP comprometido. Session timeout fixo em 8h pra todo mundo.
 
 | ID | Status | Resumo |
 |---|---|---|
-| **SEC-019** | ✅ FIXADO | Filtro client-side em `NotificationPopover.tsx` por role: gerente/operacional não veem `cobranca`/`pagamento`; só master vê `aprovacao` de novo usuário. Aplica tanto no SELECT quanto no callback de realtime (descarta toast). Cosmético — payload realtime ainda chega via WS pra todos da empresa. |
-| **SEC-020** | 🔴 BACKLOG | Refactor estrutural: adicionar `destinatario_id NULLABLE` em `notificacoes` (NULL = broadcast empresa, X = direto pra X) + tabela `notificacao_leituras (notif_id, user_id, lida_em)` pra `lida` per-user. Atualizar RLS pra `destinatario_id IS NULL OR destinatario_id = auth.uid()`. Migrar 6 insert points (3 client + 3 edge functions, incluindo `asaas-webhook` em `.txt`). Realtime filter passa a usar `or(destinatario_id.eq.{uid},destinatario_id.is.null)`. ~2-3h de trabalho. |
+| **SEC-019** | ✅ FIXADO | Filtro client-side em `NotificationPopover.tsx` por role: gerente/operacional não veem `cobranca`/`pagamento`; só master vê `aprovacao` de novo usuário. Aplica tanto no SELECT quanto no callback de realtime. Cosmético — payload realtime ainda chega via WS pra todos da empresa. |
+| **SEC-020** | 🔴 BACKLOG | Refactor estrutural notificações: `destinatario_id NULLABLE` + tabela `notificacao_leituras` per-user. RLS `destinatario_id IS NULL OR destinatario_id = auth.uid()`. Migrar 6 insert points (3 client + 3 edge functions, incluindo `asaas-webhook` em `.txt`). Realtime filter usa OR. ~2-3h. |
+| **SEC-021** | ✅ FIXADO | TOTP **obrigatório pra todos os roles ativos** (não só master). 1 linha em `ProtectedRoute.tsx`: condição `needs_enroll` agora é `profile?.ativo !== false` em vez de `profile?.role === 'master'`. Próximo login de Letícia/secretária força configuração de 2FA. |
+| **SEC-022** | ✅ FIXADO | Session timeout role-aware via hook `useSessionTimeout`. Master = 8h (HANDOFF), demais = 2h. Toast warning aparece 5min antes do expirar; qualquer clique renova. Antes: 8h fixo no `AuthContext`. |
+| **SEC-023** | 🟡 ONDA 2 | Botão master "Resetar 2FA de outro usuário" em Gestão de Usuários. Necessária edge function nova `resetar-2fa-usuario` (admin API). Pré-requisito pro caso "Letícia perdeu o celular". ~45min. |
+| **SEC-024** | 🟡 ONDA 3 | Recovery codes só pra master (8 códigos uso único). Tabela `mfa_recovery_codes` + edge function `verify-recovery-code` + UI gerar/baixar/imprimir + tela challenge alternativa "Não tenho meu celular". ~2h. |
+| **SEC-025** | 🟡 ONDA 4 | Alerta de login novo IP/device. Tabela `login_history` + edge function `registrar-login` + notificação interna **só pra master** quando login de outro user vem de IP novo. Sem email (SMTP rate limit). ~1.5h. |
+
+**Comunicação obrigatória pré-deploy SEC-021:** avisar Letícia e secretária que ao próximo login vai aparecer tela pedindo configuração de 2FA — precisam ter Google Authenticator (ou Authy/1Password) instalado no celular.
 
 ---
 

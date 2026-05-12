@@ -1,8 +1,6 @@
-import { createContext, useContext, useEffect, useState, useRef, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session, User } from '@supabase/supabase-js';
-
-const SESSION_TIMEOUT_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 interface AuthContextType {
   session: Session | null;
@@ -23,30 +21,13 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const lastActivityRef = useRef(Date.now());
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
   }, []);
 
-  // Track user activity for session timeout
-  useEffect(() => {
-    const updateActivity = () => { lastActivityRef.current = Date.now(); };
-    const events = ['click', 'keydown', 'scroll', 'touchstart', 'mousemove'];
-    events.forEach(e => window.addEventListener(e, updateActivity, { passive: true }));
-
-    const interval = setInterval(() => {
-      if (session && (Date.now() - lastActivityRef.current) > SESSION_TIMEOUT_MS) {
-        signOut();
-        // Toast will show after redirect
-      }
-    }, 60_000);
-
-    return () => {
-      events.forEach(e => window.removeEventListener(e, updateActivity));
-      clearInterval(interval);
-    };
-  }, [session, signOut]);
+  // Inactividade vive em useSessionTimeout (role-aware): master=8h,
+  // demais=2h, com toast 5min antes. Antes era 8h fixo aqui pra todos.
 
   useEffect(() => {
     // audit fix #14, #20 — delega criação de profile ao trigger handle_new_user
