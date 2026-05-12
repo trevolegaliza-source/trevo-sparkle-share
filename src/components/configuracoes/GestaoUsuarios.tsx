@@ -534,6 +534,13 @@ export default function GestaoUsuarios() {
           <h2 className="text-base font-semibold">Usuários & Acesso</h2>
         </div>
         <div className="flex gap-2">
+          {/* UX-USR-INVITE (12/05/2026): botão de convidar tinha sumido em
+              algum refactor — modal + handleInvite estavam órfãos. Re-conectado. */}
+          {canEdit && (
+            <Button size="sm" onClick={() => setInviteModalOpen(true)} className="gap-1.5">
+              <UserPlus className="h-4 w-4" /> Convidar Usuário
+            </Button>
+          )}
           {canEdit && (
             <Button size="sm" onClick={() => setMfaEnrollOpen(true)} variant="outline" className="gap-1.5">
               <Lock className="h-4 w-4" /> Configurar 2FA
