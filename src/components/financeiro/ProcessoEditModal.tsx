@@ -12,6 +12,7 @@ import type { ProcessoFinanceiro } from '@/hooks/useProcessosFinanceiro';
 import { useUpdateLancamentoFinanceiro } from '@/hooks/useProcessosFinanceiro';
 import { useValoresAdicionais } from '@/hooks/useValoresAdicionais';
 import { useAllServiceNegotiations, buildNegotiationLookup } from '@/hooks/useAllServiceNegotiations';
+import { usePermissions } from '@/hooks/usePermissions';
 import { uploadFile, viewFile, getSignedUrl } from '@/hooks/useStorageUpload';
 import { formatBRL } from '@/lib/pricing-engine';
 import { TIPO_PROCESSO_LABELS } from '@/types/financial';
@@ -34,6 +35,11 @@ export default function ProcessoEditModal({ open, onOpenChange, processo }: Proc
   const updateLanc = useUpdateLancamentoFinanceiro();
   const deleteProcesso = useDeleteProcesso();
   const { data: allNegotiations = [] } = useAllServiceNegotiations();
+  // SEC-019 (12/05/2026): operacional (secretária) chega aqui via doppelclick
+  // no /clientes/:id mas NÃO deve mexer em valores financeiros (custos,
+  // valor manual). Só master/gerente/financeiro.
+  const { podeVer } = usePermissions();
+  const podeMexerEmValores = podeVer('financeiro');
 
   // Editable form states
   const [editValor, setEditValor] = useState(0);
@@ -296,7 +302,8 @@ export default function ProcessoEditModal({ open, onOpenChange, processo }: Proc
               />
             </div>
 
-            {/* Valores Adicionais */}
+            {/* Valores Adicionais — SEC-019: oculto pra operacional/visualizador */}
+            {podeMexerEmValores && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground">Valores Adicionais</label>
               <Button
@@ -314,6 +321,7 @@ export default function ProcessoEditModal({ open, onOpenChange, processo }: Proc
                 )}
               </Button>
             </div>
+            )}
 
             <Separator className="bg-border" />
 
