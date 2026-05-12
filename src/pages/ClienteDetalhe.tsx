@@ -1831,6 +1831,9 @@ export default function ClienteDetalhe() {
           )}
 
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            {/* UX-016 (12/05/2026): "Não, obrigado" sugeria cancelar — mas o
+                comportamento real é "pular desconto e seguir pro cadastro
+                de processo". Label honesto agora. */}
             <AlertDialogCancel
               onClick={() => {
                 setAplicarBoasVindas(false);
@@ -1839,7 +1842,7 @@ export default function ClienteDetalhe() {
                 setShowNovoProcesso(true);
               }}
             >
-              Não, obrigado
+              Pular desconto, seguir
             </AlertDialogCancel>
             {!aplicarBoasVindas ? (
               <AlertDialogAction

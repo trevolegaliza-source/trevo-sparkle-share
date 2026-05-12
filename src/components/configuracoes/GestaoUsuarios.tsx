@@ -332,7 +332,14 @@ export default function GestaoUsuarios() {
     }
   };
 
+  // SEC-012 (12/05/2026): aprovar/rejeitar mudam acesso ao sistema — clique
+  // errado libera quem não devia ou bloqueia legítimo. Confirm explícito.
   const handleApprove = async (profile: Profile) => {
+    const nome = profile.nome || profile.email || 'este usuário';
+    const role = getRoleInfo(profile.role).label;
+    if (!window.confirm(`Aprovar acesso de ${nome} como ${role}?\n\nApós aprovar, o usuário pode entrar no sistema imediatamente.`)) {
+      return;
+    }
     try {
       await supabase
         .from('profiles')
@@ -351,6 +358,10 @@ export default function GestaoUsuarios() {
   };
 
   const handleReject = async (profile: Profile) => {
+    const nome = profile.nome || profile.email || 'este usuário';
+    if (!window.confirm(`Rejeitar acesso de ${nome}?\n\nO usuário NÃO poderá entrar no sistema. Você pode reativar depois se mudar de ideia.`)) {
+      return;
+    }
     try {
       await supabase
         .from('profiles')
