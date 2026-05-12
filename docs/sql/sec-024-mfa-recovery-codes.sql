@@ -41,6 +41,12 @@ create policy "user_le_proprios_recovery_codes"
 -- Insert/update/delete soh via service_role (edge functions). Nao tem
 -- policy correspondente, RLS bloqueia.
 
+-- Privilegios de coluna (sem isso, role "permission denied" mesmo com
+-- RLS permitindo). Tabelas criadas via SQL Editor as vezes nao herdam
+-- DEFAULT PRIVILEGES, entao a gente explicita.
+grant select, insert, update, delete on public.mfa_recovery_codes to service_role;
+grant select on public.mfa_recovery_codes to authenticated;
+
 -- Comentarios pra docs no DB
 comment on table  public.mfa_recovery_codes is 'SEC-024: codigos one-time pra recuperar acesso ao perder o autenticador';
 comment on column public.mfa_recovery_codes.code_hash is 'SHA-256 hex do codigo plain (codigo plain so eh mostrado UMA vez)';
