@@ -60,10 +60,14 @@ export default function Dashboard() {
   }, [user]);
 
   // Redirect non-dashboard users
+  // UX-063 (12/05/2026): incluído 'cadastro_rapido' como primeira opção —
+  // pra role 'operacional' (secretária), essa é a tela mais útil do dia.
+  // Antes a lista não tinha cadastro_rapido, então caía em /processos.
   useEffect(() => {
     if (permsLoading) return;
     if (podeVer('dashboard')) return;
     const modules = [
+      { mod: 'cadastro_rapido', path: '/cadastro-rapido' },
       { mod: 'processos', path: '/processos' },
       { mod: 'clientes', path: '/clientes' },
       { mod: 'orcamentos', path: '/orcamentos' },
@@ -291,11 +295,16 @@ export default function Dashboard() {
   const animAtivos = useCountUp(calc?.processosAtivos ?? 0, 500);
 
   // Show fallback for users with no permissions
+  // UX-063 (12/05/2026): mensagem antiga ("Aguarde seu administrador...") era
+  // desnimadora pra secretária que já tem acesso — só caiu aqui por race do
+  // redirect. Agora: saudação + indicação de que o redirect está acontecendo.
   if (!permsLoading && !podeVer('dashboard') && !isMaster()) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-3">
-        <h2 className="text-xl font-semibold text-foreground">Bem-vindo ao sistema.</h2>
-        <p className="text-muted-foreground">Aguarde seu administrador configurar seu acesso.</p>
+        <h2 className="text-xl font-semibold text-foreground">
+          {getSaudacao()}, {getNomeUsuario(user?.email, profileName)} <span className="animate-trevo-wave">🍀</span>
+        </h2>
+        <p className="text-muted-foreground">Carregando seu painel...</p>
       </div>
     );
   }
