@@ -113,6 +113,11 @@ export default function GestaoUsuarios() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<string>('operacional');
+  // UX-USR-CREATE (12/05/2026): modo "criar com senha agora" (sem email)
+  const [inviteModoDireto, setInviteModoDireto] = useState(false);
+  const [inviteNome, setInviteNome] = useState('');
+  const [inviteSenha, setInviteSenha] = useState('');
+  const [inviteSenha2, setInviteSenha2] = useState('');
   const [inviting, setInviting] = useState(false);
 
   // MFA enrollment modal
@@ -487,6 +492,51 @@ export default function GestaoUsuarios() {
     }
   };
 
+  // UX-USR-CREATE: cria usuário com senha imediata (sem email), bypassa rate limit
+  const handleCriarComSenha = async () => {
+    if (!inviteEmail.trim()) { toast.error('Informe o email'); return; }
+    if (inviteSenha.length < 8) { toast.error('Senha mínima de 8 caracteres'); return; }
+    if (inviteSenha !== inviteSenha2) { toast.error('As senhas não conferem'); return; }
+    setInviting(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error('Sessão expirada');
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/criar-usuario-com-senha`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            apikey: SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            email: inviteEmail.trim(),
+            role: inviteRole,
+            nome: inviteNome.trim() || undefined,
+            senha: inviteSenha,
+          }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error || `HTTP ${response.status}`);
+      toast.success(`Usuário criado e ativado. Comunique a senha por canal externo.`, { duration: 8000 });
+      setInviteModalOpen(false);
+      setInviteEmail('');
+      setInviteRole('operacional');
+      setInviteNome('');
+      setInviteSenha('');
+      setInviteSenha2('');
+      setInviteModoDireto(false);
+      await loadData();
+    } catch (e: any) {
+      toast.error('Erro: ' + (e.message || 'tente novamente'));
+    } finally {
+      setInviting(false);
+    }
+  };
+
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
       toast.error('Informe o email');
@@ -740,13 +790,23 @@ export default function GestaoUsuarios() {
         })}
       </div>
 
-      {/* Invite Modal */}
-      <Dialog open={inviteModalOpen} onOpenChange={o => !o && setInviteModalOpen(false)}>
+      {/* Invite Modal — UX-USR-CREATE (12/05/2026): 2 modos
+          - "Enviar Convite" (existente, depende de SMTP/rate limit)
+          - "Criar com senha agora" (novo, sem email, sem rate limit) */}
+      <Dialog open={inviteModalOpen} onOpenChange={o => {
+        if (!o) {
+          setInviteModalOpen(false);
+          setInviteModoDireto(false);
+          setInviteNome('');
+          setInviteSenha('');
+          setInviteSenha2('');
+        }
+      }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
-              <Mail className="h-4 w-4 text-primary" />
-              Convidar Novo Usuário
+              <UserPlus className="h-4 w-4 text-primary" />
+              {inviteModoDireto ? 'Criar usuário com senha' : 'Convidar Novo Usuário'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -779,16 +839,76 @@ export default function GestaoUsuarios() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-xs text-muted-foreground">
-              O usuário receberá um email com link para criar sua conta. Após criar, ficará como "Pendente" até você ativar.
-            </p>
+
+            {inviteModoDireto && (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nome (opcional)</Label>
+                  <Input
+                    placeholder="Nome completo do usuário"
+                    value={inviteNome}
+                    onChange={e => setInviteNome(e.target.value)}
+                    style={{ fontSize: '16px' }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Senha (mínimo 8 caracteres)</Label>
+                  <Input
+                    type="password"
+                    value={inviteSenha}
+                    onChange={e => setInviteSenha(e.target.value)}
+                    style={{ fontSize: '16px' }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Confirmar senha</Label>
+                  <Input
+                    type="password"
+                    value={inviteSenha2}
+                    onChange={e => setInviteSenha2(e.target.value)}
+                    style={{ fontSize: '16px' }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  ✅ Usuário criado e ATIVADO imediatamente. Não envia email — comunique a senha por canal externo (WhatsApp).
+                </p>
+              </>
+            )}
+
+            {!inviteModoDireto && (
+              <p className="text-xs text-muted-foreground">
+                Email com link de cadastro será enviado. Após criar, fica "Pendente" até você ativar.
+                <br />
+                <span className="text-amber-600">⚠ Depende do SMTP do Supabase (rate limit baixo).</span>
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setInviteModoDireto(!inviteModoDireto)}
+              className="text-xs text-primary hover:underline"
+            >
+              {inviteModoDireto ? '← Voltar para envio por email' : 'Criar com senha agora (sem email) →'}
+            </button>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInviteModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
-              {inviting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Mail className="h-4 w-4 mr-1" />}
-              Enviar Convite
-            </Button>
+            {inviteModoDireto ? (
+              <Button onClick={handleCriarComSenha} disabled={
+                inviting ||
+                !inviteEmail.trim() ||
+                inviteSenha.length < 8 ||
+                inviteSenha !== inviteSenha2
+              }>
+                {inviting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <UserPlus className="h-4 w-4 mr-1" />}
+                Criar e Ativar
+              </Button>
+            ) : (
+              <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
+                {inviting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Mail className="h-4 w-4 mr-1" />}
+                Enviar Convite
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
