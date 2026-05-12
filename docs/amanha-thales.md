@@ -6,17 +6,18 @@ Sessão noturna de Claude rodou enquanto você dormia. Resumo curto, ordenado pe
 
 ## 🚨 0. URGENTE — VULNERABILIDADE CRÍTICA descoberta (SEC-028)
 
-Investigando o banco com MCP Supabase (read-only) eu descobri uma **vulnerabilidade real**:
+Investigando o banco com MCP Supabase (read-only) eu descobri uma classe de **vulnerabilidade real** com 4 funções afetadas:
 
-**Atacante anônimo pode trocar tua senha master via REST API**.
+| Função | Risco | Bug |
+|---|---|---|
+| `set_master_password_hash` | **CRÍTICO** — atacante troca senha master via REST | `IF get_user_role() <> 'master'` com role=NULL = NULL = IF FALSE → UPDATE roda sem auth |
+| `marcar_deferimento` | Alto — atacante mexe em deferimento de processo alheio (precisa processo_id válido) | `IF v_processo.empresa_id <> v_empresa_caller` com caller=NULL = NULL = IF FALSE |
+| `desfazer_deferimento` | Alto — mesma classe | mesmo padrão |
+| `promover_lancamento_ao_deferir` | Médio — mesma classe (silenciosa, retorna `{ok:false}` mas executa) | mesmo padrão |
 
-A função `set_master_password_hash` tem check `IF get_user_role() <> 'master'` que falha por **NULL bypass** quando chamada sem JWT:
-- `get_user_role()` retorna NULL pra anon
-- `NULL <> 'master'` retorna NULL (não TRUE)
-- `IF NULL THEN ... END IF` em PL/pgSQL = FALSE → **não dispara o RAISE EXCEPTION**
-- UPDATE roda sem auth
+**O bug central:** PL/pgSQL trata `IF NULL THEN ... END IF` como FALSE (não dispara RAISE). Quando o check de tenant compara `UUID <> NULL`, retorna NULL → passa direto.
 
-Confirmado em produção via teste SQL `SELECT (NULL <> 'master')` retornando NULL. A função tem `EXECUTE` aberto pra `anon`.
+Confirmado em produção via teste SQL `SELECT (NULL::text <> 'master')` retornando NULL. As 4 funções têm `EXECUTE` aberto pra `anon`.
 
 **Como atacar (teórico):**
 ```bash

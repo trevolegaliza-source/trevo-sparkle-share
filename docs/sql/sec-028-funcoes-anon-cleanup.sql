@@ -36,8 +36,9 @@
 -- =============================================
 
 -- ╔══════════════════════════════════════════════════════════════╗
--- ║ PARTE 1 — FIX CRÍTICO: NULL bypass em set_master_password_hash ║
+-- ║ PARTE 1 — FIX CRÍTICO: NULL bypass em 4 funções                ║
 -- ╚══════════════════════════════════════════════════════════════╝
+-- 1a) set_master_password_hash — atacante anon trocava senha master
 
 CREATE OR REPLACE FUNCTION public.set_master_password_hash(p_hash text)
 RETURNS void
@@ -61,6 +62,222 @@ BEGIN
          updated_at = NOW(),
          updated_by = auth.uid()
    WHERE id = 1;
+END;
+$function$;
+
+-- 1b) marcar_deferimento — mesma classe de bug
+-- `v_processo.empresa_id <> v_empresa_caller` com caller=NULL = NULL = IF FALSE.
+-- Anon com processo_id válido em mão (vazado por outro caminho) marcava
+-- deferimento de processo de empresa alheia.
+
+CREATE OR REPLACE FUNCTION public.marcar_deferimento(p_processo_id uuid, p_data_deferimento date)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $function$
+DECLARE
+  v_empresa_caller uuid;
+  v_processo RECORD;
+  v_lanc_id uuid;
+  v_vencimento date;
+BEGIN
+  v_empresa_caller := public.get_empresa_id();
+  -- Sem empresa = anon ou user sem profile. Não deveria poder mexer.
+  IF v_empresa_caller IS NULL THEN
+    RAISE EXCEPTION 'Usuário sem empresa associada';
+  END IF;
+
+  SELECT id, cliente_id, razao_social, tipo, valor, empresa_id, data_deferimento
+    INTO v_processo
+    FROM public.processos
+   WHERE id = p_processo_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Processo não encontrado';
+  END IF;
+  IF v_processo.empresa_id <> v_empresa_caller THEN
+    RAISE EXCEPTION 'Processo não pertence à sua empresa';
+  END IF;
+
+  UPDATE public.processos
+     SET data_deferimento = p_data_deferimento,
+         updated_at = NOW()
+   WHERE id = p_processo_id;
+
+  v_vencimento := public.calcular_vencimento(v_processo.cliente_id);
+
+  SELECT id INTO v_lanc_id
+    FROM public.lancamentos
+   WHERE processo_id = p_processo_id
+     AND tipo = 'receber'
+     AND etapa_financeiro = 'aguardando_deferimento'
+   ORDER BY created_at
+   LIMIT 1
+   FOR UPDATE;
+
+  IF v_lanc_id IS NOT NULL THEN
+    UPDATE public.lancamentos
+       SET etapa_financeiro = 'solicitacao_criada',
+           data_vencimento  = v_vencimento,
+           updated_at       = NOW()
+     WHERE id = v_lanc_id;
+    RETURN jsonb_build_object('ok', true, 'acao', 'promovido', 'lancamento_id', v_lanc_id);
+  END IF;
+
+  INSERT INTO public.lancamentos (
+    tipo, cliente_id, processo_id, descricao, valor, status,
+    data_vencimento, created_at, etapa_financeiro, empresa_id
+  )
+  VALUES (
+    'receber'::public.tipo_lancamento,
+    v_processo.cliente_id,
+    p_processo_id,
+    INITCAP(v_processo.tipo::text) || ' - ' || v_processo.razao_social || ' (Deferido)',
+    COALESCE(v_processo.valor, 0),
+    'pendente'::public.status_financeiro,
+    v_vencimento,
+    NOW(),
+    'solicitacao_criada',
+    v_processo.empresa_id
+  )
+  RETURNING id INTO v_lanc_id;
+
+  RETURN jsonb_build_object('ok', true, 'acao', 'criado', 'lancamento_id', v_lanc_id);
+END;
+$function$;
+
+-- 1c) desfazer_deferimento — mesma classe
+
+CREATE OR REPLACE FUNCTION public.desfazer_deferimento(p_processo_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $function$
+DECLARE
+  v_empresa_caller uuid;
+  v_processo_empresa uuid;
+  v_lanc_id uuid;
+  v_lanc_etapa text;
+BEGIN
+  v_empresa_caller := public.get_empresa_id();
+  IF v_empresa_caller IS NULL THEN
+    RAISE EXCEPTION 'Usuário sem empresa associada';
+  END IF;
+
+  SELECT empresa_id INTO v_processo_empresa
+    FROM public.processos
+   WHERE id = p_processo_id;
+
+  IF v_processo_empresa IS NULL THEN
+    RAISE EXCEPTION 'Processo não encontrado';
+  END IF;
+  IF v_processo_empresa <> v_empresa_caller THEN
+    RAISE EXCEPTION 'Processo não pertence à sua empresa';
+  END IF;
+
+  SELECT id, etapa_financeiro::text
+    INTO v_lanc_id, v_lanc_etapa
+    FROM public.lancamentos
+   WHERE processo_id = p_processo_id
+     AND tipo = 'receber'
+   ORDER BY created_at
+   LIMIT 1
+   FOR UPDATE;
+
+  IF v_lanc_id IS NULL THEN
+    RAISE EXCEPTION 'Processo sem lançamento de receber';
+  END IF;
+  IF v_lanc_etapa IN ('cobranca_enviada', 'honorario_pago') THEN
+    RAISE EXCEPTION 'Lançamento já foi enviado/pago — não pode rebaixar (etapa: %)', v_lanc_etapa;
+  END IF;
+
+  UPDATE public.processos
+     SET data_deferimento = NULL,
+         updated_at       = NOW()
+   WHERE id = p_processo_id;
+
+  UPDATE public.lancamentos
+     SET etapa_financeiro = 'aguardando_deferimento',
+         data_vencimento  = '2099-12-31'::date,
+         updated_at       = NOW()
+   WHERE id = v_lanc_id;
+
+  RETURN jsonb_build_object('ok', true, 'lancamento_id', v_lanc_id);
+END;
+$function$;
+
+-- 1d) promover_lancamento_ao_deferir — mesma classe
+
+CREATE OR REPLACE FUNCTION public.promover_lancamento_ao_deferir(p_processo_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $function$
+DECLARE
+  v_lanc_id UUID;
+  v_processo RECORD;
+  v_vencimento DATE;
+  v_empresa_caller UUID;
+BEGIN
+  v_empresa_caller := public.get_empresa_id();
+  IF v_empresa_caller IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'motivo', 'sem_empresa');
+  END IF;
+
+  SELECT p.id, p.cliente_id, p.razao_social, p.tipo, p.valor, p.empresa_id
+    INTO v_processo
+    FROM public.processos p
+   WHERE p.id = p_processo_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'motivo', 'processo_nao_encontrado');
+  END IF;
+  IF v_processo.empresa_id <> v_empresa_caller THEN
+    RETURN jsonb_build_object('ok', false, 'motivo', 'processo_outra_empresa');
+  END IF;
+
+  SELECT id INTO v_lanc_id
+    FROM public.lancamentos
+   WHERE processo_id = p_processo_id
+     AND tipo = 'receber'
+     AND etapa_financeiro = 'aguardando_deferimento'
+   ORDER BY created_at
+   LIMIT 1
+   FOR UPDATE;
+
+  v_vencimento := public.calcular_vencimento(v_processo.cliente_id);
+
+  IF v_lanc_id IS NOT NULL THEN
+    UPDATE public.lancamentos
+       SET etapa_financeiro = 'solicitacao_criada',
+           data_vencimento = v_vencimento,
+           updated_at = NOW()
+     WHERE id = v_lanc_id;
+    RETURN jsonb_build_object('ok', true, 'acao', 'promovido', 'lancamento_id', v_lanc_id);
+  END IF;
+
+  INSERT INTO public.lancamentos (
+    tipo, cliente_id, processo_id, descricao, valor, status,
+    data_vencimento, created_at, etapa_financeiro, empresa_id
+  )
+  VALUES (
+    'receber'::public.tipo_lancamento,
+    v_processo.cliente_id,
+    p_processo_id,
+    INITCAP(v_processo.tipo::text) || ' - ' || v_processo.razao_social || ' (Deferido)',
+    COALESCE(v_processo.valor, 0),
+    'pendente'::public.status_financeiro,
+    v_vencimento,
+    NOW(),
+    'solicitacao_criada',
+    v_processo.empresa_id
+  )
+  RETURNING id INTO v_lanc_id;
+
+  RETURN jsonb_build_object('ok', true, 'acao', 'criado', 'lancamento_id', v_lanc_id);
 END;
 $function$;
 

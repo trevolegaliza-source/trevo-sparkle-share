@@ -7,15 +7,24 @@
 
 ## 📊 STATUS CONSOLIDADO (leia primeiro)
 
-### 🚨 SEC-028 — VULNERABILIDADE CRÍTICA descoberta na madrugada 13/05
+### 🚨 SEC-028 — VULNERABILIDADE CRÍTICA + 3 BUGS DA MESMA CLASSE descobertos na madrugada 13/05
 
-**Atacante anônimo pode trocar a senha master do Thales via REST API.**
+**4 funções com NULL bypass em check de tenant.** Pré-requisito: função SECURITY DEFINER + check `IF UUID/text <> NULL_value THEN RAISE`. Como `<>` com NULL retorna NULL e `IF NULL` é FALSE em PL/pgSQL, o RAISE nunca dispara.
 
-Função `set_master_password_hash` tem check `IF get_user_role() <> 'master'` que **falha por NULL bypass** quando chamada por anon (sem JWT). `get_user_role()` retorna NULL pra anon, e `NULL <> 'master'` = NULL = `IF FALSE` em PL/pgSQL → UPDATE roda sem auth. Atacante via `curl POST /rest/v1/rpc/set_master_password_hash` troca o hash.
+| Função | Risco | Atacante pode |
+|---|---|---|
+| `set_master_password_hash` | **CRÍTICO** | Trocar a senha master via REST API anônima (sem precisar de IDs internos) |
+| `marcar_deferimento` | Alto | Mexer em deferimento de processo alheio (precisa processo_id válido) |
+| `desfazer_deferimento` | Alto | Mesma classe |
+| `promover_lancamento_ao_deferir` | Médio | Mesma classe (silenciosa, retorna `{ok:false}` mas executa) |
 
-Confirmado em produção via SQL test. Fix em `docs/sql/sec-028-funcoes-anon-cleanup.sql` — Thales precisa rodar **antes de tudo**.
+Confirmado em produção via SQL test. Fix em `docs/sql/sec-028-funcoes-anon-cleanup.sql`:
+1. Reescreve as 4 com `IF v_caller IS NULL THEN RAISE` antes do `<>` (mata o bypass)
+2. REVOKE EXECUTE de anon em 30+ funções (master password, mutações, triggers)
+3. Fix `function_search_path_mutable` em 3 funções
+4. Hardening da view `processos_zombies` (`security_invoker = true`)
 
-Mesmo arquivo SQL revoga EXECUTE de anon em 30+ funções que não precisavam estar abertas (RPCs de mutação, triggers, master password). Defesa em profundidade — na prática quase todas têm `get_empresa_id()` que retorna NULL pra anon e bloqueia, mas a porta não devia estar aberta.
+Thales precisa rodar **antes de tudo** amanhã.
 
 ### ✅ Concluído 12/05/2026
 **Segurança:** SEC-019 (notif vazando entre roles), SEC-021 (TOTP obrigatório pra todos), SEC-022 (timeout role-aware), SEC-023 (botão master Resetar 2FA), SEC-024 (recovery codes pro master), SEC-025 (alerta login novo no sino), SEC-026 (senha atual em trocar senha), SEC-027 (validação de força).
