@@ -432,9 +432,13 @@ export default function Processos() {
 
             <Button size="sm" variant="outline" className="h-9" onClick={() => {
               if (filtered.length === 0) { toast.info('Sem dados'); return; }
+              // UX-099 (12/05/2026): incluído CNPJ + código do cliente pra
+              // facilitar cruzamento com outras planilhas externas.
               downloadCSV(filtered.map(p => ({
                 'Razão Social': p.razao_social,
                 'Cliente': p.cliente?.apelido || p.cliente?.nome || '-',
+                'CNPJ Cliente': (p.cliente as any)?.cnpj || '-',
+                'Código Cliente': (p.cliente as any)?.codigo_identificador || '-',
                 'Tipo': PROCESS_TYPE_LABELS[p.tipo] || p.tipo,
                 'Etapa': KANBAN_STAGES.find(s => s.key === p.etapa)?.label || p.etapa,
                 'Prioridade': p.prioridade,
