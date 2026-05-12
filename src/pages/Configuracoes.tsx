@@ -9,6 +9,7 @@ import { Shield, Webhook, Loader2, CheckCircle2, Palette, BookOpen, Lock, KeyRou
 import PlanoContasTab from '@/components/configuracoes/PlanoContasTab';
 import GestaoUsuarios from '@/components/configuracoes/GestaoUsuarios';
 import { MfaEnroll } from '@/components/auth/MfaEnroll';
+import { RecoveryCodesCard } from '@/components/auth/RecoveryCodesCard';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -216,6 +217,9 @@ export default function Configuracoes() {
             </CardContent>
           </Card>
           <MfaEnroll open={mfaOpen} onOpenChange={setMfaOpen} onSuccess={() => setMfaEnabled(true)} />
+
+          {/* SEC-024 (12/05/2026): recovery codes só pra master. */}
+          {isMaster() && mfaEnabled && <RecoveryCodesCard />}
         </TabsContent>
 
         <TabsContent value="webhooks">
