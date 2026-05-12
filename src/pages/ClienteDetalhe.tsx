@@ -116,6 +116,11 @@ export default function ClienteDetalhe() {
   const desfazerDeferimento = useDesfazerDeferimento();
   const [generatingExtrato, setGeneratingExtrato] = useState(false);
   const [showMarkFaturadoDialog, setShowMarkFaturadoDialog] = useState(false);
+  // UX-014 (12/05/2026): guarda os processos que ACABARAM de receber extrato.
+  // Antes o dialog lia selectedProcessosTab — quando chamado do DeferimentoAlert
+  // (com lista diferente), o dialog mostrava count errado e processava o set
+  // global em vez dos processos do fluxo atual.
+  const [pendingFaturadoProcs, setPendingFaturadoProcs] = useState<ProcessoDB[]>([]);
   const [showDeferimentoAlert, setShowDeferimentoAlert] = useState(false);
   const [deferimentoAlertData, setDeferimentoAlertData] = useState<DeferimentoAlertData | null>(null);
 
@@ -301,6 +306,8 @@ export default function ClienteDetalhe() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Extrato gerado com sucesso!');
+      // UX-014: passa explicitamente os procs deste fluxo pro dialog
+      setPendingFaturadoProcs(procsToGenerate);
       setShowMarkFaturadoDialog(true);
     } catch (err: any) {
       toast.error('Erro ao gerar extrato: ' + err.message);
@@ -2368,19 +2375,22 @@ export default function ClienteDetalhe() {
         onSuccess={() => cliente && loadAll(cliente.id, { silent: true })}
       />
 
-      {/* Mark as Faturado after extrato */}
+      {/* Mark as Faturado after extrato — UX-014: usa pendingFaturadoProcs
+          (passado por gerarExtratoClienteDetalhe), não selectedProcessosTab.
+          Cobre os 3 caminhos: tabela de Processos (selectedProcs),
+          DeferimentoAlert (deferidos), DeferimentoAlert (todosSelecionados). */}
       <AlertDialog open={showMarkFaturadoDialog} onOpenChange={setShowMarkFaturadoDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Extrato gerado com sucesso!</AlertDialogTitle>
             <AlertDialogDescription>
-              Deseja marcar os {selectedProcessosTab.size} processo(s) selecionado(s) como "Faturado"?
+              Deseja marcar os {pendingFaturadoProcs.length} processo(s) como "Faturado"?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Não, manter</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setPendingFaturadoProcs([])}>Não, manter</AlertDialogCancel>
             <AlertDialogAction onClick={async () => {
-              const selectedProcs = processos.filter(p => selectedProcessosTab.has(p.id));
+              const selectedProcs = pendingFaturadoProcs;
               const now = new Date().toISOString();
               const dateStr = new Date().toLocaleDateString('pt-BR');
               try {
@@ -2404,6 +2414,7 @@ export default function ClienteDetalhe() {
                 }
                 toast.success('Processos marcados como faturados!');
                 setSelectedProcessosTab(new Set());
+                setPendingFaturadoProcs([]);
                 loadAll(cliente!.id, { silent: true });
               } catch (err: any) {
                 toast.error('Erro: ' + err.message);
