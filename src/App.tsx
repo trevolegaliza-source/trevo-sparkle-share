@@ -9,6 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { RequirePermission } from "@/components/auth/RequirePermission";
+import { RootRedirect } from "@/components/auth/RootRedirect";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -72,11 +73,7 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 >
-                  <Route path="/" element={
-                    <RequirePermission modulo="dashboard">
-                      <Dashboard />
-                    </RequirePermission>
-                  } />
+                  <Route path="/" element={<RootRedirect />} />
                   <Route path="/processos" element={
                     <RequirePermission modulo="processos">
                       <Processos />

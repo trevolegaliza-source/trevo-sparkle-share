@@ -5,6 +5,12 @@
 
 ---
 
+## 🐛 12/05/2026 noite — bug "Acesso Restrito" no login da Letícia
+
+**UX-130** ✅ FIXADO. Rota `/` envolvida em `RequirePermission modulo="dashboard"` jogava gerente/operacional direto pra "Acesso Restrito" no 1º login. O redirect de fallback morava no `Dashboard.tsx` mas nunca executava porque o Dashboard nem chegava a renderizar. Criado `RootRedirect` que escolhe destino baseado nas permissões e cai em Dashboard só se o user tiver permissão. `App.tsx:75` agora usa `<RootRedirect />`.
+
+---
+
 ## 🚨 Sessão 12/05/2026 noite — vazamento de notificações entre roles + endurecimento de auth
 
 **Disparo:** Thales notou que as notificações da conta master estavam aparecendo também pra Letícia (gerente). Em seguida pediu reforço de segurança no login pra outros usuários.
