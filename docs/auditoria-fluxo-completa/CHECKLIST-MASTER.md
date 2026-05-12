@@ -29,22 +29,24 @@
 
 ## 🚀 PRIORIDADE 2 — quick wins (1-line fixes)
 
-**Posso atacar agora todos esses, sem SQL, commit isolado por item:**
+### 🔄 Status após 1ª rodada de execução (12/05/2026)
 
-- [x] ~~**UX-017**~~ ⚠️ **FALSO ALARME** — código JÁ trata `multiplosProcessos` antes de usar `tipoPrincipal`. Revalidado em 12/05. Removido do checklist.
-- [ ] **UX-018** 🤖 🟡 — Routing Dashboard misturando state e querystring (uniformizar)
-- [ ] **UX-054** 🤖 🟡 — KPI "Recebido" no Dashboard sem onClick
-- [ ] **UX-061** 🤖 🟢 — "Próximos vencimentos" sem onClick por linha
-- [ ] **UX-062** 🤖 🟢 — Mensalista sem fatura como `critical` (deveria `warning`)
-- [ ] **UX-063** 🤖 🟡 — Fallback "Aguarde administrador" desanima operacional (substituir por atalhos)
-- [ ] **UX-083 + UX-085** 🤖 🟡 — Tipo cliente em Clientes (lista) só mostra 2 de 4 valores (PRE_PAGO/PRECO_POR_TIPO viram "Avulso")
-- [ ] **UX-099** 🤖 🟢 — Export CSV de Processos sem dados do cliente
-- [ ] **UX-103** 🤖 🟢 — Card kanban sem valor R$
-- [ ] **UX-104** 🤖 🟢 — Abas Financeiro opacas sem tooltip
-- [ ] **UX-107** 🤖 🟢 — Sem badge ↻ em conta recorrente
-- [ ] **UX-108** 🤖 🟢 — 2 botões "Marcar pago" duplicados em ContasPagarLista (mesma função)
-- [ ] **UX-122** 🤖 🟢 — Portfólio: tab Boleto some sem aviso (estado "Gerando...")
-- [ ] **UX-027** 🤖 🟢 — Tab Boleto na Cobrança Pública same problema
+- [x] **UX-018** ✅ FIXADO — routing unificado via state.tab no Dashboard
+- [x] **UX-054** ✅ FIXADO — KPI "Recebido" agora navega
+- [x] **UX-061** ✅ FIXADO — próximos vencimentos navegam pra cliente
+- [x] **UX-062** ✅ FIXADO — mensalista sem fatura → `warning` (não `critical`)
+- [x] **UX-063** ✅ FIXADO — redirect inclui cadastro_rapido + fallback humanizado
+- [x] **UX-083 + UX-085** ✅ FIXADO — 4 tipos de cliente exibidos (PRE_PAGO violeta, PRECO_POR_TIPO azul)
+- [x] **UX-099** ✅ FIXADO — CSV com CNPJ + código
+- [x] **UX-104** ✅ FIXADO — tooltips nas 3 abas Financeiro
+- [x] **UX-107** ✅ FIXADO — badge ↻ identifica recorrente
+- [x] ~~**UX-017**~~ ⚠️ FALSO ALARME (já tratava multiplosProcessos)
+- [x] ~~**UX-103**~~ ⚠️ FALSO ALARME (card já mostra valor)
+- [x] ~~**UX-108**~~ ⚠️ FALSO ALARME (não são duplicados — exclusivos por status)
+- [ ] **UX-027** ⏸️ DESIGN — tab Boleto some quando indisponível **é correto** (alternativa "Gerando..." confunde mais). Reaberto se Thales discordar.
+- [ ] **UX-122** ⏸️ DESIGN — mesma decisão de UX-027
+
+**9 fixes + 3 falsos alarmes identificados em ~1h. Build OK em todos.**
 
 ---
 
