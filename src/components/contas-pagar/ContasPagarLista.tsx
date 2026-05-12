@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Pencil, CheckCircle, Trash2, Paperclip } from 'lucide-react';
+import { Search, Pencil, CheckCircle, Trash2, Paperclip, Repeat } from 'lucide-react';
 import ComprovanteLightbox from './ComprovanteLightbox';
 import { CATEGORIAS_DESPESAS, type CategoriaKey } from '@/constants/categorias-despesas';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -142,7 +142,17 @@ export default function ContasPagarLista({ lancamentos, onEdit, onMarcarPago, on
                   <TableCell className="text-sm whitespace-nowrap">
                     {new Date(l.data_vencimento + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                   </TableCell>
-                  <TableCell className="font-medium text-sm">{l.subcategoria || l.descricao}</TableCell>
+                  <TableCell className="font-medium text-sm">
+                    <div className="flex items-center gap-1.5">
+                      {/* UX-107 (12/05/2026): badge ↻ identifica lançamento gerado
+                          a partir de uma despesa recorrente. Antes não dava pra
+                          distinguir visualmente. */}
+                      {(l as any).despesa_recorrente_id && (
+                        <Repeat className="h-3 w-3 text-blue-400 shrink-0" aria-label="Recorrente" />
+                      )}
+                      <span>{l.subcategoria || l.descricao}</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{l.colaborador_nome || '—'}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
