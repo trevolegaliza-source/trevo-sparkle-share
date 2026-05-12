@@ -534,7 +534,14 @@ export default function Financeiro() {
           {/* Tabs — 3 abas principais com sub-seções colapsáveis */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="flex w-full overflow-x-auto overflow-y-hidden no-scrollbar gap-1 h-auto flex-nowrap justify-start">
-              <TabsTrigger value="a_fazer" className="whitespace-nowrap flex-shrink-0 gap-1.5 text-xs px-3 py-2 data-[state=active]:text-amber-500">
+              {/* UX-104 (12/05/2026): adicionado title (tooltip nativo) explicando
+                  o que cada aba representa. Pra usuário novo (Letícia/secretária)
+                  saber o que esperar antes de clicar. */}
+              <TabsTrigger
+                value="a_fazer"
+                className="whitespace-nowrap flex-shrink-0 gap-1.5 text-xs px-3 py-2 data-[state=active]:text-amber-500"
+                title="Processos aguardando auditoria, prontos para cobrar e contestados — ação pendente sua"
+              >
                 <AlertCircle className="h-3.5 w-3.5" />
                 A Fazer
                 {(qtdAguardandoAuditoria + clientesCobrar.length) > 0 && (
@@ -543,7 +550,11 @@ export default function Financeiro() {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="em_andamento" className="whitespace-nowrap flex-shrink-0 gap-1.5 text-xs px-3 py-2 data-[state=active]:text-blue-400">
+              <TabsTrigger
+                value="em_andamento"
+                className="whitespace-nowrap flex-shrink-0 gap-1.5 text-xs px-3 py-2 data-[state=active]:text-blue-400"
+                title="Cobranças enviadas e aguardando pagamento do cliente — bola está com o cliente"
+              >
                 <Clock className="h-3.5 w-3.5" />
                 Em Andamento
                 {(clientesAguardando.length + clientesContestados.length) > 0 && (
@@ -552,7 +563,11 @@ export default function Financeiro() {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="historico" className="whitespace-nowrap flex-shrink-0 gap-1.5 text-xs px-3 py-2 data-[state=active]:text-emerald-400">
+              <TabsTrigger
+                value="historico"
+                className="whitespace-nowrap flex-shrink-0 gap-1.5 text-xs px-3 py-2 data-[state=active]:text-emerald-400"
+                title="Lançamentos pagos no período selecionado + ranking de pagadores"
+              >
                 <CheckCircle className="h-3.5 w-3.5" />
                 Histórico
                 {clientesPagos.length > 0 && (
