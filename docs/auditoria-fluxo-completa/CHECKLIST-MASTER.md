@@ -31,7 +31,7 @@
 
 **Posso atacar agora todos esses, sem SQL, commit isolado por item:**
 
-- [ ] **UX-017** 🤖 🟡 — Mensagem Dani na CobrancaPublica usa `lancamentos[0].tipo` (em multi-processo cita só 1)
+- [x] ~~**UX-017**~~ ⚠️ **FALSO ALARME** — código JÁ trata `multiplosProcessos` antes de usar `tipoPrincipal`. Revalidado em 12/05. Removido do checklist.
 - [ ] **UX-018** 🤖 🟡 — Routing Dashboard misturando state e querystring (uniformizar)
 - [ ] **UX-054** 🤖 🟡 — KPI "Recebido" no Dashboard sem onClick
 - [ ] **UX-061** 🤖 🟢 — "Próximos vencimentos" sem onClick por linha
