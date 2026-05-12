@@ -5,9 +5,28 @@
 
 ---
 
-## 🐛 12/05/2026 noite — bug "Acesso Restrito" no login da Letícia
+## 🐛 12/05/2026 noite — bug "Acesso Restrito" no login da Letícia + polish batch
 
 **UX-130** ✅ FIXADO. Rota `/` envolvida em `RequirePermission modulo="dashboard"` jogava gerente/operacional direto pra "Acesso Restrito" no 1º login. O redirect de fallback morava no `Dashboard.tsx` mas nunca executava porque o Dashboard nem chegava a renderizar. Criado `RootRedirect` que escolhe destino baseado nas permissões e cai em Dashboard só se o user tiver permissão. `App.tsx:75` agora usa `<RootRedirect />`.
+
+### Batch polish 12/05 noite (atacado nessa rodada)
+
+| ID | Status | Onde |
+|---|---|---|
+| **REL-015** | ✅ FIXADO | Alerta `aguardando_deferimento` separado no Dashboard. Antes processos `momento_faturamento='no_deferimento'` sumiam do alerta porque filtro era estrito `solicitacao_criada`. |
+| **UX-024** | ✅ FIXADO | Confetti dedup 24h → 365d (`CobrancaPublica.tsx`). Refresh em D+2 não dispara mais. Fix sem migration. Long-term ideal é coluna `cobrancas.confetti_visto_em` (abrir junto com SEC-020). |
+| **UX-026** | ✅ FIXADO | "Tudo em dia!" do Dashboard mostra "Sem alertas no seu escopo" + explicação quando há alertas filtrados por permissão. |
+| **UX-027** | ✅ FIXADO | Tab Boleto em `CobrancaPublica` sempre visível. Quando `temBoleto=false` fica `aria-disabled`, opacidade 45%, label "Boleto (indisp.)". Não some mais. |
+
+### Auditoria desatualizada — já estavam fixados antes (re-verificado)
+
+| ID | Onde já estava |
+|---|---|
+| UX-016 | Label "Pular desconto, seguir" no AlertDialog de boas-vindas (`ClienteDetalhe.tsx:1852`) |
+| UX-017 | Ternary com `multiplosProcessos` no card da Dani (`CobrancaPublica.tsx:625-631`) |
+| UX-018 | Querystring `state.tab` unificado no Dashboard (`Dashboard.tsx:478`) |
+| INFRA-001 | `sourcemap: mode === "development"` no `vite.config.ts:23` |
+| INFRA-003 | ESLint `no-console: warn` (allow: warn/error/info). Zero `console.log` em `src/`. |
 
 ---
 

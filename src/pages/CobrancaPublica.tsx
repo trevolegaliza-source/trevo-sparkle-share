@@ -116,11 +116,14 @@ function dispararConfetti(cobrancaId: string) {
   if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     return;
   }
-  // Dedup: não dispara em refresh se já viu confetti dessa cobrança nas últimas 24h
+  // UX-024 (12/05/2026): dedup era 24h — refresh em D+2 disparava confetti
+  // de novo ("celebração recorrente desconfortável"). Aumentado pra 1 ano.
+  // Long-term ideal seria coluna `cobrancas.confetti_visto_em` (SEC-020 abre
+  // espaço pra isso), mas é fix sem migration por enquanto.
   const dedupKey = `cobranca:confetti:${cobrancaId}`;
   try {
     const last = localStorage.getItem(dedupKey);
-    if (last && Date.now() - Number(last) < 24 * 60 * 60 * 1000) return;
+    if (last && Date.now() - Number(last) < 365 * 24 * 60 * 60 * 1000) return;
     localStorage.setItem(dedupKey, String(Date.now()));
   } catch {
     /* localStorage indisponível (modo privado iOS antigo) — segue */
@@ -463,25 +466,30 @@ export default function CobrancaPublica() {
                         </svg>
                         PIX
                       </button>
-                      {temBoleto && (
-                        <button
-                          className="pay-tab"
-                          role="tab"
-                          id="tab-boleto"
-                          aria-controls="panel-boleto"
-                          aria-selected={tab === 'boleto'}
-                          onClick={() => setTab('boleto')}
-                          tabIndex={tab === 'boleto' ? 0 : -1}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="6" y1="4" x2="6" y2="20" />
-                            <line x1="10" y1="4" x2="10" y2="20" />
-                            <line x1="14" y1="4" x2="14" y2="20" />
-                            <line x1="18" y1="4" x2="18" y2="20" />
-                          </svg>
-                          Boleto
-                        </button>
-                      )}
+                      {/* UX-027 (12/05/2026): tab Boleto sempre visível.
+                          Antes sumia quando `temBoleto=false` — user com
+                          tab="boleto" stuck (state) perdia sem aviso. Agora
+                          fica visível mas inativa quando boleto indisponível. */}
+                      <button
+                        className="pay-tab"
+                        role="tab"
+                        id="tab-boleto"
+                        aria-controls="panel-boleto"
+                        aria-selected={tab === 'boleto'}
+                        aria-disabled={!temBoleto}
+                        onClick={() => { if (temBoleto) setTab('boleto'); }}
+                        style={!temBoleto ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+                        title={!temBoleto ? 'Boleto indisponível para esta cobrança' : undefined}
+                        tabIndex={tab === 'boleto' ? 0 : -1}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="6" y1="4" x2="6" y2="20" />
+                          <line x1="10" y1="4" x2="10" y2="20" />
+                          <line x1="14" y1="4" x2="14" y2="20" />
+                          <line x1="18" y1="4" x2="18" y2="20" />
+                        </svg>
+                        Boleto{!temBoleto && ' (indisp.)'}
+                      </button>
                     </div>
 
                     {tab === 'pix' && (

@@ -158,6 +158,16 @@ export default function Dashboard() {
       alertas.push({ id: 'sem_extrato', titulo: `${clientesSemExtrato} clientes sem extrato`, descricao: 'Processos aguardando geração de extrato', severity: 'warning', icon: FileText, link: '/financeiro', tabState: 'a_fazer' });
     }
 
+    // REL-015 (12/05/2026): processos `aguardando_deferimento` somem do
+    // alerta acima porque o filtro é estrito `solicitacao_criada`. Sem
+    // alerta dedicado, Thales perde visibilidade dos clientes
+    // `momento_faturamento='no_deferimento'` que ainda estão travados.
+    const aguardandoDef = lancamentosMes.filter(l => l.etapa_financeiro === 'aguardando_deferimento');
+    const clientesAguardandoDef = new Set(aguardandoDef.map(l => l.cliente_id)).size;
+    if (clientesAguardandoDef > 0) {
+      alertas.push({ id: 'aguardando_deferimento', titulo: `${clientesAguardandoDef} clientes aguardando deferimento`, descricao: 'Processos travados até deferimento ser marcado', severity: 'info', icon: FileText, link: '/financeiro', tabState: 'a_fazer' });
+    }
+
     const naoEnviados = lancamentosMes.filter(l => l.etapa_financeiro === 'cobranca_gerada');
     const clientesNaoEnviados = new Set(naoEnviados.map(l => l.cliente_id)).size;
     if (clientesNaoEnviados > 0) {
@@ -443,10 +453,14 @@ export default function Dashboard() {
         </div>
         {(() => {
           const alertasFiltrados = alertas.filter(a => {
-            if (['vencidas', 'sem_extrato', 'nao_enviadas'].includes(a.id)) return podeVer('financeiro');
+            if (['vencidas', 'sem_extrato', 'nao_enviadas', 'aguardando_deferimento'].includes(a.id)) return podeVer('financeiro');
             if (a.id.startsWith('contas_pagar')) return podeVer('contas_pagar');
             return true;
           });
+          // UX-026 (12/05/2026): "Tudo em dia!" enganoso quando o user
+          // não-master não tem permissão de financeiro mas existem alertas
+          // financeiros mascarados. Mostrar texto honesto.
+          const haAlertasMascarados = alertas.length > alertasFiltrados.length;
           if (alertasFiltrados.length === 0) {
             return (
               <GlassCard variant="service" glowColor="rgba(34, 197, 94, 0.15)">
@@ -455,8 +469,8 @@ export default function Dashboard() {
                     <Check className="h-4 w-4 text-emerald-400" />
                   </div>
                   <div>
-                    <p className="font-medium text-emerald-400">Tudo em dia!</p>
-                    <p className="text-xs text-muted-foreground">Nenhuma ação urgente no momento.</p>
+                    <p className="font-medium text-emerald-400">{haAlertasMascarados ? 'Sem alertas no seu escopo' : 'Tudo em dia!'}</p>
+                    <p className="text-xs text-muted-foreground">{haAlertasMascarados ? 'Existem alertas em módulos fora da sua permissão.' : 'Nenhuma ação urgente no momento.'}</p>
                   </div>
                 </div>
               </GlassCard>
