@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useNavigate } from 'react-router-dom';
-import { useOrcamentos, useOrcamentoKPIs, useDeleteOrcamento, type Orcamento } from '@/hooks/useOrcamentos';
+import { useOrcamentos, useOrcamentoKPIs, useDeleteOrcamento, useConverterOrcamentoEmProcesso, type Orcamento } from '@/hooks/useOrcamentos';
 import { gerarOrcamentoPDF } from '@/lib/orcamento-pdf';
 import { normalizeItem, DEFAULT_SECOES } from '@/components/orcamentos/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Plus, FileText, Send, CheckCircle, TrendingUp, MoreHorizontal,
-  Copy, Download, Trash2, Pencil, Link as LinkIcon, ArrowLeft, FileCheck, Eye, MessageCircle,
+  Copy, Download, Trash2, Pencil, Link as LinkIcon, ArrowLeft, FileCheck, Eye, MessageCircle, DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -38,6 +38,7 @@ export default function Orcamentos() {
   const { data: orcamentos, isLoading } = useOrcamentos(tab);
   const { data: kpis } = useOrcamentoKPIs();
   const deleteMutation = useDeleteOrcamento();
+  const converterMutation = useConverterOrcamentoEmProcesso();
   const { podeCriar } = usePermissions();
 
   // Status counts
@@ -119,6 +120,36 @@ export default function Orcamentos() {
       .eq('id', id);
     if (!error) { toast.success('Orçamento revertido para enviado'); invalidate(); }
     else toast.error('Erro: ' + error.message);
+  }
+
+  // INT-001: converter orçamento em processo + lançamento. Chamada manual
+  // (Thales/Letícia decide o momento). RPC é idempotente — se já convertido,
+  // retorna referências existentes sem duplicar.
+  async function handleConverter(orc: Orcamento) {
+    if (!orc.cliente_id) {
+      toast.error('Vincule o prospect a um cliente antes de converter (edite o orçamento e selecione o cliente).');
+      return;
+    }
+    const ok = window.confirm(
+      `Converter "${orc.prospect_nome}" (R$ ${orc.valor_final.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) em processo no Financeiro?\n\n`
+      + `Vai criar:\n`
+      + `• 1 processo (tipo "avulso") pro cliente vinculado\n`
+      + `• 1 lançamento JÁ PAGO no Financeiro\n\n`
+      + `Isso é idempotente — se já converteu antes, nada é duplicado.`
+    );
+    if (!ok) return;
+    converterMutation.mutate(orc.id, {
+      onSuccess: (data) => {
+        if (data?.processo_id && orc.cliente_id) {
+          // Pergunta se quer ver o processo criado
+          setTimeout(() => {
+            if (window.confirm('Conversão concluída. Abrir o cliente pra ver o processo criado?')) {
+              navigate(`/clientes/${orc.cliente_id}`);
+            }
+          }, 100);
+        }
+      },
+    });
   }
 
   async function verContrato(orcId: string) {
@@ -348,6 +379,14 @@ export default function Orcamentos() {
                   <FileCheck className="h-3.5 w-3.5 mr-2" />Gerar contrato
                 </DropdownMenuItem>
               )}
+              {/* INT-001: converter em processo direto, sem precisar passar
+                  por "marcar como pago". Útil quando cliente já pagou via
+                  outro canal e quer ver no Financeiro. */}
+              {!orc.processo_id && (
+                <DropdownMenuItem onClick={() => handleConverter(orc)} disabled={converterMutation.isPending}>
+                  <DollarSign className="h-3.5 w-3.5 mr-2" />Converter em processo
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => voltarParaEnviado(orc.id)}>
                 <ArrowLeft className="h-3.5 w-3.5 mr-2" />Voltar para enviado
               </DropdownMenuItem>
@@ -359,6 +398,12 @@ export default function Orcamentos() {
               <DropdownMenuItem onClick={() => marcarComoPago(orc.id)}>
                 <CheckCircle className="h-3.5 w-3.5 mr-2" />Marcar como pago (convertido)
               </DropdownMenuItem>
+              {/* INT-001: também disponível aqui — flexibiliza ordem. */}
+              {!orc.processo_id && (
+                <DropdownMenuItem onClick={() => handleConverter(orc)} disabled={converterMutation.isPending}>
+                  <DollarSign className="h-3.5 w-3.5 mr-2" />Converter em processo
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => voltarParaEnviado(orc.id)}>
                 <ArrowLeft className="h-3.5 w-3.5 mr-2" />Voltar para enviado
               </DropdownMenuItem>
@@ -372,9 +417,23 @@ export default function Orcamentos() {
           )}
 
           {status === 'convertido' && (
-            <DropdownMenuItem onClick={() => verContrato(orc.id)}>
-              <Eye className="h-3.5 w-3.5 mr-2" />Ver contrato
-            </DropdownMenuItem>
+            <>
+              {/* INT-001: se ainda não tem processo vinculado (orçamento
+                  convertido pré-INT-001), oferece converter agora. */}
+              {!orc.processo_id && (
+                <DropdownMenuItem onClick={() => handleConverter(orc)} disabled={converterMutation.isPending}>
+                  <DollarSign className="h-3.5 w-3.5 mr-2" />Criar processo no Financeiro
+                </DropdownMenuItem>
+              )}
+              {orc.processo_id && orc.cliente_id && (
+                <DropdownMenuItem onClick={() => navigate(`/clientes/${orc.cliente_id}`)}>
+                  <DollarSign className="h-3.5 w-3.5 mr-2" />Ver no Financeiro
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => verContrato(orc.id)}>
+                <Eye className="h-3.5 w-3.5 mr-2" />Ver contrato
+              </DropdownMenuItem>
+            </>
           )}
 
           <DropdownMenuSeparator />

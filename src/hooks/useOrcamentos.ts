@@ -51,6 +51,10 @@ export interface Orcamento {
   prazo_pagamento_dias?: number | null;
   itens_selecionados?: any;
   cenario_selecionado?: string | null;
+  // INT-001 (12/05/2026): FKs pra processo e lançamento criados na conversão.
+  // Permite navegar do orçamento → financeiro e detecta orçamento já convertido.
+  processo_id?: string | null;
+  lancamento_id?: string | null;
 }
 
 export type OrcamentoInsert = Omit<Orcamento, 'id' | 'numero' | 'share_token' | 'created_at' | 'updated_at'>;
@@ -112,6 +116,35 @@ export function useSaveOrcamento() {
       qc.invalidateQueries({ queryKey: ['orcamento_kpis'] });
       qc.invalidateQueries({ queryKey: ['sidebar_counts'] });
     },
+  });
+}
+
+// INT-001 (12/05/2026): converte orçamento aprovado em processo + lançamento.
+// Caminho B do roadmap (botão explícito) — master/gerente decide o momento.
+// Backend: RPC public.converter_orcamento_em_processo (atômica, tenant check,
+// idempotente — se já convertido, retorna referências existentes).
+export function useConverterOrcamentoEmProcesso() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (orcamentoId: string) => {
+      const { data, error } = await supabase.rpc('converter_orcamento_em_processo' as any, {
+        p_orcamento_id: orcamentoId,
+      });
+      if (error) throw error;
+      return data as { ok: boolean; processo_id: string; lancamento_id: string; ja_convertido?: boolean };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['orcamentos'] });
+      qc.invalidateQueries({ queryKey: ['orcamento_kpis'] });
+      qc.invalidateQueries({ queryKey: ['processos_db'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos'] });
+      if (data?.ja_convertido) {
+        toast.info('Orçamento já estava convertido — processo existente vinculado.');
+      } else {
+        toast.success('Orçamento convertido! Processo + lançamento criados no Financeiro.');
+      }
+    },
+    onError: (e: Error) => toast.error('Erro ao converter: ' + e.message),
   });
 }
 

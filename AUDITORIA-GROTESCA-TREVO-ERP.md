@@ -51,6 +51,157 @@ Nenhum. Todos os 6 fixes foram puramente código.
 
 ---
 
+## 🟢 Sessão 12/05/2026 — INT-001 (caminho B) + 15 fixes UX
+
+Disparado por: release Letícia/secretária + Thales topou atacar INT-001.
+
+### INT-001 — Orçamento → Processo + Lançamento (caminho B)
+
+Você reclamou: *"orçamentos principalmente, porque ele não tem integração alguma com o financeiro"*. Confirmado em auditoria — `marcarComoPago` só setava `status='convertido'` sem criar processo/lancamento.
+
+**Caminho B implementado** (botão explícito, master decide o momento):
+
+| Componente | Mudança |
+|---|---|
+| Banco | `ALTER TABLE orcamentos ADD COLUMN processo_id uuid REFERENCES processos(id), lancamento_id uuid REFERENCES lancamentos(id)` + índices |
+| RPC nova | `converter_orcamento_em_processo(p_orcamento_id uuid) RETURNS jsonb` — atômica, tenant check, **idempotente** (re-chamada retorna mesmo processo/lancamento sem duplicar) |
+| Hook | `useConverterOrcamentoEmProcesso` em `useOrcamentos.ts` |
+| UI | Item de menu "Converter em processo" no dropdown de cada orçamento (status `aprovado`/`aguardando_pagamento`/`convertido` E sem `processo_id`) |
+| UI | "Ver no Financeiro" navega pro cliente se já convertido |
+
+**Comportamento:**
+- Master/Letícia abre dropdown do orçamento aprovado → "Converter em processo"
+- Confirm explica o que vai criar (processo + lancamento pago)
+- Cliente já vinculado é exigido — se prospect ainda não virou cliente, toast informa
+- Após sucesso: pergunta se quer abrir o cliente pra ver o processo
+
+**Idempotente:** se Thales/Letícia clicar 2x ou se 2 abas conflitarem, RPC vê `orcamentos.processo_id != NULL` e retorna o existente. Nada duplica.
+
+### SQL completo pra rodar no editor
+
+```sql
+-- INT-001 (12/05/2026): vínculos orçamento → processo/lançamento
+
+-- 1) Schema: 2 colunas + índices
+ALTER TABLE public.orcamentos
+  ADD COLUMN IF NOT EXISTS processo_id uuid REFERENCES public.processos(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS lancamento_id uuid REFERENCES public.lancamentos(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_orcamentos_processo_id ON public.orcamentos(processo_id) WHERE processo_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_orcamentos_lancamento_id ON public.orcamentos(lancamento_id) WHERE lancamento_id IS NOT NULL;
+
+-- 2) RPC atômica + idempotente
+CREATE OR REPLACE FUNCTION public.converter_orcamento_em_processo(
+  p_orcamento_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_empresa_caller uuid;
+  v_orc RECORD;
+  v_processo_id uuid;
+  v_lanc_id uuid;
+  v_descricao text;
+BEGIN
+  v_empresa_caller := public.get_empresa_id();
+  IF v_empresa_caller IS NULL THEN
+    RAISE EXCEPTION 'Usuário não possui empresa associada';
+  END IF;
+
+  SELECT id, empresa_id, cliente_id, prospect_nome, valor_final, processo_id, lancamento_id, tipo_contrato
+    INTO v_orc
+    FROM public.orcamentos
+   WHERE id = p_orcamento_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Orçamento não encontrado';
+  END IF;
+  IF v_orc.empresa_id <> v_empresa_caller THEN
+    RAISE EXCEPTION 'Orçamento não pertence à sua empresa';
+  END IF;
+
+  -- IDEMPOTÊNCIA: se já converteu antes, retorna as referências existentes
+  IF v_orc.processo_id IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'ok', true,
+      'ja_convertido', true,
+      'processo_id', v_orc.processo_id,
+      'lancamento_id', v_orc.lancamento_id
+    );
+  END IF;
+
+  IF v_orc.cliente_id IS NULL THEN
+    RAISE EXCEPTION 'Vincule o prospect a um cliente antes de converter';
+  END IF;
+
+  -- Descrição clara pro processo + lançamento
+  v_descricao := COALESCE(v_orc.tipo_contrato, 'Serviço') || ' - ' || v_orc.prospect_nome;
+
+  -- Cria processo (tipo 'avulso' — orçamento não tem tipo de processo trevo)
+  INSERT INTO public.processos (
+    cliente_id, razao_social, tipo, prioridade, valor, etapa, empresa_id, notas
+  )
+  VALUES (
+    v_orc.cliente_id,
+    v_orc.prospect_nome,
+    'avulso'::public.tipo_processo,
+    'normal',
+    v_orc.valor_final,
+    'finalizados', -- já entregue/pago — não entra no kanban operacional
+    v_empresa_caller,
+    'Originado do orçamento ' || p_orcamento_id || ' (' || v_descricao || ')'
+  )
+  RETURNING id INTO v_processo_id;
+
+  -- Cria lançamento JÁ PAGO (orçamento convertido = cliente pagou)
+  INSERT INTO public.lancamentos (
+    tipo, cliente_id, processo_id, descricao, valor, status,
+    data_vencimento, data_pagamento, etapa_financeiro, empresa_id,
+    confirmado_recebimento
+  )
+  VALUES (
+    'receber'::public.tipo_lancamento,
+    v_orc.cliente_id,
+    v_processo_id,
+    v_descricao,
+    v_orc.valor_final,
+    'pago'::public.status_financeiro,
+    CURRENT_DATE,
+    CURRENT_DATE,
+    'honorario_pago',
+    v_empresa_caller,
+    true
+  )
+  RETURNING id INTO v_lanc_id;
+
+  -- Vincula no orçamento + marca convertido (idempotente em re-chamadas)
+  UPDATE public.orcamentos
+     SET processo_id = v_processo_id,
+         lancamento_id = v_lanc_id,
+         status = 'convertido',
+         convertido_em = COALESCE(convertido_em, NOW()),
+         pago_em = COALESCE(pago_em, NOW()),
+         updated_at = NOW()
+   WHERE id = p_orcamento_id;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'ja_convertido', false,
+    'processo_id', v_processo_id,
+    'lancamento_id', v_lanc_id
+  );
+END;
+$function$;
+
+COMMENT ON FUNCTION public.converter_orcamento_em_processo(uuid) IS
+'INT-001 (12/05/2026): converte orçamento aprovado em processo + lançamento pago. Atômica, idempotente.';
+```
+
+---
+
 ## 🟢 Sessão 11/05/2026 — bug zumbi SEPI/ASLAN + cleanup
 
 Disparado por: Thales reportou processo SEPI cadastrado pra ASLAN não aparecia no Financeiro. Investigação via MCP Supabase (read-only) descobriu cadeia maior.
