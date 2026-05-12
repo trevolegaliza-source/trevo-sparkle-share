@@ -28,6 +28,41 @@
 | INFRA-001 | `sourcemap: mode === "development"` no `vite.config.ts:23` |
 | INFRA-003 | ESLint `no-console: warn` (allow: warn/error/info). Zero `console.log` em `src/`. |
 
+### Re-verificação noturna 12/05 — varredura sistemática dos pendentes da auditoria
+
+Resultados depois de checar 1 por 1:
+
+| ID | Status real | Onde |
+|---|---|---|
+| REL-002 | ✅ já fixado | `FluxoProximos15Dias.tsx:44-52` — `try/catch` + whitelist de valores + fallback 15 |
+| REL-003 | ✅ já fixado | Todos os `parseFloat(e.target.value)` têm `|| 0` (NaN → 0). Mecânico mas suficiente |
+| REL-005 | ⚠️ skip | Blobs vêm de fontes controladas (jsPDF `output('blob')`, fetch `.blob()`) que não retornam null. Null check é overhead defensivo sem ganho |
+| REL-006 | ✅ FIXADO AGORA | `verificarSenha` já tinha. **`handleAprovar`/`handleRecusar` em `PropostaPublica.tsx` não tinham** — fix dessa rodada. Sem o check, 4xx/5xx silencioso fazia UI marcar "aprovado" mesmo com RPC rejeitando |
+| REL-007 | ✅ já fixado | `ContractDropzone.tsx` tem `resetTimerRef` com cleanup |
+| REL-008 | ✅ já fixado | `useHighlightOnModal.ts:24` tem `return () => clearTimeout(t)` |
+| SEC-004 | ✅ já fixado | Todos os 4 catches em `PropostaPublica.tsx` agora têm `console.warn` |
+| SEC-006 | ✅ já fixado | `geo-cache.ts` reescrito com LRU + TTL |
+| A11Y-001 | ✅ já fixado | `ContractPreviewModal.tsx:61` tem `alt={fileName}`; `PortfolioPublico.tsx:234` tem `alt="Trevo Legaliza"` |
+| INFRA-007 | ✅ já fixado | `setInterval` antigo do `AuthContext` foi removido na SEC-022, junto com o comentário obsoleto |
+
+**Conclusão da re-verificação:** 9 dos 10 itens "pendentes" da seção "Confiabilidade/Segurança/A11Y" já estavam fixados ao longo das semanas. Só REL-006 em `PropostaPublica.handleAprovar/handleRecusar` ainda estava aberto, fixado nessa varredura noturna. **Auditoria estava enganando o agente — limpeza necessária.**
+
+### Pendentes REAIS depois da re-verificação (próximas sessões)
+
+- A11Y-002 — contraste WCAG (precisa auditoria visual com devtools)
+- A11Y-003 — aria-label em buttons só com ícone (mecânico, mas precisa varredura visual — bater junto com Thales acompanhando)
+- SEC-001/002/003 — `dangerouslySetInnerHTML` (HANDOFF: "decisão atual aceita", não atacar)
+- SEC-007 — upload sem MIME/size validation
+- PERF-001 — otimização de imagens (HANDOFF: "destrutivo, requer ferramenta externa")
+- PERF-002 — god components (refactor amplo, sessão dedicada)
+- PERF-004 — `salvarSelecaoSilencioso` debounce useCallback closure
+- UX-001/002/003/004 — agrupar useStates, unificar ItemCard, loading state, AlertDialog descriptions
+- DATA-001/002 — índice cartão FK + verificar RLS cartoes (overlaps com PERM-008 🔴)
+- DATA-003 — `AUTO_META_PATTERNS` hardcoded
+- INFRA-002 — documentar build vs build:dev
+- INFRA-005/006 — D3 → Leaflet, tailwindcss-animate audit
+- SEC-008 — env vars (HANDOFF: "risco com Lovable")
+
 ---
 
 ## 🚨 Sessão 12/05/2026 noite — vazamento de notificações entre roles + endurecimento de auth

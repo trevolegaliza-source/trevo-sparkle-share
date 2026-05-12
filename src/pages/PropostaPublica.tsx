@@ -395,51 +395,66 @@ export default function PropostaPublica() {
     : fmt(totalSel);
 
   // ── Aprovação
+  // REL-006 (12/05/2026): res.ok check nos awaits críticos. Antes
+  // 4xx/5xx silenciava — RPC rejeitava (token expirado, proposta já
+  // aprovada por outra aba, etc) mas UI marcava "aprovado" como se
+  // tivesse dado certo. Resultado: cliente via "Proposta aprovada" mas
+  // master nunca via no banco.
   async function handleAprovar() {
     setProcessando(true);
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/rpc/atualizar_proposta_por_token`, {
+      const r1 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/atualizar_proposta_por_token`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({ p_token: token, p_status: 'aprovado' }),
       });
-      await fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_notificacao_proposta`, {
+      if (!r1.ok) throw new Error(`atualizar_proposta retornou ${r1.status}`);
+      const r2 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_notificacao_proposta`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({
           p_orcamento_id: orc.id, p_tipo: 'aprovacao',
           p_mensagem: `${orc.prospect_nome} aprovou a proposta #${String(orc.numero).padStart(3, '0')} no valor de ${fmt(totalSel)}. Aguardando pagamento.`,
         }),
       });
+      if (!r2.ok) console.warn('[proposta] criar_notificacao retornou', r2.status);
       fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({ p_orcamento_id: orc.id, p_tipo: 'aprovou', p_dados: { total: totalSel, itens_count: selecionados.size } }),
       }).catch(err => console.warn('[proposta] log aprovou falhou:', err));
       setStatusFinal('aprovado');
       setShowAprovacao(false);
-    } catch (err) { console.error(err); } finally { setProcessando(false); }
+    } catch (err) {
+      console.error('[proposta] handleAprovar falhou:', err);
+      alert('Não conseguimos confirmar sua aprovação. Tente recarregar a página.');
+    } finally { setProcessando(false); }
   }
 
   async function handleRecusar() {
     if (!motivoRecusa.trim()) return;
     setProcessando(true);
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/rpc/atualizar_proposta_por_token`, {
+      const r1 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/atualizar_proposta_por_token`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({ p_token: token, p_status: 'recusado', p_motivo: motivoRecusa }),
       });
-      await fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_notificacao_proposta`, {
+      if (!r1.ok) throw new Error(`atualizar_proposta retornou ${r1.status}`);
+      const r2 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_notificacao_proposta`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({
           p_orcamento_id: orc.id, p_tipo: 'recusa',
           p_mensagem: `${orc.prospect_nome} recusou a proposta #${String(orc.numero).padStart(3, '0')}. Motivo: ${motivoRecusa}`,
         }),
       });
+      if (!r2.ok) console.warn('[proposta] criar_notificacao retornou', r2.status);
       fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({ p_orcamento_id: orc.id, p_tipo: 'recusou', p_dados: { motivo: motivoRecusa } }),
       }).catch(err => console.warn('[proposta] log recusou falhou:', err));
       setStatusFinal('recusado');
       setShowRecusa(false);
-    } catch (err) { console.error(err); } finally { setProcessando(false); }
+    } catch (err) {
+      console.error('[proposta] handleRecusar falhou:', err);
+      alert('Não conseguimos registrar sua recusa. Tente recarregar a página.');
+    } finally { setProcessando(false); }
   }
 
   // ── Download HTML (proposta para o cliente final — white-label)
