@@ -217,8 +217,14 @@ export default function Clientes() {
 
   const activeClientes = (clientes || []).filter(c => !(c as any).is_archived);
   const totalClientes = activeClientes.length;
+  // UX-083 / UX-085 (12/05/2026): banco tem 4 tipos de cliente (MENSALISTA,
+  // AVULSO_4D, PRE_PAGO, PRECO_POR_TIPO) mas a UI só contava/mostrava 2.
+  // PRE_PAGO e PRECO_POR_TIPO viravam "Avulso" silenciosamente — quebra de
+  // visibilidade pro master que precisa enxergar a composição da carteira.
   const mensalistas = activeClientes.filter(c => c.tipo === 'MENSALISTA').length;
   const avulsos = activeClientes.filter(c => c.tipo === 'AVULSO_4D').length;
+  const prepagos = activeClientes.filter(c => c.tipo === 'PRE_PAGO').length;
+  const precoPorTipo = activeClientes.filter(c => c.tipo === 'PRECO_POR_TIPO').length;
 
   // Badge color for processes
   const getProcessBadgeClass = (clienteId: string) => {
@@ -245,8 +251,9 @@ export default function Clientes() {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* Stats — UX-085 (12/05/2026): cobre 4 tipos. Pré-pago e Preço/tipo
+          aparecem só se houver pelo menos 1 (evita poluir card vazio). */}
+      <div className={`grid gap-4 sm:grid-cols-${(prepagos > 0 || precoPorTipo > 0) ? '4' : '3'}`}>
         <Card className="border-border/60">
           <CardContent className="p-5 flex items-center gap-3">
             <div className="rounded-lg bg-primary/10 p-2.5"><Users className="h-5 w-5 text-primary" /></div>
@@ -265,6 +272,21 @@ export default function Clientes() {
             <div><p className="text-2xl font-bold">{avulsos}</p><p className="text-xs text-muted-foreground">Avulsos</p></div>
           </CardContent>
         </Card>
+        {(prepagos > 0 || precoPorTipo > 0) && (
+          <Card className="border-border/60">
+            <CardContent className="p-5 flex items-center gap-3">
+              <div className="rounded-lg bg-violet-500/10 p-2.5"><Users className="h-5 w-5 text-violet-500" /></div>
+              <div>
+                <p className="text-2xl font-bold">{prepagos + precoPorTipo}</p>
+                <p className="text-xs text-muted-foreground">
+                  {prepagos > 0 && precoPorTipo > 0 ? `${prepagos} pré-pago · ${precoPorTipo} preço/tipo`
+                    : prepagos > 0 ? 'Pré-pago'
+                    : 'Preço por tipo'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Filters */}
@@ -369,9 +391,22 @@ export default function Clientes() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={isMens ? 'border-primary/30 text-primary' : 'border-warning/30 text-warning'}>
-                          {isMens ? 'Mensalista' : 'Avulso'}
-                        </Badge>
+                        {/* UX-083 (12/05/2026): mostrar os 4 tipos do banco em vez de
+                            cair em "Avulso" pra qualquer não-mensalista. */}
+                        {(() => {
+                          const tipoConfig: Record<string, { label: string; cls: string }> = {
+                            MENSALISTA: { label: 'Mensalista', cls: 'border-primary/30 text-primary' },
+                            AVULSO_4D: { label: 'Avulso (D+4)', cls: 'border-warning/30 text-warning' },
+                            PRE_PAGO: { label: 'Pré-pago', cls: 'border-violet-500/30 text-violet-500' },
+                            PRECO_POR_TIPO: { label: 'Preço/tipo', cls: 'border-sky-500/30 text-sky-500' },
+                          };
+                          const cfg = tipoConfig[client.tipo as string] || { label: client.tipo || '—', cls: 'border-muted-foreground/30 text-muted-foreground' };
+                          return (
+                            <Badge variant="outline" className={cfg.cls}>
+                              {cfg.label}
+                            </Badge>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <span className="font-medium">
