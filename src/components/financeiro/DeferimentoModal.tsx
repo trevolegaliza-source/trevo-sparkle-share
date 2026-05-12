@@ -72,21 +72,50 @@ export default function DeferimentoModal({
 
     setSaving(true);
     try {
-      for (const p of deferidos) {
-        const data = items[p.processo_id].data;
-        await supabase
-          .from('processos')
-          .update({ data_deferimento: data } as any)
-          .eq('id', p.processo_id);
+      // UX-013 (13/05/2026): tenta RPC atômica. Se RPC não existe ainda
+      // (Thales não rodou docs/sql/ux-013-marcar-deferimento-em-lote.sql),
+      // cai pro for-loop antigo. Quando RPC estiver deployada, lote
+      // inteiro fica em transação Postgres — falha de 1 rolla todos.
+      const payload = deferidos.map(p => ({
+        processo_id: p.processo_id,
+        data_deferimento: items[p.processo_id].data,
+      }));
 
-        // Promove lancamento aguardando_deferimento → solicitacao_criada
-        // (ou cria do zero pra processos legado sem lancamento).
-        const { data: procFull } = await supabase
-          .from('processos')
-          .select('*')
-          .eq('id', p.processo_id)
-          .single();
-        if (procFull) await gerarFaturamentoDeferimento(procFull as any);
+      const { error: rpcErr } = await supabase.rpc(
+        'marcar_deferimento_em_lote' as any,
+        { p_processos: payload } as any,
+      ) as any;
+
+      const rpcAusente = rpcErr && (
+        rpcErr.code === '42883' ||
+        rpcErr.code === 'PGRST202' ||
+        (typeof rpcErr.message === 'string' && rpcErr.message.toLowerCase().includes('could not find the function'))
+      );
+
+      if (!rpcErr) {
+        // Sucesso atômico
+      } else if (rpcAusente) {
+        // Fallback: for-loop antigo (sem rollback). Removido depois que
+        // RPC estiver deployada.
+        console.warn('[UX-013] RPC marcar_deferimento_em_lote não deployada — usando for-loop antigo');
+        for (const p of deferidos) {
+          const data = items[p.processo_id].data;
+          await supabase
+            .from('processos')
+            .update({ data_deferimento: data } as any)
+            .eq('id', p.processo_id);
+
+          const { data: procFull } = await supabase
+            .from('processos')
+            .select('*')
+            .eq('id', p.processo_id)
+            .single();
+          if (procFull) await gerarFaturamentoDeferimento(procFull as any);
+        }
+      } else {
+        // Erro real (tenant check, processo de outra empresa, etc) —
+        // propaga pro toast.error abaixo.
+        throw rpcErr;
       }
 
       onConfirm(deferidos.map(p => p.processo_id));

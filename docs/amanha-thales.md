@@ -85,7 +85,25 @@ Lista do que **realmente sobra** (já marcado no AUDITORIA-GROTESCA-TREVO-ERP.md
 
 ---
 
-## 📄 4. RFC pra você decidir: atomicidade financeira
+## 🟢 4. Atomicidade financeira: 2 RPCs preparadas com fallback (sem risco)
+
+**Já implementei REL-014 (gerar extrato completo) + UX-013 (deferimento em lote)** com fallback automático pro fluxo antigo se a RPC não existir. Zero downtime durante o rollout.
+
+Como funciona:
+1. Você dá Publish do client (já tá no main) — código fica preparado, MAS RPC ainda não existe → cai pro fluxo antigo automaticamente. **Nada muda no comportamento atual.**
+2. Quando estiver pronto, você cola os SQLs no Supabase Editor:
+   - `docs/sql/rel-014-gerar-extrato-completo.sql`
+   - `docs/sql/ux-013-marcar-deferimento-em-lote.sql`
+3. RPC fica disponível → próxima execução já usa o caminho atômico (sem mexer no client). Sem rollout, sem Publish extra.
+4. Depois de 24-48h em produção sem incidente, removemos o fallback do client (cleanup).
+
+**Risco do que já está commitado**: ZERO. Fallback garante que se RPC não existir, fluxo continua como hoje.
+
+**UX-019** (ativar Trevo) e **UX-015 + FEAT-004** (marcar pago em lote) NÃO ataquei porque exigem ler 4 awaits + consolidar 3 caminhos divergentes — preciso você acompanhar pra evitar surprise.
+
+---
+
+## 📄 5. RFC inicial: atomicidade financeira (visão completa)
 
 Arquivo novo: [`docs/rfc/atomicidade-financeira.md`](rfc/atomicidade-financeira.md).
 

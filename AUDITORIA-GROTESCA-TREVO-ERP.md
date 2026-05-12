@@ -33,7 +33,7 @@ Thales precisa rodar **antes de tudo** amanhã.
 **Docs:** RFC atomicidade financeira ([`docs/rfc/atomicidade-financeira.md`](./docs/rfc/atomicidade-financeira.md)) + checklist amanhã ([`docs/amanha-thales.md`](./docs/amanha-thales.md)).
 
 ### 🔴 Próximas bombas (RFC pronta, aguarda decisão Thales)
-**Atomicidade financeira** — 5 fluxos sem rollback (REL-014 gerar extrato, UX-013 deferimento lote, UX-015+FEAT-004 marcar pago, UX-019 ativar Trevo). Plano em 4 sub-fases com fallback. **Antes precisa Thales responder 5 perguntas de schema das tabelas extratos/cobrancas.**
+**Atomicidade financeira** — 5 fluxos sem rollback. **REL-014 e UX-013 já preparados** (madrugada 13/05): SQLs em `docs/sql/rel-014-*.sql` e `docs/sql/ux-013-*.sql`; client refatorado pra usar RPC com **fallback pro fluxo antigo** se RPC não existir (zero downtime). UX-019 (ativar Trevo), UX-015+FEAT-004 (marcar pago lote) ainda precisam Thales acompanhar.
 
 ### 🟡 Outros pendentes reais (sem ataque autônomo)
 - **DECISION-001 Fase 2** — esconder kanban operacional ("tira essa merda")

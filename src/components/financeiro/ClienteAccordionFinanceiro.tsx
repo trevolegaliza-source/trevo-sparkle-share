@@ -661,83 +661,123 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
       const pdfBlob = result.doc.output('blob');
       const filename = buildExtratoFilename(clienteNome);
 
-      // Save extrato to DB
+      // Upload PDF pro Storage (continua client-side — Postgres não faz upload)
       const { empresaPath } = await import('@/lib/storage-path');
       const path = await empresaPath(`extratos/${clienteId}/${filename}`);
       await supabase.storage.from('documentos').upload(path, pdfBlob, { contentType: 'application/pdf', upsert: true });
       const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(path);
 
       const now = new Date();
-      const { data: extrato, error: insertError } = await supabase
-        .from('extratos')
-        .insert({
-          cliente_id: clienteId,
-          pdf_url: urlData.publicUrl,
-          filename,
-          total_honorarios: result.totalHonorarios,
-          total_taxas: result.totalTaxas,
-          total_geral: result.totalGeral,
-          qtd_processos: result.processCount,
-          processo_ids: processoIds,
-          competencia_mes: now.getMonth() + 1,
-          competencia_ano: now.getFullYear(),
-          status: 'ativo',
-        })
-        .select()
-        .single();
-      if (insertError) throw insertError;
+      const lancamentoIds = selecionados.map(l => l.id);
+      const datasVenc = selecionados.map(l => l.data_vencimento).filter(Boolean).sort();
+      const dataVencimento = datasVenc[0] || null;
+      const { getCobrancaPublicUrl } = await import('@/lib/cobranca-url');
 
-      // Link lancamentos to extrato
-      // Guard: nunca rebaixar honorario_pago/cobranca_enviada → cobranca_gerada.
-      // Processo já pago entra no extrato pra constar no PDF, mas mantém badge Pago.
-      // Bug DERMAE 07/05/2026.
-      for (const pid of processoIds) {
-        await supabase
-          .from('lancamentos')
-          .update({ extrato_id: (extrato as any).id } as any)
-          .eq('processo_id', pid)
-          .eq('tipo', 'receber');
-        await supabase
-          .from('lancamentos')
-          .update({ etapa_financeiro: 'cobranca_gerada' } as any)
-          .eq('processo_id', pid)
-          .eq('tipo', 'receber')
-          .not('etapa_financeiro', 'in', '("honorario_pago","cobranca_enviada")');
-      }
-
-      // Criar registro de cobrança pública
       let cobrancaUrl: string | undefined;
       let cobrancaId: string | undefined;
-      try {
-        const { getCobrancaPublicUrl } = await import('@/lib/cobranca-url');
-        const lancamentoIds = selecionados.map(l => l.id);
-        const datasVenc = selecionados
-          .map(l => l.data_vencimento)
-          .filter(Boolean)
-          .sort();
-        const dataVencimento = datasVenc[0] || null;
 
-        const { data: cobranca, error: cobErr } = await supabase
-          .from('cobrancas')
+      // REL-014 (13/05/2026): tenta RPC atômica primeiro. Antes: 5 awaits
+      // sequenciais sem rollback — se cobrança falhasse no fim, extrato +
+      // lancamentos atualizados ficavam sem cobrança e toast.success
+      // enganava o usuário. Agora: tudo em transação Postgres.
+      //
+      // Fallback: se RPC não existe (Thales ainda não rodou o SQL em
+      // docs/sql/rel-014-gerar-extrato-completo.sql), cai no fluxo antigo
+      // pra não quebrar nada. Zero downtime durante rollout.
+      const { data: rpcResult, error: rpcErr } = await supabase.rpc(
+        'gerar_extrato_completo' as any,
+        {
+          p_cliente_id: clienteId,
+          p_processo_ids: processoIds,
+          p_lancamento_ids: lancamentoIds,
+          p_pdf_url: urlData.publicUrl,
+          p_filename: filename,
+          p_total_honorarios: result.totalHonorarios,
+          p_total_taxas: result.totalTaxas,
+          p_total_geral: result.totalGeral,
+          p_qtd_processos: result.processCount,
+          p_competencia_mes: now.getMonth() + 1,
+          p_competencia_ano: now.getFullYear(),
+          p_data_vencimento_cobranca: dataVencimento,
+        } as any,
+      ) as any;
+
+      const rpcAusente = rpcErr && (
+        rpcErr.code === '42883' ||
+        rpcErr.code === 'PGRST202' ||
+        (typeof rpcErr.message === 'string' && rpcErr.message.toLowerCase().includes('could not find the function'))
+      );
+
+      if (!rpcErr && rpcResult?.ok) {
+        // Sucesso via RPC atômica
+        cobrancaId = rpcResult.cobranca_id;
+        cobrancaUrl = getCobrancaPublicUrl(rpcResult.share_token);
+      } else if (rpcAusente) {
+        // Fallback: fluxo antigo (5 awaits sem rollback). Será removido
+        // quando a RPC estiver deployada em produção 24-48h sem incidente.
+        console.warn('[REL-014] RPC gerar_extrato_completo não deployada — usando fluxo antigo');
+
+        const { data: extrato, error: insertError } = await supabase
+          .from('extratos')
           .insert({
             cliente_id: clienteId,
-            extrato_id: (extrato as any).id,
-            lancamento_ids: lancamentoIds,
+            pdf_url: urlData.publicUrl,
+            filename,
             total_honorarios: result.totalHonorarios,
             total_taxas: result.totalTaxas,
             total_geral: result.totalGeral,
-            data_vencimento: dataVencimento,
-            status: 'ativa',
-          } as any)
-          .select('id, share_token')
+            qtd_processos: result.processCount,
+            processo_ids: processoIds,
+            competencia_mes: now.getMonth() + 1,
+            competencia_ano: now.getFullYear(),
+            status: 'ativo',
+          })
+          .select()
           .single();
+        if (insertError) throw insertError;
 
-        if (cobErr) throw cobErr;
-        cobrancaId = (cobranca as any).id;
-        cobrancaUrl = getCobrancaPublicUrl((cobranca as any).share_token);
-      } catch (cobErr: any) {
-        console.error('Falha ao criar cobrança pública:', cobErr);
-        // Não bloquear fluxo do extrato se cobrança falhar
+        // Linka lancamentos (com guard anti-rebaixamento — bug DERMAE 07/05/2026)
+        for (const pid of processoIds) {
+          await supabase
+            .from('lancamentos')
+            .update({ extrato_id: (extrato as any).id } as any)
+            .eq('processo_id', pid)
+            .eq('tipo', 'receber');
+          await supabase
+            .from('lancamentos')
+            .update({ etapa_financeiro: 'cobranca_gerada' } as any)
+            .eq('processo_id', pid)
+            .eq('tipo', 'receber')
+            .not('etapa_financeiro', 'in', '("honorario_pago","cobranca_enviada")');
+        }
+
+        try {
+          const { data: cobranca, error: cobErr } = await supabase
+            .from('cobrancas')
+            .insert({
+              cliente_id: clienteId,
+              extrato_id: (extrato as any).id,
+              lancamento_ids: lancamentoIds,
+              total_honorarios: result.totalHonorarios,
+              total_taxas: result.totalTaxas,
+              total_geral: result.totalGeral,
+              data_vencimento: dataVencimento,
+              status: 'ativa',
+            } as any)
+            .select('id, share_token')
+            .single();
+          if (cobErr) throw cobErr;
+          cobrancaId = (cobranca as any).id;
+          cobrancaUrl = getCobrancaPublicUrl((cobranca as any).share_token);
+        } catch (cobErr: any) {
+          console.error('Falha ao criar cobrança pública:', cobErr);
+          // Não bloqueia fluxo do extrato (legado: mantém comportamento antigo)
+        }
+      } else {
+        // Erro real na RPC (ex: tenant check falhou, lancamento de outra
+        // empresa, etc). Tenta limpar PDF órfão e propaga o erro.
+        await supabase.storage.from('documentos').remove([path]).catch(() => {});
+        throw rpcErr ?? new Error('RPC gerar_extrato_completo retornou sem ok=true');
       }
 
       // invalidateFinanceiro moved to ModalPosExtrato close
