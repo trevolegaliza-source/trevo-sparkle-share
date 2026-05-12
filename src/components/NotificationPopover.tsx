@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getEmpresaId } from '@/lib/storage-path';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface Notificacao {
   id: string;
@@ -18,6 +19,31 @@ interface Notificacao {
   lida: boolean;
   orcamento_id: string | null;
   created_at: string;
+}
+
+// SEC-019 (12/05/2026): tabela `notificacoes` não tem `destinatario_id` —
+// só `empresa_id`. RLS e realtime filtram por empresa, então gerente e
+// operacional viam notificações do master. Fix imediato: filtro por role
+// no client. Débito estrutural mapeado em SEC-020 (adicionar
+// `destinatario_id` + tabela `notificacao_leituras` per-user).
+//
+// AVISO: este filtro é cosmético — payload realtime ainda chega via
+// WebSocket pra todos da empresa. Não conta como controle de segurança.
+function canSeeNotificacao(
+  n: Pick<Notificacao, 'tipo' | 'orcamento_id'>,
+  ctx: { isMaster: boolean; podeVerFinanceiro: boolean; podeVerOrcamentos: boolean },
+): boolean {
+  if (ctx.isMaster) return true;
+
+  // "Novo usuário aguardando aprovação" usa tipo=aprovacao sem orcamento_id.
+  // Só master aprova usuário → não-master nunca vê.
+  if (n.tipo === 'aprovacao' && !n.orcamento_id) return false;
+
+  if (n.tipo === 'cobranca' || n.tipo === 'pagamento') return ctx.podeVerFinanceiro;
+  if (n.tipo === 'aprovacao' || n.tipo === 'recusa' || n.tipo === 'assinatura') {
+    return ctx.podeVerOrcamentos;
+  }
+  return false;
 }
 
 const iconMap = {
@@ -48,8 +74,15 @@ export function NotificationPopover() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { loading: permsLoading, role, podeVer, isMaster } = usePermissions();
 
-  const { data: notificacoes = [] } = useQuery({
+  const permCtx = {
+    isMaster: isMaster(),
+    podeVerFinanceiro: podeVer('financeiro'),
+    podeVerOrcamentos: podeVer('orcamentos'),
+  };
+
+  const { data: notificacoesRaw = [] } = useQuery({
     queryKey: ['notificacoes'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -61,8 +94,12 @@ export function NotificationPopover() {
       return (data || []) as unknown as Notificacao[];
     },
     refetchInterval: 15000,
+    // Só faz fetch depois que perms carregaram, pra evitar flash de
+    // notificação que será escondida em seguida.
+    enabled: !permsLoading && role !== null,
   });
 
+  const notificacoes = notificacoesRaw.filter(n => canSeeNotificacao(n, permCtx));
   const naoLidas = notificacoes.filter(n => !n.lida);
 
   // Realtime — escuta INSERTs em notificacoes da empresa atual.
@@ -99,6 +136,10 @@ export function NotificationPopover() {
             const n = payload.new as Notificacao;
             qc.invalidateQueries({ queryKey: ['notificacoes'] });
 
+            // SEC-019: descarta toast se este usuário não deveria ver
+            // (ex: gerente recebendo INSERT de cobrança/pagamento).
+            if (!canSeeNotificacao(n, permCtx)) return;
+
             if (n.tipo === 'pagamento') {
               toast.success(n.titulo, { description: n.mensagem, duration: 8000 });
             } else if (n.tipo === 'cobranca' || n.tipo === 'recusa') {
@@ -115,7 +156,10 @@ export function NotificationPopover() {
       cancelled = true;
       if (channelRef) supabase.removeChannel(channelRef);
     };
-  }, [qc]);
+    // permCtx muda quando role/perms carregam — reassina pra capturar
+    // o filtro correto. role é a chave estável.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qc, role, permCtx.isMaster, permCtx.podeVerFinanceiro, permCtx.podeVerOrcamentos]);
 
   async function marcarComoLida(id: string) {
     await supabase.from('notificacoes').update({ lida: true } as any).eq('id', id);

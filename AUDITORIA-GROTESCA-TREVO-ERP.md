@@ -1,7 +1,20 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: **11/05/2026 noite** — auditoria de fluxo completa pré-release Letícia/secretária + 6 fixes adicionais (SEC-014, SEC-015, PERM-005, UX-028, UX-029, UX-100).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: **12/05/2026 noite** — SEC-019 fix imediato (notificações vazando entre roles da mesma empresa) + SEC-020 mapeado.
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 🚨 Sessão 12/05/2026 noite — vazamento de notificações entre roles
+
+**Disparo:** Thales notou que as notificações da conta master estavam aparecendo também pra Letícia (gerente).
+
+**Causa raiz:** tabela `notificacoes` modelada como "notificação da empresa" — só tem `empresa_id`, não tem `destinatario_id`. RLS + filtro realtime (REL-013) trancam por empresa, mas qualquer usuário da mesma empresa vê tudo. Campo `lida` também é compartilhado (se um marca, todos veem como lida).
+
+| ID | Status | Resumo |
+|---|---|---|
+| **SEC-019** | ✅ FIXADO | Filtro client-side em `NotificationPopover.tsx` por role: gerente/operacional não veem `cobranca`/`pagamento`; só master vê `aprovacao` de novo usuário. Aplica tanto no SELECT quanto no callback de realtime (descarta toast). Cosmético — payload realtime ainda chega via WS pra todos da empresa. |
+| **SEC-020** | 🔴 BACKLOG | Refactor estrutural: adicionar `destinatario_id NULLABLE` em `notificacoes` (NULL = broadcast empresa, X = direto pra X) + tabela `notificacao_leituras (notif_id, user_id, lida_em)` pra `lida` per-user. Atualizar RLS pra `destinatario_id IS NULL OR destinatario_id = auth.uid()`. Migrar 6 insert points (3 client + 3 edge functions, incluindo `asaas-webhook` em `.txt`). Realtime filter passa a usar `or(destinatario_id.eq.{uid},destinatario_id.is.null)`. ~2-3h de trabalho. |
 
 ---
 
