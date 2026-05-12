@@ -48,6 +48,19 @@
 
 **9 fixes + 3 falsos alarmes identificados em ~1h. Build OK em todos.**
 
+### 🔄 Status após 2ª rodada (médios, 12/05 manhã)
+
+- [x] **UX-073** ✅ FIXADO — useClientes() com staleTime 5min (reduz queries no Cadastro Rápido)
+- [x] **UX-069** ✅ FIXADO — FeedbackSucesso oferece "+1 pra este cliente" (preserva cliente)
+- [x] **UX-082** ✅ FIXADO — botão ✏️ dedicado em Clientes (doppelclick mantido como atalho)
+- [x] **UX-016** ✅ FIXADO — label "Pular desconto, seguir" (era "Não, obrigado")
+- [x] **SEC-012** ✅ FIXADO — confirm() antes de aprovar/rejeitar usuário
+- [x] **UX-014** ✅ FIXADO — dialog "Marcar Faturado" usa procs do fluxo, não state global
+- [x] ~~**UX-015**~~ ⚠️ FALSO ALARME — afeta ContasReceberLista que é código órfão (nenhum import)
+- [ ] **SUG-NAV-5** ⏸️ Decisão Thales — adicionar /relatorios/* ao menu vai contra "menu enxuto" (30/04)
+
+**6 fixes + 1 falso alarme em ~50min. Build OK em todos.**
+
 ---
 
 ## 🛠️ PRIORIDADE 3 — médios (1-3h cada)
