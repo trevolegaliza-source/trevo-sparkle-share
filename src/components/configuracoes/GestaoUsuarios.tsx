@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Users, Loader2, UserPlus, MoreHorizontal, UserX, UserCheck, Shield, Mail, Lock } from 'lucide-react';
+import { Users, Loader2, UserPlus, MoreHorizontal, UserX, UserCheck, Shield, Mail, Lock, Trash2, AlertTriangle } from 'lucide-react';
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -96,8 +96,12 @@ export default function GestaoUsuarios() {
   const [deactivateUser, setDeactivateUser] = useState<Profile | null>(null);
   const [deactivateMotivo, setDeactivateMotivo] = useState('');
 
-  // Delete confirmation
+  // Delete confirmation (apenas desativa — historico preservado)
   const [deleteConfirm, setDeleteConfirm] = useState<Profile | null>(null);
+  // FEAT-USR-DELETE (12/05/2026): excluir DEFINITIVO (deleta profile + auth.user)
+  const [excluirDefinitivo, setExcluirDefinitivo] = useState<Profile | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+  const [confirmExcluirTexto, setConfirmExcluirTexto] = useState('');
 
   // Invite modal state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -401,6 +405,47 @@ export default function GestaoUsuarios() {
     }
   };
 
+  // FEAT-USR-DELETE: chamada à edge function excluir-usuario que deleta
+  // permanentemente (profile + auth.user).
+  const handleExcluirDefinitivo = async () => {
+    if (!excluirDefinitivo) return;
+    const target = excluirDefinitivo;
+    setExcluindo(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error('Sessão expirada');
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/excluir-usuario`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            apikey: SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ user_id: target.id }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.error || `HTTP ${response.status}`);
+      }
+      if (result?.warning) {
+        toast.warning(result.warning, { duration: 10000 });
+      } else {
+        toast.success(`${target.nome || target.email} excluído definitivamente.`);
+      }
+      setExcluirDefinitivo(null);
+      setConfirmExcluirTexto('');
+      await loadData();
+    } catch (e: any) {
+      toast.error('Erro ao excluir: ' + (e.message || 'tente novamente'));
+    } finally {
+      setExcluindo(false);
+    }
+  };
+
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
       toast.error('Informe o email');
@@ -595,16 +640,28 @@ export default function GestaoUsuarios() {
                               <UserCheck className="h-3.5 w-3.5 mr-2" /> Reativar
                             </DropdownMenuItem>
                           )}
-                          {/* SEC-014 (11/05/2026): label era "Remover" mas a função apenas
-                              desativa permanentemente (não deleta auth.user nem profile).
-                              Renomeado pra ser honesto sobre o efeito. */}
+                          {/* SEC-014: desativa (preserva histórico) */}
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => setDeleteConfirm(p)}
                             disabled={isMe}
-                            title={isMe ? 'Você não pode se auto-remover' : 'Marca o usuário como removido (não deleta auth.user)'}
+                            title={isMe ? 'Você não pode se auto-remover' : 'Marca como removido — preserva histórico, user não consegue mais logar'}
                           >
                             <UserX className="h-3.5 w-3.5 mr-2" /> Desativar permanente
+                          </DropdownMenuItem>
+                          {/* FEAT-USR-DELETE (12/05/2026): exclui DE VERDADE — profile + auth.user.
+                              Operação irreversível. Anti auto-delete + anti-master no backend. */}
+                          <DropdownMenuItem
+                            className="text-destructive font-semibold"
+                            onClick={() => setExcluirDefinitivo(p)}
+                            disabled={isMe || p.role === 'master'}
+                            title={
+                              isMe ? 'Você não pode se auto-excluir' :
+                              p.role === 'master' ? 'Rebaixe o role antes de excluir outro master' :
+                              'Apaga permanente: profile + auth. Irreversível.'
+                            }
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir DEFINITIVO
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -817,13 +874,15 @@ export default function GestaoUsuarios() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation (desativar permanente) */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={o => !o && setDeleteConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover usuário?</AlertDialogTitle>
+            <AlertDialogTitle>Desativar usuário permanentemente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza? <strong>{deleteConfirm?.nome || deleteConfirm?.email}</strong> será desativado permanentemente.
+              <strong>{deleteConfirm?.nome || deleteConfirm?.email}</strong> será marcado como removido.
+              Não conseguirá mais entrar no sistema, mas o histórico fica preservado.
+              Use "Excluir DEFINITIVO" se quiser apagar de verdade.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -832,7 +891,59 @@ export default function GestaoUsuarios() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
             >
-              Remover
+              Desativar permanente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* FEAT-USR-DELETE: exclusão de fato (profile + auth.user).
+          Operação irreversível — exige digitar nome/email pra confirmar. */}
+      <AlertDialog
+        open={!!excluirDefinitivo}
+        onOpenChange={o => { if (!o) { setExcluirDefinitivo(null); setConfirmExcluirTexto(''); } }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Excluir DEFINITIVO?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Você está prestes a <strong className="text-destructive">apagar de fato</strong>{' '}
+                  <strong>{excluirDefinitivo?.nome || excluirDefinitivo?.email}</strong> — o perfil e a conta
+                  de autenticação somem do banco. <strong>Irreversível.</strong>
+                </p>
+                <p className="text-xs">
+                  Pra confirmar, digite o email do usuário abaixo:{' '}
+                  <code className="bg-muted px-1 py-0.5 rounded text-foreground">
+                    {excluirDefinitivo?.email}
+                  </code>
+                </p>
+                <Input
+                  value={confirmExcluirTexto}
+                  onChange={e => setConfirmExcluirTexto(e.target.value)}
+                  placeholder="cole o email aqui"
+                  autoFocus
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluindo}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={
+                excluindo ||
+                !confirmExcluirTexto ||
+                confirmExcluirTexto.trim().toLowerCase() !== (excluirDefinitivo?.email || '').toLowerCase()
+              }
+              onClick={handleExcluirDefinitivo}
+            >
+              {excluindo ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
+              Excluir DEFINITIVO
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
