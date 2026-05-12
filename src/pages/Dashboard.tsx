@@ -30,6 +30,10 @@ interface Alerta {
   severity: 'critical' | 'warning' | 'info';
   icon: LucideIcon;
   link: string;
+  // UX-018 (12/05/2026): Financeiro só lê `location.state.tab` — querystring
+  // `?tab=xxx` no link era silenciosamente ignorada. Padronizamos: link tem
+  // só o pathname, e a aba alvo vai em `tabState` (consumido via state).
+  tabState?: 'a_fazer' | 'em_andamento' | 'historico';
 }
 
 export default function Dashboard() {
@@ -141,19 +145,19 @@ export default function Dashboard() {
     });
     if (vencidas.length > 0) {
       const valorVencido = vencidas.reduce((s, l) => s + Number(l.valor), 0);
-      alertas.push({ id: 'vencidas', titulo: `${vencidas.length} cobranças vencidas`, descricao: `${fmt(valorVencido)} em atraso`, severity: 'critical', icon: AlertTriangle, link: '/financeiro?tab=vencidos' });
+      alertas.push({ id: 'vencidas', titulo: `${vencidas.length} cobranças vencidas`, descricao: `${fmt(valorVencido)} em atraso`, severity: 'critical', icon: AlertTriangle, link: '/financeiro', tabState: 'em_andamento' });
     }
 
     const semExtrato = lancamentosMes.filter(l => !l.extrato_id && l.etapa_financeiro === 'solicitacao_criada');
     const clientesSemExtrato = new Set(semExtrato.map(l => l.cliente_id)).size;
     if (clientesSemExtrato > 0) {
-      alertas.push({ id: 'sem_extrato', titulo: `${clientesSemExtrato} clientes sem extrato`, descricao: 'Processos aguardando geração de extrato', severity: 'warning', icon: FileText, link: '/financeiro?tab=cobrar' });
+      alertas.push({ id: 'sem_extrato', titulo: `${clientesSemExtrato} clientes sem extrato`, descricao: 'Processos aguardando geração de extrato', severity: 'warning', icon: FileText, link: '/financeiro', tabState: 'a_fazer' });
     }
 
     const naoEnviados = lancamentosMes.filter(l => l.etapa_financeiro === 'cobranca_gerada');
     const clientesNaoEnviados = new Set(naoEnviados.map(l => l.cliente_id)).size;
     if (clientesNaoEnviados > 0) {
-      alertas.push({ id: 'nao_enviadas', titulo: `${clientesNaoEnviados} extratos não enviados`, descricao: 'Extratos gerados aguardando envio', severity: 'warning', icon: Send, link: '/financeiro?tab=enviados' });
+      alertas.push({ id: 'nao_enviadas', titulo: `${clientesNaoEnviados} extratos não enviados`, descricao: 'Extratos gerados aguardando envio', severity: 'warning', icon: Send, link: '/financeiro', tabState: 'em_andamento' });
     }
 
     const parados = processos.filter(p => {
@@ -460,8 +464,13 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {alertasFiltrados.map(alerta => (
                 <GlassCard key={alerta.id} variant="service" glowColor={glowMap[alerta.severity]} onClick={() => {
+                  // UX-018: unificado — todos via state.tab. Antes auditoria_pendente
+                  // era exceção (`state: { tab: 'auditoria' }`) e os outros usavam
+                  // querystring que Financeiro ignorava silenciosamente.
                   if (alerta.id === 'auditoria_pendente') {
                     navigate('/financeiro', { state: { tab: 'auditoria' } });
+                  } else if (alerta.tabState) {
+                    navigate(alerta.link, { state: { tab: alerta.tabState } });
                   } else {
                     navigate(alerta.link);
                   }
