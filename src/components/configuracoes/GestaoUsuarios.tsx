@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Users, Loader2, UserPlus, MoreHorizontal, UserX, UserCheck, Shield, Mail, Lock, Trash2, AlertTriangle } from 'lucide-react';
+import { Users, Loader2, UserPlus, MoreHorizontal, UserX, UserCheck, Shield, Mail, Lock, Trash2, AlertTriangle, ShieldOff } from 'lucide-react';
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -125,6 +125,12 @@ export default function GestaoUsuarios() {
 
   // MFA factors for current users
   const [mfaFactors, setMfaFactors] = useState<Record<string, boolean>>({});
+
+  // SEC-023 (12/05/2026): master reseta 2FA de outro user quando ele
+  // perde o celular. Sem isso, master só conseguia resetar via Supabase
+  // Dashboard direto.
+  const [resetMfaUser, setResetMfaUser] = useState<Profile | null>(null);
+  const [resetandoMfa, setResetandoMfa] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -457,6 +463,45 @@ export default function GestaoUsuarios() {
     }
   };
 
+  // SEC-023: chama edge function resetar-2fa-usuario. Remove fatores TOTP
+  // do target — próximo login dele cai de novo em forceSetup (SEC-021).
+  const handleResetar2FA = async () => {
+    if (!resetMfaUser) return;
+    const target = resetMfaUser;
+    setResetandoMfa(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error('Sessão expirada');
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/resetar-2fa-usuario`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            apikey: SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ user_id: target.id }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error || `HTTP ${response.status}`);
+      const n = result?.deletados ?? 0;
+      if (n === 0) {
+        toast.info(`${target.nome || target.email} não tinha 2FA configurado.`);
+      } else {
+        toast.success(`2FA resetado (${n} fator${n > 1 ? 'es' : ''} removido${n > 1 ? 's' : ''}). No próximo login, ${target.nome || target.email} vai configurar de novo.`, { duration: 8000 });
+      }
+      setResetMfaUser(null);
+      await loadData();
+    } catch (e: any) {
+      toast.error('Erro ao resetar 2FA: ' + (e.message || 'tente novamente'));
+    } finally {
+      setResetandoMfa(false);
+    }
+  };
+
   // FEAT-USR-SET-PASS: chama edge function definir-senha-usuario
   const handleDefinirSenha = async () => {
     if (!setPassUser) return;
@@ -749,6 +794,18 @@ export default function GestaoUsuarios() {
                             }
                           >
                             <Lock className="h-3.5 w-3.5 mr-2" /> Definir senha
+                          </DropdownMenuItem>
+                          {/* SEC-023 (12/05/2026): reseta 2FA do user (perdeu celular) */}
+                          <DropdownMenuItem
+                            onClick={() => setResetMfaUser(p)}
+                            disabled={isMe || p.role === 'master'}
+                            title={
+                              isMe ? 'Use Configurações → Segurança pra gerenciar seu próprio 2FA' :
+                              p.role === 'master' ? 'Não é permitido resetar 2FA de outro master' :
+                              'Remove o 2FA do user — próximo login vai pedir configuração de novo'
+                            }
+                          >
+                            <ShieldOff className="h-3.5 w-3.5 mr-2" /> Resetar 2FA
                           </DropdownMenuItem>
                           {/* SEC-014: desativa (preserva histórico) */}
                           <DropdownMenuItem
@@ -1072,6 +1129,39 @@ export default function GestaoUsuarios() {
               onClick={handleDelete}
             >
               Desativar permanente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* SEC-023 (12/05/2026): confirma reset de 2FA antes de invalidar. */}
+      <AlertDialog open={!!resetMfaUser} onOpenChange={o => !o && !resetandoMfa && setResetMfaUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resetar 2FA de {resetMfaUser?.nome || resetMfaUser?.email}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Use isso quando o usuário <strong>perdeu o celular</strong> ou trocou de aparelho sem
+              desativar o autenticador antes. Após o reset, no próximo login dele:
+              <ul className="list-disc ml-5 mt-2 space-y-0.5">
+                <li>Vai aparecer a tela de configuração de 2FA obrigatória.</li>
+                <li>Ele precisa escanear o novo QR Code com o app autenticador.</li>
+                <li>O 2FA antigo (do celular perdido) fica inútil.</li>
+              </ul>
+              <p className="mt-2 text-amber-500">
+                ⚠️ Só faça isso se você confirmou pessoalmente que é o usuário pedindo
+                (pode ser engenharia social).
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetandoMfa}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-500 text-white hover:bg-amber-500/90"
+              onClick={handleResetar2FA}
+              disabled={resetandoMfa}
+            >
+              {resetandoMfa ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldOff className="h-4 w-4 mr-2" />}
+              Resetar 2FA
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
