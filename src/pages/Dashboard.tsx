@@ -206,11 +206,14 @@ export default function Dashboard() {
 
     // Mensalistas sem fatura no mês
     for (const m of mensalistaAlerts) {
+      // UX-062 (12/05/2026): era 'critical' (vermelho), mas mensalista sem fatura
+      // no mês é caso normal — fatura ainda vai ser gerada. 'warning' (amarelo)
+      // reflete melhor o estado real.
       alertas.push({
         id: `mensalista_${m.id}`,
         titulo: `Mensalista ${m.nome} sem fatura`,
         descricao: `${fmt(m.valor_base)}/mês — dia ${m.dia}`,
-        severity: 'critical',
+        severity: 'warning',
         icon: CreditCard,
         link: `/clientes/${m.id}`,
       });
@@ -380,9 +383,9 @@ export default function Dashboard() {
           </GlassCard>
         )}
 
-        {/* Recebido */}
+        {/* Recebido — UX-054 (12/05/2026): adicionado onClick pra consistência com os outros 3 KPIs */}
         {podeVer('financeiro') && (
-          <GlassCard variant="service" glowColor="rgba(59, 130, 246, 0.12)">
+          <GlassCard variant="service" glowColor="rgba(59, 130, 246, 0.12)" onClick={() => navigate('/financeiro', { state: { tab: 'historico' } })} className="cursor-pointer">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-muted-foreground uppercase tracking-wider">Recebido</span>
               <div className="h-8 w-8 rounded-lg bg-foreground/5 flex items-center justify-center">
@@ -613,8 +616,17 @@ export default function Dashboard() {
               {proximosVencimentos.map(item => {
                 const diasAte = Math.ceil((new Date(item.data_vencimento + 'T00:00:00').getTime() - Date.now()) / 86400000);
                 const dotColor = diasAte < 0 ? 'bg-destructive' : diasAte <= 2 ? 'bg-amber-500' : 'bg-green-500';
+                // UX-061 (12/05/2026): cada item navega pra ficha do cliente (aba Faturas).
+                // Antes era display puro — usuário via vencimento e tinha que ir manual ao cliente.
+                const clienteId = (item as any).cliente_id;
                 return (
-                  <div key={item.id} className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
+                  <div
+                    key={item.id}
+                    className={`flex items-center justify-between py-1.5 border-b border-border/50 last:border-0 -mx-2 px-2 rounded-md ${clienteId ? 'cursor-pointer hover:bg-muted/40 transition-colors' : ''}`}
+                    onClick={() => clienteId && navigate(`/clientes/${clienteId}`)}
+                    role={clienteId ? 'button' : undefined}
+                    tabIndex={clienteId ? 0 : undefined}
+                  >
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${dotColor}`} />
                       <div>
