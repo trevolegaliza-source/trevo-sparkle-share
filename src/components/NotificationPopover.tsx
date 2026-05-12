@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, CheckCircle, XCircle, CreditCard, AlertTriangle, FileText, ChevronRight } from 'lucide-react';
+import { Bell, CheckCircle, XCircle, CreditCard, AlertTriangle, FileText, ChevronRight, ShieldAlert } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 
 interface Notificacao {
   id: string;
-  tipo: 'aprovacao' | 'recusa' | 'assinatura' | 'cobranca' | 'pagamento';
+  tipo: 'aprovacao' | 'recusa' | 'assinatura' | 'cobranca' | 'pagamento' | 'login_novo';
   titulo: string;
   mensagem: string;
   lida: boolean;
@@ -39,6 +39,9 @@ function canSeeNotificacao(
   // Só master aprova usuário → não-master nunca vê.
   if (n.tipo === 'aprovacao' && !n.orcamento_id) return false;
 
+  // SEC-025: alerta de login novo é só pra master.
+  if (n.tipo === 'login_novo') return false;
+
   if (n.tipo === 'cobranca' || n.tipo === 'pagamento') return ctx.podeVerFinanceiro;
   if (n.tipo === 'aprovacao' || n.tipo === 'recusa' || n.tipo === 'assinatura') {
     return ctx.podeVerOrcamentos;
@@ -52,6 +55,7 @@ const iconMap = {
   assinatura: FileText,
   cobranca: AlertTriangle,
   pagamento: CreditCard,
+  login_novo: ShieldAlert,
 };
 
 const colorMap = {
@@ -60,6 +64,7 @@ const colorMap = {
   assinatura: 'text-blue-500',
   cobranca: 'text-amber-500',
   pagamento: 'text-violet-500',
+  login_novo: 'text-orange-500',
 };
 
 const bgMap = {
@@ -68,6 +73,7 @@ const bgMap = {
   assinatura: 'bg-blue-500/10',
   cobranca: 'bg-amber-500/10',
   pagamento: 'bg-violet-500/10',
+  login_novo: 'bg-orange-500/10',
 };
 
 export function NotificationPopover() {
@@ -142,7 +148,7 @@ export function NotificationPopover() {
 
             if (n.tipo === 'pagamento') {
               toast.success(n.titulo, { description: n.mensagem, duration: 8000 });
-            } else if (n.tipo === 'cobranca' || n.tipo === 'recusa') {
+            } else if (n.tipo === 'cobranca' || n.tipo === 'recusa' || n.tipo === 'login_novo') {
               toast.warning(n.titulo, { description: n.mensagem, duration: 8000 });
             } else {
               toast(n.titulo, { description: n.mensagem, duration: 6000 });
@@ -177,7 +183,11 @@ export function NotificationPopover() {
     marcarComoLida(n.id);
     // Rotear por tipo. Notificações de pagamento/cobrança vivem no /financeiro;
     // aprovação/recusa/assinatura vêm do fluxo de orçamento.
-    if (n.tipo === 'pagamento' || n.tipo === 'cobranca') {
+    if (n.tipo === 'login_novo') {
+      // SEC-025: leva pra Gestão de Usuários (lá master pode resetar 2FA
+      // se for login suspeito).
+      navigate('/configuracoes');
+    } else if (n.tipo === 'pagamento' || n.tipo === 'cobranca') {
       navigate('/financeiro');
     } else if (n.orcamento_id) {
       navigate(`/orcamentos/novo?id=${n.orcamento_id}`);

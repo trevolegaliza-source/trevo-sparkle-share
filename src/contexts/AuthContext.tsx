@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 import type { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -71,6 +71,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .from('profiles')
                 .update({ ultimo_acesso: new Date().toISOString() } as any)
                 .eq('id', session.user.id);
+
+              // SEC-025 (12/05/2026): registra login + alerta IP/device novo.
+              // Fire-and-forget: edge function compara com 30d e cria notif
+              // tipo `login_novo` se for algo diferente. Falha aqui não
+              // bloqueia o login.
+              fetch(`${SUPABASE_URL}/functions/v1/registrar-login`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${session.access_token}`,
+                  apikey: SUPABASE_PUBLISHABLE_KEY,
+                },
+              }).catch(err => console.warn('[Auth] registrar-login falhou:', err));
 
               // Se profile foi criado mas ainda inativo, notifica admins
               // (idempotente: notif só conta como nova se ainda não tiver)
