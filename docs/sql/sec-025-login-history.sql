@@ -13,10 +13,12 @@
 -- TODO: cleanup periodico de registros > 90 dias (sem cron por ora).
 -- =============================================
 
+-- Obs: empresa_id eh uuid sem FK (mesmo padrao das outras tabelas do
+-- projeto — `empresas` nao existe como tabela canonica em public).
 create table public.login_history (
   id          uuid        primary key default gen_random_uuid(),
   user_id     uuid        not null references auth.users(id) on delete cascade,
-  empresa_id  uuid        not null references public.empresas(id) on delete cascade,
+  empresa_id  uuid        not null,
   ip          text,
   ip_subnet   text,       -- /24 (ex: '123.45.67') pra comparacao tolerante a DHCP
   user_agent  text,
