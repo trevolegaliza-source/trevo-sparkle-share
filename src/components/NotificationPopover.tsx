@@ -10,10 +10,11 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getEmpresaId } from '@/lib/storage-path';
 import { usePermissions } from '@/hooks/usePermissions';
+import { canSeeNotificacao, type NotificacaoTipo } from '@/lib/notificacao-filter';
 
 interface Notificacao {
   id: string;
-  tipo: 'aprovacao' | 'recusa' | 'assinatura' | 'cobranca' | 'pagamento' | 'login_novo';
+  tipo: NotificacaoTipo;
   titulo: string;
   mensagem: string;
   lida: boolean;
@@ -21,33 +22,7 @@ interface Notificacao {
   created_at: string;
 }
 
-// SEC-019 (12/05/2026): tabela `notificacoes` não tem `destinatario_id` —
-// só `empresa_id`. RLS e realtime filtram por empresa, então gerente e
-// operacional viam notificações do master. Fix imediato: filtro por role
-// no client. Débito estrutural mapeado em SEC-020 (adicionar
-// `destinatario_id` + tabela `notificacao_leituras` per-user).
-//
-// AVISO: este filtro é cosmético — payload realtime ainda chega via
-// WebSocket pra todos da empresa. Não conta como controle de segurança.
-function canSeeNotificacao(
-  n: Pick<Notificacao, 'tipo' | 'orcamento_id'>,
-  ctx: { isMaster: boolean; podeVerFinanceiro: boolean; podeVerOrcamentos: boolean },
-): boolean {
-  if (ctx.isMaster) return true;
-
-  // "Novo usuário aguardando aprovação" usa tipo=aprovacao sem orcamento_id.
-  // Só master aprova usuário → não-master nunca vê.
-  if (n.tipo === 'aprovacao' && !n.orcamento_id) return false;
-
-  // SEC-025: alerta de login novo é só pra master.
-  if (n.tipo === 'login_novo') return false;
-
-  if (n.tipo === 'cobranca' || n.tipo === 'pagamento') return ctx.podeVerFinanceiro;
-  if (n.tipo === 'aprovacao' || n.tipo === 'recusa' || n.tipo === 'assinatura') {
-    return ctx.podeVerOrcamentos;
-  }
-  return false;
-}
+// SEC-019 / SEC-025 filtro extraído pra @/lib/notificacao-filter (testável).
 
 const iconMap = {
   aprovacao: CheckCircle,
