@@ -125,13 +125,13 @@ export default function ContasPagar() {
   useEffect(() => {
     if (!colaboradores || colaboradores.length === 0) return; // ainda carregando
     const ativos = colaboradores.filter((c: any) => c.status === 'ativo');
-    // Demanda Thales 04/05/2026 noite — incluir hash dos campos relevantes
-    // do colaborador no guard. Antes era só `${mês}-${ano}` → editar
-    // colaborador (mudar tipo_dia_salario, dia_salario etc.) não disparava
-    // re-cálculo dos pendentes. Agora qualquer mudança em campo que afeta
-    // verba dispara o auto-trigger.
+    // Hash de campos do colaborador que AFETAM verba. Antes incluía
+    // `updated_at` (audit-sprint-3.2 13/05 noite remove): qualquer edit em
+    // campo não-relacionado (telefone, observação) mudava updated_at →
+    // hash mudava → re-disparo desnecessário do auto-folha. Agora só
+    // re-dispara quando muda algo de fato relacionado a verba.
     const colabHash = ativos
-      .map((c: any) => [c.id, c.dia_salario, c.tipo_dia_salario, c.dia_adiantamento, c.dia_vt_vr, c.dia_das, c.salario_base, c.updated_at].join(':'))
+      .map((c: any) => [c.id, c.dia_salario, c.tipo_dia_salario, c.dia_adiantamento, c.dia_vt_vr, c.dia_das, c.salario_base].join(':'))
       .sort()
       .join('|');
     const key = `${viewMonth}-${viewYear}-${colabHash}`;
