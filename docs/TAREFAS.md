@@ -9,10 +9,10 @@
 
 ## ⏳ AÇÕES SUAS (Thales) — em aberto
 
-### Rodar SQL + deploy (SEC-020 — nova entrega de hoje à tarde)
-- 🟢 **Rodar** [`docs/sql/sec-020-notificacoes-destinatario.sql`](sql/sec-020-notificacoes-destinatario.sql) no Supabase SQL Editor
-- 🟢 **Deploy** `supabase functions deploy registrar-login --project-ref aahhauquuicvtwtrxyan`
-- 🟢 **Publish no Lovable** (sobe refactor UX Gestão de Usuários + canSeeNotificacao com destinatario_id)
+### ✅ SEC-020 entregue 13/05 noite (SQL + deploy edge function)
+- ✅ SQL `docs/sql/sec-020-notificacoes-destinatario.sql` rodado (coluna `destinatario_id` criada, RLS apertada, backfill aplicado)
+- ✅ Edge function `registrar-login` v3 deployada (caminho real: `edge-functions-deploy/`, não `trevo-sparkle-share/supabase/functions/`)
+- ⏳ **Publish no Lovable pendente** — sobe TUDO da noite: Fase 3 frontend tolerante, A11Y-003 sweep, INFRA-006, UX-023 doc, refactor UX Gestão Usuários (Bloco C), canSeeNotificacao com destinatario_id (Bloco C)
 
 ### Testes pendentes do que entrou hoje
 - 🧪 **Testar 1 extrato real** (REL-014 atomicidade) — gera extrato em cliente real, confere que extrato + cobrança pública nascem juntos
