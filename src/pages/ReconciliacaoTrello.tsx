@@ -56,37 +56,11 @@ function extractCodigo(name: string): string | null {
   return match ? match[1] : null;
 }
 
-// Inferir tipo de processo a partir do nome do card
-function inferirTipo(cardName: string): string {
-  const n = cardName
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase();
-  if (/\bABERTURA\b/.test(n)) return "abertura";
-  if (/\bALTERAC/.test(n)) return "alteracao";
-  if (/\bTRANSFORMAC/.test(n)) return "transformacao";
-  if (/\bENCERRAMENTO\b|\bBAIXA\b/.test(n)) return "baixa";
-  if (/\bAVULSO\b/.test(n)) return "avulso";
-  return "abertura";
-}
-
-// Limpa "CODIGO - " do início do nome do card
-function limparNomeCard(name: string): string {
-  return name.replace(/^\s*\d{6}\s*[-–—]\s*/, "").trim();
-}
-
 interface BoardMatch {
   board: BoardWithCards;
   codigoTrello: string | null;
   cliente: ClienteRow | null;
   matchType: "codigo" | "nome" | null;
-}
-
-interface CardMatch {
-  card: TrelloCard;
-  boardName: string;
-  cliente: ClienteRow | null;
-  processo: ProcessoRow | null;
 }
 
 export default function ReconciliacaoTrello() {
@@ -163,27 +137,6 @@ export default function ReconciliacaoTrello() {
     });
   }, [trelloData, clientes]);
 
-  // Cards (processos): matched boards → comparar cards com processos do cliente
-  const cardMatches: CardMatch[] = useMemo(() => {
-    const all: CardMatch[] = [];
-    for (const bm of boardMatches) {
-      if (!bm.cliente) continue;
-      const procsCliente = processos.filter((p) => p.cliente_id === bm.cliente!.id);
-      for (const card of bm.board.cards) {
-        const cardNorm = normalize(card.name);
-        const proc = procsCliente.find((p) => {
-          const procNorm = normalize(p.razao_social);
-          return (
-            (procNorm && (cardNorm.includes(procNorm) || procNorm.includes(cardNorm))) ||
-            cardNorm === procNorm
-          );
-        });
-        all.push({ card, boardName: bm.board.boardName, cliente: bm.cliente, processo: proc || null });
-      }
-    }
-    return all;
-  }, [boardMatches, processos]);
-
   // Categorização
   const noTrelloESistema = boardMatches.filter((b) => b.cliente !== null);
   const apenasNoTrello = boardMatches.filter((b) => b.cliente === null);
@@ -191,8 +144,9 @@ export default function ReconciliacaoTrello() {
   const clientesNoTrelloIds = new Set(noTrelloESistema.map((b) => b.cliente!.id));
   const apenasNoSistema = clientes.filter((c) => !clientesNoTrelloIds.has(c.id));
 
-  // Cards sem processo correspondente (board já tem cliente)
-  const cardsSemProcesso = cardMatches.filter((cm) => cm.processo === null);
+  // cardMatches/cardsSemProcesso removidos em 13/05/2026 noite (auditoria) —
+  // aba "Cards sem processo" deletada. Funções inferirTipo/limparNomeCard
+  // mantidas pq podem virar úteis depois pra fluxo de cadastro inline.
 
   // Filtros de busca
   const filtrar = <T extends { boardName?: string; cliente?: ClienteRow | null; nome?: string; card?: TrelloCard }>(arr: T[]): T[] => {
@@ -305,9 +259,8 @@ export default function ReconciliacaoTrello() {
             <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-500" />
             OK ({noTrelloESistema.length})
           </TabsTrigger>
-          <TabsTrigger value="cards-sem-processo">
-            Cards sem processo ({cardsSemProcesso.length})
-          </TabsTrigger>
+          {/* Aba "Cards sem processo" removida em 13/05/2026 noite (auditoria):
+              Thales nunca usa, cenário raro ou indicativo de falta de treinamento. */}
         </TabsList>
 
         <TabsContent value="falta-erp" className="space-y-2 mt-4">
@@ -386,42 +339,6 @@ export default function ReconciliacaoTrello() {
           ))}
         </TabsContent>
 
-        <TabsContent value="cards-sem-processo" className="space-y-2 mt-4">
-          <p className="text-xs text-muted-foreground">
-            Cards de boards já reconciliados, mas sem processo correspondente no ERP.
-          </p>
-          {filtrar(cardsSemProcesso).map((cm) => (
-            <Card key={cm.card.id} className="p-3 flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{cm.card.name}</div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {cm.cliente?.nome} · Board: {cm.boardName}
-                </div>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <Button asChild variant="outline" size="sm">
-                  <a href={cm.card.url} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </Button>
-                <Button asChild size="sm">
-                  <Link
-                    to={`/cadastro-rapido?${new URLSearchParams({
-                      cliente_codigo: cm.cliente!.codigo_identificador,
-                      razao_social: limparNomeCard(cm.card.name),
-                      tipo: inferirTipo(cm.card.name),
-                    }).toString()}`}
-                  >
-                    Cadastrar processo
-                  </Link>
-                </Button>
-              </div>
-            </Card>
-          ))}
-          {cardsSemProcesso.length === 0 && !loading && (
-            <p className="text-sm text-muted-foreground text-center py-8">Todos os cards têm processo. ✨</p>
-          )}
-        </TabsContent>
       </Tabs>
     </div>
   );
