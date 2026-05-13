@@ -1,7 +1,9 @@
 -- =============================================
--- DATA-001 + DATA-002 (13/05/2026): cartões multi-tenant + índices FK
+-- DATA-001 + DATA-002 (13/05/2026): cartoes multi-tenant + indices FK
 -- =============================================
--- PERM-008 estava em backlog há tempo — RLS de cartoes/cartao_compras/
+-- ATENCAO: contem fix critico. Rodar com prioridade alta no SQL Editor.
+--
+-- PERM-008 estava em backlog ha tempo — RLS de cartoes/cartao_compras/
 -- cartao_faturas com `qual='true'` (libera tudo pra qualquer authenticated).
 -- Hoje com 1 empresa o risco é zero, mas se entrar uma 2ª empresa, vazamento
 -- total de dados financeiros sobre cartões.
