@@ -23,16 +23,13 @@ import { Search, Plus, DollarSign, Trash2, BookOpen, Loader2, Save, ArrowLeft, A
 import { Switch } from '@/components/ui/switch';
 import {
   useServicos,
-  usePrecosUF,
   useCreateServico,
   useUpdateServico,
   useDeleteServico,
-  useUpsertPrecoUF,
   CATEGORIAS_SERVICO,
   type ServicosCatalogo,
 } from '@/hooks/useCatalogo';
 import { CATALOG_HIERARCHY, type HierarchyGroup, type HierarchyChild } from '@/constants/catalogo-hierarchy';
-import { UFS_BRASIL, UF_NOMES } from '@/constants/estados-brasil';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -94,7 +91,6 @@ export default function Catalogo() {
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [servicoModal, setServicoModal] = useState<ServicosCatalogo | null>(null);
-  const [precosServicoId, setPrecosServicoId] = useState<string | null>(null);
   const [animKey, setAnimKey] = useState(0);
   const [adminMode, setAdminMode] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -180,8 +176,6 @@ export default function Catalogo() {
     }
     return crumbs;
   }, [path, currentGroup, currentChild, level3Service]);
-
-  const precosServico = servicos.find(s => s.id === precosServicoId);
 
   return (
     <div className="space-y-6">
@@ -286,7 +280,6 @@ export default function Catalogo() {
           service={level3Service}
           adminMode={adminMode}
           onBack={() => navigate(path.slice(0, -1))}
-          onPrecos={() => setPrecosServicoId(level3Service.id)}
           onDelete={() => handleDeleteServico(level3Service.id)}
         />
       ) : level2Categories ? (
@@ -297,7 +290,6 @@ export default function Catalogo() {
           onSelectService={(s) => navigate([...path, s.id])}
           onBack={() => navigate(path.slice(0, -1))}
           onEditService={(s) => setServicoModal(s)}
-          onPrecosService={(s) => setPrecosServicoId(s.id)}
           onDeleteService={(s) => handleDeleteServico(s.id)}
         />
       ) : currentGroup?.children ? (
@@ -328,13 +320,9 @@ export default function Catalogo() {
         servico={servicoModal}
         onClose={() => { setShowCreate(false); setServicoModal(null); }}
       />
-      {precosServicoId && precosServico && (
-        <PrecosUFModal
-          servicoId={precosServicoId}
-          servicoNome={precosServico.nome}
-          onClose={() => setPrecosServicoId(null)}
-        />
-      )}
+      {/* PrecosUFModal removido em 13/05/2026 noite (auditoria): Thales nao usa
+          precos por UF (catalogo_precos_uf tinha 0 registros), feature foi nunca
+          adotada. Tabela mantida no banco pra reversibilidade. */}
 
       <AlertDialog open={!!pendingDeleteId} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
         <AlertDialogContent>
@@ -466,7 +454,6 @@ function Level2View({
   onSelectService,
   onBack,
   onEditService,
-  onPrecosService,
   onDeleteService,
 }: {
   services: ServicosCatalogo[];
@@ -474,7 +461,6 @@ function Level2View({
   onSelectService: (s: ServicosCatalogo) => void;
   onBack: () => void;
   onEditService: (s: ServicosCatalogo) => void;
-  onPrecosService: (s: ServicosCatalogo) => void;
   onDeleteService: (s: ServicosCatalogo) => void;
 }) {
   return (
@@ -510,13 +496,6 @@ function Level2View({
                         title="Editar"
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => onPrecosService(s)}
-                        className="p-1.5 rounded-lg bg-foreground/5 hover:bg-emerald-500/20 text-muted-foreground hover:text-emerald-400 transition-all"
-                        title="Preços por UF"
-                      >
-                        <DollarSign className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => onDeleteService(s)}
@@ -561,16 +540,13 @@ function ServiceDetailView({
   service,
   adminMode,
   onBack,
-  onPrecos,
   onDelete,
 }: {
   service: ServicosCatalogo;
   adminMode: boolean;
   onBack: () => void;
-  onPrecos: () => void;
   onDelete: () => void;
 }) {
-  const { data: precos = [], isLoading: loadingPrecos } = usePrecosUF(service.id);
   const updateMut = useUpdateServico();
   const catLabel = CATEGORIAS_SERVICO.find(c => c.value === service.categoria)?.label || service.categoria;
 
@@ -600,8 +576,6 @@ function ServiceDetailView({
       },
     });
   }
-
-  const precosPreenchidos = precos.filter(p => p.honorario_trevo > 0 || p.taxa_orgao > 0);
 
   return (
     <div className="space-y-6 catalog-enter max-w-4xl">
@@ -677,63 +651,16 @@ function ServiceDetailView({
             <Button variant="destructive" size="sm" onClick={onDelete}>
               <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir Serviço
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={onPrecos}>
-                <DollarSign className="h-3.5 w-3.5 mr-1" /> Gerenciar Preços por UF
-              </Button>
-              <Button size="sm" onClick={handleSaveEdit} disabled={updateMut.isPending} className="bg-emerald-600 hover:bg-emerald-700">
-                {updateMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
-                Salvar Alterações
-              </Button>
-            </div>
+            <Button size="sm" onClick={handleSaveEdit} disabled={updateMut.isPending} className="bg-emerald-600 hover:bg-emerald-700">
+              {updateMut.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+              Salvar Alterações
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Tabela de preços por UF */}
-      <div className="glass-card-inner p-6 space-y-4">
-        <h3 className="font-semibold text-sm flex items-center gap-2">
-          <DollarSign className="h-4 w-4" /> Preços por UF
-        </h3>
-        {loadingPrecos ? (
-          <p className="text-xs text-muted-foreground">Carregando preços...</p>
-        ) : precosPreenchidos.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground">Nenhum preço cadastrado ainda.</p>
-            {adminMode && (
-              <Button variant="outline" size="sm" className="mt-3" onClick={onPrecos}>
-                <DollarSign className="h-3.5 w-3.5 mr-1" /> Cadastrar Preços
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-white/5 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/[0.02]">
-                  <th className="text-left p-2.5 font-medium text-xs">UF</th>
-                  <th className="text-right p-2.5 font-medium text-xs">Honorário</th>
-                  <th className="text-right p-2.5 font-medium text-xs">Taxa Órgão</th>
-                  <th className="text-right p-2.5 font-medium text-xs">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {precosPreenchidos.map(p => (
-                  <tr key={p.uf} className="border-b border-white/5 last:border-0">
-                    <td className="p-2.5">
-                      <span className="font-medium">{p.uf}</span>
-                      <span className="text-xs text-muted-foreground ml-1.5">{UF_NOMES[p.uf]}</span>
-                    </td>
-                    <td className="p-2.5 text-right text-xs">{fmt(p.honorario_trevo)}</td>
-                    <td className="p-2.5 text-right text-xs">{fmt(p.taxa_orgao)}</td>
-                    <td className="p-2.5 text-right text-xs font-medium">{fmt(p.honorario_trevo + p.taxa_orgao)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* Tabela "Preços por UF" removida em 13/05/2026 noite (auditoria):
+          catalogo_precos_uf vazio em prod, Thales nunca usou. */}
     </div>
   );
 }
@@ -916,158 +843,5 @@ function ServicoFormModal({ open, servico, onClose }: { open: boolean; servico: 
   );
 }
 
-// ═══════════ MODAL PREÇOS POR UF (INALTERADO) ═══════════
-function PrecosUFModal({ servicoId, servicoNome, onClose }: { servicoId: string; servicoNome: string; onClose: () => void }) {
-  const { data: precos = [], isLoading } = usePrecosUF(servicoId);
-  const upsertMut = useUpsertPrecoUF();
-
-  const [formData, setFormData] = useState<Record<string, { honorario: string; taxa: string; obs: string }>>({});
-  const [initialized, setInitialized] = useState(false);
-
-  if (!isLoading && !initialized) {
-    const initial: typeof formData = {};
-    for (const uf of UFS_BRASIL) {
-      const existing = precos.find(p => p.uf === uf);
-      initial[uf] = {
-        honorario: existing ? String(existing.honorario_trevo) : '',
-        taxa: existing ? String(existing.taxa_orgao) : '',
-        obs: existing?.observacoes || '',
-      };
-    }
-    setFormData(initial);
-    setInitialized(true);
-  }
-
-  function updateField(uf: string, field: 'honorario' | 'taxa' | 'obs', value: string) {
-    setFormData(prev => ({
-      ...prev,
-      [uf]: { ...prev[uf], [field]: value },
-    }));
-  }
-
-  async function handleSaveAll() {
-    // audit-sprint-3.7 (13/05/2026 noite): antes loop sequencial sem error
-    // handling — primeira falha interrompia silenciosamente, deixando metade
-    // dos UFs salvos. Agora paraleliza + reporta sucessos/erros.
-    const payloads = UFS_BRASIL
-      .map((uf) => {
-        const d = formData[uf];
-        if (!d) return null;
-        const hon = parseFloat(d.honorario) || 0;
-        const taxa = parseFloat(d.taxa) || 0;
-        if (hon === 0 && taxa === 0 && !d.obs) return null;
-        return {
-          servico_id: servicoId,
-          uf,
-          honorario_trevo: hon,
-          taxa_orgao: taxa,
-          observacoes: d.obs || undefined,
-        };
-      })
-      .filter((p): p is NonNullable<typeof p> => p !== null);
-
-    if (payloads.length === 0) {
-      toast.info('Nenhum preço preenchido para salvar.');
-      return;
-    }
-
-    const results = await Promise.allSettled(
-      payloads.map((p) => upsertMut.mutateAsync(p))
-    );
-    const ok = results.filter((r) => r.status === 'fulfilled').length;
-    const fail = results.length - ok;
-    if (fail === 0) {
-      toast.success(`${ok} UF(s) salvo(s).`);
-    } else {
-      toast.error(`${ok} salvo(s), ${fail} falharam. Tente novamente.`);
-    }
-  }
-
-  return (
-    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" /> Preços — {servicoNome}
-          </DialogTitle>
-        </DialogHeader>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">Carregando preços...</div>
-        ) : (
-          <ScrollArea className="flex-1 -mx-6 px-6">
-            <div className="rounded-lg border">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-background z-10">
-                  <tr className="border-b bg-muted/40">
-                    <th className="text-left p-2 font-medium w-24">UF</th>
-                    <th className="text-left p-2 font-medium">Honorário (R$)</th>
-                    <th className="text-left p-2 font-medium">Taxa Órgão (R$)</th>
-                    <th className="text-right p-2 font-medium w-28">Total</th>
-                    <th className="text-left p-2 font-medium">Obs.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {UFS_BRASIL.map(uf => {
-                    const d = formData[uf] || { honorario: '', taxa: '', obs: '' };
-                    const total = (parseFloat(d.honorario) || 0) + (parseFloat(d.taxa) || 0);
-                    return (
-                      <tr key={uf} className="border-b last:border-0 hover:bg-muted/10">
-                        <td className="p-2">
-                          <span className="font-medium">{uf}</span>
-                          <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">{UF_NOMES[uf]}</span>
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0,00"
-                            value={d.honorario}
-                            onChange={e => updateField(uf, 'honorario', e.target.value)}
-                            className="h-8 w-28"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0,00"
-                            value={d.taxa}
-                            onChange={e => updateField(uf, 'taxa', e.target.value)}
-                            className="h-8 w-28"
-                          />
-                        </td>
-                        <td className="p-2 text-right font-medium text-muted-foreground">
-                          {total > 0 ? fmt(total) : '—'}
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            placeholder="Observações"
-                            value={d.obs}
-                            onChange={e => updateField(uf, 'obs', e.target.value)}
-                            className="h-8"
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </ScrollArea>
-        )}
-
-        <Separator />
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Fechar</Button>
-          <Button onClick={handleSaveAll} disabled={upsertMut.isPending}>
-            {upsertMut.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-            Salvar Todos
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// Modal PrecosUFModal removido em 13/05/2026 noite (auditoria) — Thales nao
+// usa precos por UF. Tabela catalogo_precos_uf mantida no banco (0 registros).
