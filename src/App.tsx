@@ -26,8 +26,6 @@ const CadastroRapido = lazy(() => import("./pages/CadastroRapido"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
 const OrcamentoNovo = lazy(() => import("./pages/OrcamentoNovo"));
-const InteligenciaGeografica = lazy(() => import("./pages/InteligenciaGeografica"));
-const EstadoDetalhe = lazy(() => import("./pages/EstadoDetalhe"));
 const Catalogo = lazy(() => import("./pages/Catalogo"));
 const RelatoriosDRE = lazy(() => import("./pages/RelatoriosDRE"));
 const RelatoriosFluxoCaixa = lazy(() => import("./pages/RelatoriosFluxoCaixa"));
@@ -139,16 +137,10 @@ const App = () => (
                   } />
                   {/* Rota /documentos removida em 13/05/2026 noite — feature
                       sem uso (0 registros) confirmado na auditoria. */}
-                  <Route path="/inteligencia-geografica" element={
-                    <RequirePermission modulo="intel_geografica">
-                      <InteligenciaGeografica />
-                    </RequirePermission>
-                  } />
-                  <Route path="/inteligencia-geografica/:uf" element={
-                    <RequirePermission modulo="intel_geografica">
-                      <EstadoDetalhe />
-                    </RequirePermission>
-                  } />
+                  {/* Rotas /inteligencia-geografica removidas em 13/05/2026 noite
+                      (auditoria): Thales nunca usou — CRM territorial com mapa
+                      Brasil pra ERP que serve só SP. Tabelas contatos_estado,
+                      notas_estado, ratings continuam no banco. */}
                   <Route path="/catalogo" element={
                     <RequirePermission modulo="catalogo">
                       <Catalogo />

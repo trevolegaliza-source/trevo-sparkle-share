@@ -24,8 +24,6 @@ const MODULES_PRIORITY = [
   { mod: 'financeiro',      path: '/financeiro' },
   { mod: 'contas_pagar',    path: '/contas-pagar' },
   { mod: 'colaboradores',   path: '/colaboradores' },
-  { mod: 'documentos',      path: '/documentos' },
-  { mod: 'intel_geografica',path: '/inteligencia-geografica' },
   { mod: 'configuracoes',   path: '/configuracoes' },
 ];
 
