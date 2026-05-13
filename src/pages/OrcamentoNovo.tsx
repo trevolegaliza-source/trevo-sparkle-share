@@ -81,9 +81,12 @@ export default function OrcamentoNovo() {
   const [form, setForm] = useState<OrcamentoForm>(defaultForm());
   const [orcamentoId, setOrcamentoId] = useState<string | null>(editId);
   const [orcamentoNumero, setOrcamentoNumero] = useState<number>(0);
+  // Sprint autônoma 13/05 noite: status + share_token agora live na tela
+  // pra eliminar fluxo de 3 telas. Carregado em edit/duplicate, atualizado
+  // ao salvar, exibido em badge + dropdown de mudança direta.
+  const [orcamentoStatus, setOrcamentoStatus] = useState<string>('rascunho');
+  const [shareToken, setShareToken] = useState<string | null>(null);
   const [pacotesOpen, setPacotesOpen] = useState(false);
-  // States cenariosOpen/fluxoOpen/riscosOpen/beneficiosOpen removidos em
-  // 13/05/2026 noite (Sprint 2.A.1): seções correspondentes deletadas do form.
   const saveMutation = useSaveOrcamento();
   const { pdfs, salvarPDF } = useOrcamentoPDFs(orcamentoId);
   const [gerando, setGerando] = useState(false);
@@ -107,6 +110,8 @@ export default function OrcamentoNovo() {
       if (!data) return;
       const orc = data as unknown as Orcamento & { contexto?: string; pacotes?: any; secoes?: any; destinatario?: string };
       setOrcamentoNumero(orc.numero);
+      setOrcamentoStatus(orc.status || 'rascunho');
+      setShareToken(orc.share_token || null);
 
       let itens: OrcamentoItem[] = [];
       try {
@@ -312,9 +317,50 @@ export default function OrcamentoNovo() {
       if (orcamentoId) payload.id = orcamentoId;
       const id = await saveMutation.mutateAsync(payload);
       setOrcamentoId(id);
-      toast.success(status === 'enviado' ? 'Proposta salva e pronta!' : 'Rascunho salvo!');
+      setOrcamentoStatus(status);
+      // Buscar share_token se acabou de criar (insert)
+      if (!shareToken) {
+        const { data } = await supabase.from('orcamentos').select('share_token').eq('id', id).single();
+        if (data?.share_token) setShareToken(data.share_token);
+      }
+      const msg: Record<string, string> = {
+        rascunho: 'Rascunho salvo!',
+        enviado: 'Proposta enviada! Link público pronto.',
+        aprovado: 'Marcado como aprovado.',
+        aguardando_pagamento: 'Marcado como aguardando pagamento.',
+        recusado: 'Marcado como recusado.',
+      };
+      toast.success(msg[status] || 'Salvo!');
     } catch (err: any) {
       toast.error('Erro ao salvar: ' + (err.message || ''));
+    }
+  }
+
+  // Sprint autônoma 13/05 noite: muda status SEM passar pelo flow de buildPayload
+  // (que reescreve tudo). Útil pra transições rápidas (rascunho→enviado, etc).
+  async function handleChangeStatus(novoStatus: string) {
+    if (!orcamentoId) {
+      toast.error('Salve o orçamento antes de mudar status.');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('orcamentos')
+        .update({ status: novoStatus, updated_at: new Date().toISOString() } as any)
+        .eq('id', orcamentoId);
+      if (error) throw error;
+      setOrcamentoStatus(novoStatus);
+      const labels: Record<string, string> = {
+        rascunho: '✏️ Rascunho',
+        enviado: '📤 Enviado',
+        aprovado: '✅ Aprovado',
+        aguardando_pagamento: '⏳ Aguardando Pagamento',
+        recusado: '❌ Recusado',
+        convertido: '🎉 Convertido',
+      };
+      toast.success(`Status alterado: ${labels[novoStatus] || novoStatus}`);
+    } catch (err: any) {
+      toast.error('Erro ao mudar status: ' + (err.message || ''));
     }
   }
 
@@ -406,34 +452,27 @@ export default function OrcamentoNovo() {
     }
   }
 
-  function handleCopyLink() {
-    if (!orcamentoId) {
+  async function handleCopyLink() {
+    if (!shareToken) {
       toast.error('Salve o orçamento primeiro para gerar o link.');
       return;
     }
-    (async () => {
-      const { data } = await supabase
-        .from('orcamentos')
-        .select('share_token, senha_link')
-        .eq('id', orcamentoId)
-        .single();
+    const url = `https://app.trevolegaliza.com/proposta/${shareToken}`;
+    await navigator.clipboard.writeText(url);
 
-      if (!data || !(data as any).share_token) {
-        toast.error('Token não encontrado. Salve o orçamento novamente.');
-        return;
-      }
+    // Avisos extras: status precisa ser 'enviado' ou superior pro link funcionar.
+    if (orcamentoStatus === 'rascunho') {
+      toast.warning('Link copiado, mas orçamento ainda é RASCUNHO. Cliente vai ver 404. Clica "Salvar e Enviar" antes.', { duration: 8000 });
+      return;
+    }
 
-      const url = `https://app.trevolegaliza.com/proposta/${(data as any).share_token}`;
-      navigator.clipboard.writeText(url);
-
-      if (form.destinatario === 'contador' && (form as any).senha_link) {
-        toast.success(`Link copiado! Senha: ${(form as any).senha_link}`);
-      } else if (form.destinatario === 'contador') {
-        toast.success('Link copiado! ⚠️ Sem senha definida.');
-      } else {
-        toast.success('Link copiado!');
-      }
-    })();
+    if (form.destinatario === 'contador' && (form as any).senha_link) {
+      toast.success(`Link copiado! Senha: ${(form as any).senha_link}`);
+    } else if (form.destinatario === 'contador') {
+      toast.success('Link copiado! ⚠️ Sem senha definida.');
+    } else {
+      toast.success('Link copiado!');
+    }
   }
 
   function handleDuplicate() {
@@ -514,22 +553,63 @@ export default function OrcamentoNovo() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Status atual visível — sempre. Sprint autônoma 13/05 noite: antes
+              status só aparecia em /orcamentos (lista) — tu precisava sair da tela. */}
+          {orcamentoId && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50 border border-border">
+              <span className="text-xs text-muted-foreground">Status:</span>
+              <Badge variant={
+                orcamentoStatus === 'rascunho' ? 'outline' :
+                orcamentoStatus === 'enviado' ? 'default' :
+                orcamentoStatus === 'recusado' ? 'destructive' :
+                'default'
+              } className="text-xs">
+                {orcamentoStatus === 'rascunho' && '✏️ Rascunho'}
+                {orcamentoStatus === 'enviado' && '📤 Enviado'}
+                {orcamentoStatus === 'aprovado' && '✅ Aprovado'}
+                {orcamentoStatus === 'aguardando_pagamento' && '⏳ Aguardando Pagamento'}
+                {orcamentoStatus === 'convertido' && '🎉 Convertido'}
+                {orcamentoStatus === 'recusado' && '❌ Recusado'}
+              </Badge>
+            </div>
+          )}
+
           <Button variant="outline" size="sm" onClick={() => handleSave('rascunho')} disabled={saveMutation.isPending}>
             <Save className="h-4 w-4 mr-1" /> Salvar Rascunho
           </Button>
-          {/* Fix 1 (13/05/2026 noite): botao "Salvar e Enviar" elimina o fluxo de
-              3 telas (criar > voltar lista > marcar enviado). Salva direto como
-              enviado, libera link publico imediatamente. */}
-          <Button size="sm" onClick={() => handleSave('enviado')} disabled={saveMutation.isPending} className="bg-primary hover:bg-primary/90">
-            <Save className="h-4 w-4 mr-1" /> Salvar e Enviar
-          </Button>
+
+          {/* Salvar e Enviar — só faz sentido se ainda for rascunho. */}
+          {(orcamentoStatus === 'rascunho' || !orcamentoId) && (
+            <Button size="sm" onClick={() => handleSave('enviado')} disabled={saveMutation.isPending} className="bg-primary hover:bg-primary/90">
+              <Save className="h-4 w-4 mr-1" /> Salvar e Enviar
+            </Button>
+          )}
+
+          {/* Mudança rápida de status pós-envio — sem voltar pra lista */}
+          {orcamentoId && orcamentoStatus !== 'rascunho' && orcamentoStatus !== 'convertido' && (
+            <Select value="" onValueChange={(v) => v && handleChangeStatus(v)}>
+              <SelectTrigger className="h-9 w-44 text-xs">
+                <SelectValue placeholder="Mudar status →" />
+              </SelectTrigger>
+              <SelectContent>
+                {orcamentoStatus !== 'rascunho' && <SelectItem value="rascunho">✏️ Voltar pra Rascunho</SelectItem>}
+                {orcamentoStatus !== 'enviado' && <SelectItem value="enviado">📤 Marcar como Enviado</SelectItem>}
+                {orcamentoStatus !== 'aprovado' && <SelectItem value="aprovado">✅ Marcar Aprovado</SelectItem>}
+                {orcamentoStatus !== 'aguardando_pagamento' && <SelectItem value="aguardando_pagamento">⏳ Aguardando Pagamento</SelectItem>}
+                {orcamentoStatus !== 'recusado' && <SelectItem value="recusado">❌ Marcar Recusado</SelectItem>}
+              </SelectContent>
+            </Select>
+          )}
+
           {orcamentoId && (
             <Button variant="outline" size="sm" onClick={handleDuplicate}>
               <Copy className="h-4 w-4 mr-1" /> Duplicar
             </Button>
           )}
-          {orcamentoId && form.destinatario !== 'cliente_via_contador' && (
+
+          {/* Copiar Link — sempre disponível se tem share_token (mesmo rascunho avisa) */}
+          {shareToken && form.destinatario !== 'cliente_via_contador' && (
             <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-1">
               <LinkIcon className="h-4 w-4" /> Copiar Link
             </Button>
