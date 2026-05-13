@@ -104,7 +104,7 @@ Leitor de tela agora anuncia ação ao invés de "botão".
 | ID | O que |
 |---|---|
 | ~~UX-004~~ | ✅ AlertDialogs já 100% com Description (varredura 13/05 noite — nenhum sem) |
-| UX-023 | Cliente PRÉ-PAGO — **maior do que parecia** (13/05 noite): tabela `prepago_movimentacoes` existe (id, cliente_id, tipo, valor, saldo_anterior, saldo_posterior, descricao, processo_id, created_at, empresa_id) mas está VAZIA (0 linhas). Fluxo atual é UPDATE direto em `clientes.saldo_prepago` (vide HANDOFF). Pra resolver de verdade: (A) UI no ClienteDetalhe lendo a tabela, (B) RPC atômica `registrar_movimentacao_prepago` com tenant check, (C) migrar fluxo edit cadastro pra usar a RPC. **Pendente decisão Thales** — toca dinheiro, não atacar sozinho. |
+| UX-023 | Cliente PRÉ-PAGO — **descoberta 13/05 noite**: feature JÁ ESTÁ TODA IMPLEMENTADA (`PrepagoTab`, `RecargaModal`, `useRegistrarRecarga` atômica, PDF, tabela de extrato). Tabela vazia porque Thales nunca usou o botão "Nova Recarga" — recargas vão pelo form de Edit Cadastro que faz UPDATE direto sem registrar movimentação. **Bug real**: campo `saldo_prepago` editável no Edit Cadastro bypassa o registro. **Pendente decisão**: (A) tornar campo readonly forçando usar botão, ou (B) ao salvar Edit com saldo diferente, criar movimentação tipo `ajuste_manual`. |
 | ~~INFRA-002~~ | ✅ Já documentado no README (13/05 noite — varredura) |
 | INFRA-005 | Avaliar D3 → Leaflet (60KB → 14KB) — **refactor visual, esperar Thales validar** |
 | ~~INFRA-006~~ | ✅ Limpeza tailwind.config: `fade-in` e `scale-in` keyframes não usadas removidas. `tailwindcss-animate` plugin mantido (Radix usa `animate-in`/`animate-out`). |
@@ -124,6 +124,10 @@ Leitor de tela agora anuncia ação ao invés de "botão".
 ### 13/05/2026 (noite)
 - ✅ **DECISION-001 Fase 3 + Fase 4 antecipada**: etapa binária no banco + Processos.tsx deletada (vide acima)
 - ✅ **A11Y-003 sweep completo**: 35 buttons icon-only ganharam aria-label (vide acima)
+- ✅ **UX-004**: AlertDialogs já 100% com Description (varredura confirmou)
+- ✅ **INFRA-002**: README já documenta `build` vs `build:dev`
+- ✅ **INFRA-006**: tailwind.config limpo (fade-in/scale-in keyframes não usadas removidas)
+- 🔍 **UX-023 mapeado**: feature ja totalmente implementada (PrepagoTab + RecargaModal + RPC mutation). Bug real é bypass via Edit Cadastro — decisao Thales (A/B acima)
 
 ### 13/05/2026 (manhã + tarde)
 - 🚨 **SEC-028 (CRÍTICO)**: vulnerabilidade NULL bypass em 4 funções (`set_master_password_hash`, `marcar_deferimento`, `desfazer_deferimento`, `promover_lancamento_ao_deferir`) + REVOKE EXECUTE de anon em 30+ funções
