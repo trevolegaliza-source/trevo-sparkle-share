@@ -208,7 +208,7 @@ export function useProcessosParados() {
       const { data } = await supabase
         .from('processos')
         .select('*, cliente:clientes(nome, apelido)')
-        .not('etapa', 'in', '("finalizados","arquivo")')
+        .not('etapa', 'in', '("finalizado","finalizados","arquivo","concluido")')
         .neq('is_archived', true)
         .order('updated_at', { ascending: true })
         .limit(50);

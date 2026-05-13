@@ -7,7 +7,7 @@ export function useSidebarCounts() {
     queryFn: async () => {
       const [processosRes, financeiroRes, docsRes, orcamentosRes] = await Promise.all([
         supabase.from('processos').select('id', { count: 'exact', head: true })
-          .not('etapa', 'in', '("finalizados","arquivo")')
+          .not('etapa', 'in', '("finalizado","finalizados","arquivo","concluido")')
           .neq('is_archived', true),
         supabase.from('lancamentos').select('id', { count: 'exact', head: true })
           .eq('tipo', 'receber').in('status', ['pendente', 'atrasado']),

@@ -6,6 +6,7 @@ import { getNomeUsuario, getSaudacao } from '@/hooks/useDashboard';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { gerarRelatorioMensal } from '@/lib/relatorio-mensal-pdf';
+import { isProcessoFinalizado } from '@/types/process';
 import { Card } from '@/components/ui/card';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Input } from '@/components/ui/input';
@@ -68,7 +69,7 @@ export default function Dashboard() {
     if (podeVer('dashboard')) return;
     const modules = [
       { mod: 'cadastro_rapido', path: '/cadastro-rapido' },
-      { mod: 'processos', path: '/processos' },
+      { mod: 'processos', path: '/processos-ativos' },
       { mod: 'clientes', path: '/clientes' },
       { mod: 'orcamentos', path: '/orcamentos' },
       { mod: 'financeiro', path: '/financeiro' },
@@ -135,7 +136,7 @@ export default function Dashboard() {
       ? Math.round((totalFaturado - totalFatAnt) / totalFatAnt * 100)
       : totalFaturado > 0 ? 100 : 0;
 
-    const processosAtivos = processos.filter(p => !['finalizados', 'arquivo'].includes(p.etapa)).length;
+    const processosAtivos = processos.filter(p => !isProcessoFinalizado(p.etapa)).length;
     const seteDiasAtras = new Date(); seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
     const processosNovos = processos.filter(p => new Date(p.created_at || '') >= seteDiasAtras).length;
 
@@ -176,7 +177,7 @@ export default function Dashboard() {
 
     const parados = processos.filter(p => {
       const dias = Math.floor((Date.now() - new Date(p.updated_at || p.created_at || '').getTime()) / 86400000);
-      return dias >= 7 && !['finalizados', 'arquivo'].includes(p.etapa);
+      return dias >= 7 && !isProcessoFinalizado(p.etapa);
     });
 
     // Auditoria pendente alert
@@ -195,7 +196,7 @@ export default function Dashboard() {
     }
 
     if (parados.length > 0) {
-      alertas.push({ id: 'parados', titulo: `${parados.length} processos parados`, descricao: 'Sem movimentação há 7+ dias', severity: 'info', icon: PauseCircle, link: '/processos' });
+      alertas.push({ id: 'parados', titulo: `${parados.length} processos parados`, descricao: 'Sem movimentação há 7+ dias', severity: 'info', icon: PauseCircle, link: '/processos-ativos' });
     }
 
     // Contas a pagar alerts
@@ -232,14 +233,6 @@ export default function Dashboard() {
         link: `/clientes/${m.id}`,
       });
     }
-
-    const fases = [
-      { id: 'entrada', nome: 'Entrada', etapas: ['recebidos', 'analise_documental'], cor: 'bg-blue-500' },
-      { id: 'andamento', nome: 'Em andamento', etapas: ['contrato', 'viabilidade', 'dbe', 'vre', 'em_analise'], cor: 'bg-teal-500' },
-      { id: 'pendencias', nome: 'Pendências', etapas: ['aguardando_pagamento', 'taxa_paga', 'assinaturas', 'assinado'], cor: 'bg-amber-500' },
-      { id: 'finalizacao', nome: 'Finalização', etapas: ['registro', 'mat', 'inscricao_me', 'alvaras', 'conselho'], cor: 'bg-purple-500' },
-      { id: 'concluido', nome: 'Concluídos', etapas: ['finalizados'], cor: 'bg-green-500' },
-    ].map(f => ({ ...f, qtd: processos.filter(p => f.etapas.includes(p.etapa)).length }));
 
     // Gráfico 6 meses
     const dadosMensais: { mes: string; recebido: number; pendente: number; vencido: number; total: number }[] = [];
@@ -290,7 +283,7 @@ export default function Dashboard() {
     return {
       totalFaturado, totalRecebido, totalPendente, taxaRecebimento, variacaoReceita,
       processosAtivos, processosNovos,
-      alertas, fases, dadosMensais, topClientes,
+      alertas, dadosMensais, topClientes,
       proximosVencimentos: proximosVencimentos.map(v => ({
         ...v,
         cliente_nome: (v.clientes as any)?.nome || '—',
@@ -332,8 +325,7 @@ export default function Dashboard() {
     );
   }
 
-  const { alertas, fases, dadosMensais, topClientes, proximosVencimentos, variacaoReceita, taxaRecebimento, processosNovos } = calc;
-  const totalPipeline = fases.reduce((s, f) => s + f.qtd, 0);
+  const { alertas, dadosMensais, topClientes, proximosVencimentos, variacaoReceita, taxaRecebimento, processosNovos } = calc;
 
   return (
     <div className="space-y-6">
@@ -420,7 +412,7 @@ export default function Dashboard() {
         )}
 
         {/* Processos Ativos */}
-        <GlassCard variant="service" glowColor="rgba(59, 130, 246, 0.12)" onClick={() => navigate('/processos')}>
+        <GlassCard variant="service" glowColor="rgba(59, 130, 246, 0.12)" onClick={() => navigate('/processos-ativos')}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-muted-foreground uppercase tracking-wider">Processos ativos</span>
             <div className="h-8 w-8 rounded-lg bg-foreground/5 flex items-center justify-center">
@@ -520,33 +512,9 @@ export default function Dashboard() {
         })()}
       </div>
 
-      {/* SEÇÃO 3: Pipeline */}
-      {totalPipeline > 0 && (
-        <div className="space-y-3 dashboard-section">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pipeline de processos</h3>
-          <div className="flex gap-0.5 h-8 rounded-lg overflow-hidden">
-            {fases.filter(f => f.qtd > 0).map(fase => (
-              <div
-                key={fase.id}
-                className={`flex items-center justify-center cursor-pointer transition-opacity hover:opacity-80 ${fase.cor}`}
-                style={{ flex: fase.qtd }}
-                onClick={() => navigate('/processos')}
-                title={`${fase.nome}: ${fase.qtd}`}
-              >
-                <span className="text-[10px] font-bold text-foreground drop-shadow-sm">{fase.qtd}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {fases.map(fase => (
-              <span key={fase.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <div className={`w-2 h-2 rounded-full ${fase.cor}`} />
-                {fase.nome} ({fase.qtd})
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* SEÇÃO 3 (Pipeline) removida em DECISION-001 Fase 3 (13/05/2026 noite):
+          etapa virou binária no banco — gráfico de 5 fatias agrupando 18 etapas
+          perdeu sentido. Quantidade de ativos já aparece no cabeçalho. */}
 
       {/* SEÇÃO 4: Gráfico de Receita - only for financeiro */}
       {podeVer('financeiro') && (

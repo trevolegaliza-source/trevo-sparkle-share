@@ -51,7 +51,7 @@ export function CommandPalette() {
 
       const [processosRes, clientesRes] = await Promise.all([
         supabase.from('processos')
-          .select('id, razao_social, tipo, etapa, cliente_id, clientes(apelido, nome)')
+          .select('id, razao_social, tipo, cliente_id, clientes(apelido, nome)')
           .or(`razao_social.ilike.${searchTerm}`)
           .neq('is_archived', true)
           .limit(5),
@@ -80,7 +80,7 @@ export function CommandPalette() {
           id: p.id,
           tipo: 'processo',
           titulo: p.razao_social,
-          subtitulo: `${p.tipo} · ${p.etapa} · ${cliente?.apelido || cliente?.nome || ''}`,
+          subtitulo: `${p.tipo} · ${cliente?.apelido || cliente?.nome || ''}`,
           path: `/processos`,
         });
       });

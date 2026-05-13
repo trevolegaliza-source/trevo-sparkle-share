@@ -50,13 +50,9 @@ function useUpdateDocumento() {
         .eq('id', id);
       if (error) throw error;
 
-      // If rejecting, update process stage to analise_documental
-      if (status === 'rejeitado') {
-        const { data: doc } = await supabase.from('documentos').select('processo_id').eq('id', id).single();
-        if (doc) {
-          await supabase.from('processos').update({ etapa: 'analise_documental' }).eq('id', doc.processo_id);
-        }
-      }
+      // DECISION-001 Fase 3 (13/05/2026): processo não muda mais de etapa
+      // ao rejeitar documento (etapa é binária agora). Rejeição vive no
+      // documento.status — UI consome de lá.
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['documentos'] });

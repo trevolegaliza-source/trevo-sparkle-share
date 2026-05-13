@@ -29,7 +29,7 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useUpdateCliente, useCreateProcesso, useDeleteCliente, useArchiveCliente, useUnarchiveCliente, calcularDescontoProgressivo } from '@/hooks/useFinanceiro';
-import { KANBAN_STAGES, getEtapaSimplificada } from '@/types/process';
+import { getEtapaSimplificada, isProcessoFinalizado } from '@/types/process';
 import { STATUS_LABELS, STATUS_STYLES, TIPO_PROCESSO_LABELS } from '@/types/financial';
 import type { ClienteDB, ProcessoDB, Lancamento, StatusFinanceiro, TipoProcesso } from '@/types/financial';
 import { cn } from '@/lib/utils';
@@ -51,7 +51,7 @@ import { PagamentoBadge, classificarPagamento } from '@/components/processos/Pag
 import { useColaboradores } from '@/hooks/useColaboradores';
 import { Textarea } from '@/components/ui/textarea';
 import { gerarExtratoPDF, fetchValoresAdicionaisMulti, fetchCompetenciaProcessos } from '@/lib/extrato-pdf';
-import { gerarRelatorioStatusPDF, calcularProgresso, getEtapasConcluidas } from '@/lib/relatorio-status-pdf';
+import { gerarRelatorioStatusPDF } from '@/lib/relatorio-status-pdf';
 import type { ProcessoFinanceiro } from '@/hooks/useProcessosFinanceiro';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -648,7 +648,7 @@ export default function ClienteDetalhe() {
   const momentoFat = (cliente as any).momento_faturamento || 'na_solicitacao';
   const isDeferimento = momentoFat === 'no_deferimento';
   const totalProcessos = processos.length;
-  const processosAtivos = processos.filter(p => p.etapa !== 'finalizados' && p.etapa !== 'arquivo').length;
+  const processosAtivos = processos.filter(p => !isProcessoFinalizado(p.etapa)).length;
   const totalFaturado = lancamentos.filter(l => l.tipo === 'receber').reduce((s, l) => s + Number(l.valor), 0);
   const totalPago = lancamentos.filter(l => l.tipo === 'receber' && l.status === 'pago').reduce((s, l) => s + Number(l.valor), 0);
   const totalPendente = lancamentos.filter(l => l.tipo === 'receber' && l.status === 'pendente').reduce((s, l) => s + Number(l.valor), 0);
@@ -660,10 +660,12 @@ export default function ClienteDetalhe() {
   const formatValueOrZero = (value: number | null | undefined) =>
     value == null ? '0,00' : String(value);
 
-  const DEFERIMENTO_STAGES = ['registro', 'finalizados'];
+  // DECISION-001 Fase 3 (13/05/2026): "deferido" = data_deferimento setada.
+  // Antes filtrava por etapa específica ('registro'/'finalizados') — etapa
+  // binária agora, fonte de verdade é data_deferimento.
   const billedProcessIds = new Set(lancamentos.filter(l => l.tipo === 'receber' && l.processo_id).map(l => l.processo_id));
   const aguardandoDeferimento = isDeferimento
-    ? processos.filter(p => !DEFERIMENTO_STAGES.includes(p.etapa) && p.etapa !== 'arquivo' && !billedProcessIds.has(p.id))
+    ? processos.filter(p => !(p as any).data_deferimento && !isProcessoFinalizado(p.etapa) && !billedProcessIds.has(p.id))
     : [];
 
   // CNPJ display - field is cnpj (14 digits), codigo_identificador is 6 digits
@@ -2241,19 +2243,12 @@ export default function ClienteDetalhe() {
                     cliente_nome: cliente.apelido || cliente.nome,
                     cliente_cnpj: cliente.cnpj || '',
                     data_emissao: new Date().toLocaleDateString('pt-BR'),
-                    processos: selected.map(p => {
-                      const prog = calcularProgresso(p.etapa);
-                      const { concluidas, pendentes } = getEtapasConcluidas(p.etapa);
-                      return {
-                        razao_social: p.razao_social,
-                        tipo: p.tipo,
-                        etapa: p.etapa,
-                        created_at: p.created_at || new Date().toISOString(),
-                        progresso: prog,
-                        etapas_concluidas: concluidas,
-                        etapas_pendentes: pendentes,
-                      };
-                    }),
+                    processos: selected.map(p => ({
+                      razao_social: p.razao_social,
+                      tipo: p.tipo,
+                      etapa: p.etapa,
+                      created_at: p.created_at || new Date().toISOString(),
+                    })),
                   };
 
                   const doc = await gerarRelatorioStatusPDF(relatorioData);
@@ -2456,7 +2451,7 @@ export default function ClienteDetalhe() {
             <Button
               variant="outline"
               onClick={() => {
-                const deferidos = deferimentoAlertData?.todosSelecionados.filter(p => ['registro', 'finalizados'].includes(p.etapa)) || [];
+                const deferidos = deferimentoAlertData?.todosSelecionados.filter(p => !!(p as any).data_deferimento) || [];
                 setShowDeferimentoAlert(false);
                 if (deferidos.length > 0) {
                   gerarExtratoClienteDetalhe(deferidos);

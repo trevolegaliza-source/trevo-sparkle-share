@@ -63,11 +63,11 @@ export interface LancamentoFinanceiro {
   valor_alterado_em: string | null;
 }
 
-export const ETAPAS_PRE_DEFERIMENTO = [
-  'recebidos', 'analise_documental', 'contrato', 'viabilidade',
-  'dbe', 'vre', 'aguardando_pagamento', 'taxa_paga',
-  'assinaturas', 'assinado', 'em_analise',
-];
+// DECISION-001 Fase 3 (13/05/2026 noite): ETAPAS_PRE_DEFERIMENTO obsoleto.
+// Etapa binária no banco (ativo/finalizado) — "pré-deferimento" agora é
+// `data_deferimento IS NULL`. Mantemos export por compat de import legado;
+// quem usa deveria migrar pra checagem direta de data_deferimento.
+export const ETAPAS_PRE_DEFERIMENTO: string[] = [];
 
 const ETAPA_ORDER: Record<string, number> = {
   aguardando_deferimento: -1, // antes de tudo — bloqueado até processo deferir
@@ -363,7 +363,8 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
         if (l.etapa_financeiro === 'aguardando_deferimento') {
           c.qtd_aguardando_deferimento++;
         } else if (cliente?.momento_faturamento === 'no_deferimento' && processo) {
-          if (ETAPAS_PRE_DEFERIMENTO.includes(processo.etapa || '')) {
+          // DECISION-001 Fase 3: "pré-deferimento" = sem data_deferimento.
+          if (!(processo as any).data_deferimento) {
             c.qtd_aguardando_deferimento++;
           }
         }

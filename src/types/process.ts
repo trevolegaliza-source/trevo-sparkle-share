@@ -1,59 +1,47 @@
 export type ProcessType = 'abertura' | 'alteracao' | 'transformacao' | 'baixa' | 'avulso' | 'orcamento';
 
-export type KanbanStage =
-  | 'recebidos'
-  | 'analise_documental'
-  | 'contrato'
-  | 'viabilidade'
-  | 'dbe'
-  | 'vre'
-  | 'aguardando_pagamento'
-  | 'taxa_paga'
-  | 'assinaturas'
-  | 'assinado'
-  | 'em_analise'
-  | 'registro'
-  | 'mat'
-  | 'inscricao_me'
-  | 'alvaras'
-  | 'conselho'
-  | 'finalizados'
-  | 'arquivo';
+// DECISION-001 Fase 3 (13/05/2026 noite): etapa simplificada pra binário.
+// Banco migrado pra text aceitando só ('ativo','finalizado') via CHECK.
+// Frontend continua tolerante a valores legados ('recebidos','registro',
+// 'finalizados','arquivo','concluido') pra cobrir a janela entre Publish
+// e SQL e snapshots históricos.
+export type KanbanStage = 'ativo' | 'finalizado';
 
 export const KANBAN_STAGES: { key: KanbanStage; label: string }[] = [
-  { key: 'recebidos', label: 'Recebidos' },
-  { key: 'analise_documental', label: 'Análise Documental' },
-  { key: 'contrato', label: 'Contrato' },
-  { key: 'viabilidade', label: 'Viabilidade' },
-  { key: 'dbe', label: 'DBE' },
-  { key: 'vre', label: 'VRE' },
-  { key: 'aguardando_pagamento', label: 'Aguardando Pagamento' },
-  { key: 'taxa_paga', label: 'Taxa Paga' },
-  { key: 'assinaturas', label: 'Assinaturas' },
-  { key: 'assinado', label: 'Assinado' },
-  { key: 'em_analise', label: 'Em Análise' },
-  { key: 'registro', label: 'Registro' },
-  { key: 'mat', label: 'MAT' },
-  { key: 'inscricao_me', label: 'Inscrição M/E' },
-  { key: 'alvaras', label: 'Alvarás' },
-  { key: 'conselho', label: 'Conselho' },
-  { key: 'finalizados', label: 'Finalizados' },
-  { key: 'arquivo', label: 'Arquivo' },
+  { key: 'ativo', label: 'Ativo' },
+  { key: 'finalizado', label: 'Finalizado' },
 ];
 
-// DECISION-001 Fase 2 (resto) — 13/05/2026: simplificação visual da etapa.
-// Thales: "meu sistema nao tem que ver em que etapa o processo está! Apenas
-// saber se ele existe." Aqui mapeamos as 18 etapas pra binário Ativo/Finalizado.
-// Enum no banco continua como text — refactor de schema fica pra Fase 3
-// dedicada. Aqui só ajuste de UI.
-const ETAPAS_FINALIZADAS: KanbanStage[] = ['finalizados', 'arquivo'];
+// Lista exaustiva de valores que indicam "processo finalizado" — inclui
+// canônico novo ('finalizado') + valores legados pra tolerância durante
+// migração e snapshots históricos.
+export const ETAPAS_FINALIZADAS_RAW = [
+  'finalizado',
+  'finalizados',
+  'arquivo',
+  'concluido',
+] as const;
 
+// String pronta pra usar em filtros Supabase:
+//   .not('etapa', 'in', ETAPAS_FINALIZADAS_SQL_IN)
+//   .in('etapa', ETAPAS_FINALIZADAS_SQL_IN)
+export const ETAPAS_FINALIZADAS_SQL_IN = '("finalizado","finalizados","arquivo","concluido")';
+
+/** Resolve etapa (canônica ou legada) pra label 'Ativo' / 'Finalizado'. */
 export function getEtapaSimplificada(etapa: string | null | undefined): 'Ativo' | 'Finalizado' {
   if (!etapa) return 'Ativo';
-  if ((ETAPAS_FINALIZADAS as string[]).includes(etapa)) return 'Finalizado';
-  // 'concluido' é zumbi histórico (DATA-005) mas tratamos como finalizado pra não confundir
-  if (etapa === 'concluido') return 'Finalizado';
-  return 'Ativo';
+  return (ETAPAS_FINALIZADAS_RAW as readonly string[]).includes(etapa) ? 'Finalizado' : 'Ativo';
+}
+
+/** Resolve etapa pra valor canônico 'ativo' | 'finalizado'. */
+export function etapaCanonica(etapa: string | null | undefined): KanbanStage {
+  if (!etapa) return 'ativo';
+  return (ETAPAS_FINALIZADAS_RAW as readonly string[]).includes(etapa) ? 'finalizado' : 'ativo';
+}
+
+/** True se o processo está finalizado, considerando valores legados. */
+export function isProcessoFinalizado(etapa: string | null | undefined): boolean {
+  return etapaCanonica(etapa) === 'finalizado';
 }
 
 export const PROCESS_TYPE_LABELS: Record<ProcessType, string> = {

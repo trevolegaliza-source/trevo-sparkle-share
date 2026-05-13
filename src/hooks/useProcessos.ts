@@ -39,22 +39,10 @@ export function useProcessosDB() {
   });
 }
 
-export function useUpdateProcessoEtapa() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, etapa }: { id: string; etapa: KanbanStage }) => {
-      const { error } = await supabase
-        .from('processos')
-        .update({ etapa, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['processos_db'] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
+// DECISION-001 Fase 3 (13/05/2026): useUpdateProcessoEtapa removido junto
+// com Processos.tsx (kanban). Etapa virou binária no banco — mudança de
+// etapa hoje só acontece via RPC (marcar_processo_pago, desfazer_marcar_pago,
+// marcar_pago_em_lote) que setam 'finalizado' ou 'ativo' atomicamente.
 
 export function useDeleteProcesso() {
   const qc = useQueryClient();
@@ -107,7 +95,7 @@ export function useDashboardStats() {
       const { count: processosAtivos } = await supabase
         .from('processos')
         .select('*', { count: 'exact', head: true })
-        .not('etapa', 'in', '("finalizados","arquivo")');
+        .not('etapa', 'in', '("finalizado","finalizados","arquivo","concluido")');
 
       const { count: totalClientes } = await supabase
         .from('clientes')
@@ -134,7 +122,7 @@ export function useDashboardStats() {
       const { data: allActiveProcs } = await supabase
         .from('processos')
         .select('id, cliente_id, valor, cliente:clientes(*)')
-        .not('etapa', 'in', '("finalizados","arquivo")');
+        .not('etapa', 'in', '("finalizado","finalizados","arquivo","concluido")');
 
       let faturamentoPotencial = 0;
       if (allActiveProcs && allActiveProcs.length > 0) {
@@ -162,11 +150,12 @@ export function useDashboardStats() {
         .eq('etapa_financeiro', 'solicitacao_criada');
       let totalCobrancasGerar = (cobrancasGerar || []).reduce((s, r) => s + Number(r.valor), 0);
 
-      // Also add processos in registro/finalizados stages
+      // DECISION-001 Fase 3: deferidos identificados por data_deferimento
+      // (não mais por etapa específica — banco migrou pra binário).
       const { data: procsRegistro } = await supabase
         .from('processos')
         .select('id, valor')
-        .in('etapa', ['registro', 'finalizados']);
+        .not('data_deferimento', 'is', null);
       if (procsRegistro && procsRegistro.length > 0) {
         const regIds = procsRegistro.map(p => p.id);
         const { data: existingBilled } = await supabase
@@ -194,7 +183,7 @@ export function useDashboardStats() {
         .from('processos')
         .select('*, cliente:clientes(*)')
         .eq('prioridade', 'urgente')
-        .not('etapa', 'in', '("finalizados","arquivo")');
+        .not('etapa', 'in', '("finalizado","finalizados","arquivo","concluido")');
 
       const { data: recentes } = await supabase
         .from('processos')
@@ -206,7 +195,7 @@ export function useDashboardStats() {
       const { data: allProcessos } = await supabase
         .from('processos')
         .select('id, etapa, cliente_id, valor, cliente:clientes(nome, apelido, valor_base)')
-        .not('etapa', 'in', '("finalizados","arquivo")');
+        .not('etapa', 'in', '("finalizado","finalizados","arquivo","concluido")');
 
       const pipelineCounts: Record<string, number> = {};
       const pipelineValues: Record<string, number> = {};
@@ -239,7 +228,7 @@ export function useDashboardStats() {
       const { data: slaProcs } = await supabase
         .from('processos')
         .select('*, cliente:clientes(*)')
-        .not('etapa', 'in', '("finalizados","arquivo")')
+        .not('etapa', 'in', '("finalizado","finalizados","arquivo","concluido")')
         .order('created_at', { ascending: true })
         .limit(3);
 

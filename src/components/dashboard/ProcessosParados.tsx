@@ -47,7 +47,7 @@ export default function ProcessosParados({ items, isLoading }: Props) {
                 <div
                   key={proc.id}
                   className="py-1.5 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1"
-                  onClick={() => navigate('/processos')}
+                  onClick={() => navigate('/processos-ativos')}
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-medium text-foreground truncate">{proc.razao_social}</p>
@@ -56,12 +56,12 @@ export default function ProcessosParados({ items, isLoading }: Props) {
                     </Badge>
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    Etapa: {proc.etapa} · {clienteNome}
+                    {clienteNome}
                   </p>
                 </div>
               );
             })}
-            <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={() => navigate('/processos')}>
+            <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={() => navigate('/processos-ativos')}>
               Ver todos <ArrowRight className="h-3 w-3 ml-1" />
             </Button>
           </>

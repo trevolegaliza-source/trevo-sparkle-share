@@ -16,7 +16,8 @@ import { ClipboardCheck, Check, Pencil, Receipt, X, AlertTriangle, Phone, Calend
 import { Switch } from '@/components/ui/switch';
 import type { ClienteFinanceiro, LancamentoFinanceiro } from '@/hooks/useFinanceiroClientes';
 import { useAuditarLancamento, useAuditarTodosCliente, useAlterarValorLancamento, ETAPAS_PRE_DEFERIMENTO, invalidateFinanceiro } from '@/hooks/useFinanceiroClientes';
-import { gerarFaturamentoDeferimento } from '@/hooks/useFinanceiro';
+// DECISION-001 Fase 3: gerarFaturamentoDeferimento removido — a RPC
+// marcar_deferimento já promove o lancamento dentro da mesma transação.
 import ValoresAdicionaisModal from './ValoresAdicionaisModal';
 import { useHighlightOnModal } from '@/hooks/useHighlightOnModal';
 import { TIPO_PROCESSO_LABELS } from '@/types/financial';
@@ -455,10 +456,11 @@ function AuditoriaFicha({
   const valorBase = Number(clienteValorBase ?? 0);
   const novoValorTrevo = Math.round(valorBase * 1.5 * 100) / 100;
 
-  // Show "Marcar Deferido" only for no_deferimento clients with processes still in pre-deferimento stage
+  // DECISION-001 Fase 3 (13/05/2026): pode marcar deferido se cliente é
+  // no_deferimento, processo existe e ainda não tem data_deferimento.
+  // (Antes filtrava também por etapa pré-deferimento — etapa binária agora.)
   const podeMarcarDeferido =
     clienteMomentoFaturamento === 'no_deferimento'
-    && ETAPAS_PRE_DEFERIMENTO.includes(l.processo_etapa)
     && !l.processo_data_deferimento
     && !!l.processo_id;
 
@@ -473,22 +475,15 @@ function AuditoriaFicha({
     if (!deferidoData) { toast.error('Selecione uma data'); return; }
     setSavingDeferido(true);
     try {
-      const { error } = await supabase
-        .from('processos')
-        .update({ data_deferimento: deferidoData, etapa: 'registro' } as any)
-        .eq('id', l.processo_id);
+      // DECISION-001 Fase 3 (13/05/2026): RPC atômica (tenant check +
+      // seta data_deferimento + promove ou cria lancamento). Antes:
+      // UPDATE direto sem tenant + chamada extra a gerarFaturamentoDeferimento.
+      const { error } = await supabase.rpc('marcar_deferimento' as any, {
+        p_processo_id: l.processo_id,
+        p_data_deferimento: deferidoData,
+      } as any);
       if (error) throw error;
       toast.success('Processo marcado como deferido');
-
-      // Promove lancamento aguardando_deferimento → solicitacao_criada (ou cria
-      // do zero pra processos legado sem lancamento). Sem isso, lancamento fica
-      // travado em 'aguardando_deferimento' com data_vencimento='2099-12-31'.
-      const { data: procFull } = await supabase
-        .from('processos')
-        .select('*')
-        .eq('id', l.processo_id)
-        .single();
-      if (procFull) await gerarFaturamentoDeferimento(procFull as any);
 
       setDeferidoOpen(false);
       invalidateFinanceiro(qc);

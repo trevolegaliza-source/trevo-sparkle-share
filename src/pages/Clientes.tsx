@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useClientes, useUpdateCliente, useArchiveCliente, useUnarchiveCliente } from '@/hooks/useFinanceiro';
 import { useProcessos } from '@/hooks/useFinanceiro';
 import type { ClienteDB } from '@/types/financial';
+import { isProcessoFinalizado } from '@/types/process';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -65,9 +66,9 @@ export default function Clientes() {
   const processCount = (clienteId: string) =>
     (processos || []).filter(p => p.cliente_id === clienteId).length;
   const activeCount = (clienteId: string) =>
-    (processos || []).filter(p => p.cliente_id === clienteId && p.etapa !== 'finalizados' && p.etapa !== 'arquivo').length;
+    (processos || []).filter(p => p.cliente_id === clienteId && !isProcessoFinalizado(p.etapa)).length;
   const doneCount = (clienteId: string) =>
-    (processos || []).filter(p => p.cliente_id === clienteId && (p.etapa === 'finalizados' || p.etapa === 'arquivo')).length;
+    (processos || []).filter(p => p.cliente_id === clienteId && isProcessoFinalizado(p.etapa)).length;
 
   const tenDaysAgo = new Date(Date.now() - 10 * 86400000).toISOString();
   const isInactive = (clienteId: string) => {

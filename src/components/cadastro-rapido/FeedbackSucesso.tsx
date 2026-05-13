@@ -73,7 +73,7 @@ export default function FeedbackSucesso({ open, onClose, clienteNome, processos,
               <Plus className="h-4 w-4" /> Cadastrar Outro Cliente
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1 gap-2" onClick={() => navigate('/processos')}>
+              <Button variant="outline" className="flex-1 gap-2" onClick={() => navigate('/processos-ativos')}>
                 <FileText className="h-4 w-4" /> Processos
               </Button>
               <Button variant="outline" className="flex-1 gap-2" onClick={() => navigate('/financeiro')}>

@@ -13,7 +13,6 @@ import { RootRedirect } from "@/components/auth/RootRedirect";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Processos = lazy(() => import("./pages/Processos"));
 const ProcessosAtivosDetalhe = lazy(() => import("./pages/ProcessosAtivosDetalhe"));
 const FaturamentoDetalhe = lazy(() => import("./pages/FaturamentoDetalhe"));
 const Clientes = lazy(() => import("./pages/Clientes"));
@@ -74,11 +73,10 @@ const App = () => (
                   }
                 >
                   <Route path="/" element={<RootRedirect />} />
-                  <Route path="/processos" element={
-                    <RequirePermission modulo="processos">
-                      <Processos />
-                    </RequirePermission>
-                  } />
+                  {/* DECISION-001 Fase 3 (13/05/2026): /processos deletada
+                      junto com a página kanban. Redirect mantido pra ninguém
+                      cair em 404 vindo de bookmark velho. */}
+                  <Route path="/processos" element={<Navigate to="/processos-ativos" replace />} />
                   <Route path="/processos-ativos" element={
                     <RequirePermission modulo="processos">
                       <ProcessosAtivosDetalhe />

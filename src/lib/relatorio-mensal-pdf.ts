@@ -125,7 +125,7 @@ export async function gerarRelatorioMensal(mes?: number, ano?: number) {
   const resultado = receitaBruta - despesaTotal;
   const margemLiquida = receitaBruta > 0 ? (resultado / receitaBruta) * 100 : 0;
 
-  const processosAtivos = procs.filter(p => !['finalizados', 'arquivo'].includes(p.etapa)).length;
+  const processosAtivos = procs.filter(p => !['finalizado', 'finalizados', 'arquivo', 'concluido'].includes(p.etapa)).length;
   const processosMes = procs.filter(p => {
     const d = new Date(p.created_at || '');
     return d.getMonth() === targetMes && d.getFullYear() === targetAno;

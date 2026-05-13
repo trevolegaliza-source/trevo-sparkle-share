@@ -15,11 +15,10 @@ import logoTrevo from '@/assets/logo-trevo.png';
 // Portfólio & Preços, Trello ↔ ERP) ficam acessíveis só por URL direta —
 // rotas mantidas em App.tsx. Decisão registrada no doc Auditoria.
 //
-// DECISION-001 Fase 2 (13/05/2026): "/processos" removida do menu
-// (Thales: "tira essa merda"). Banco usa só 4 das 18 etapas do kanban
-// (76% em "recebidos", 15% em "registro", 7% finalizados). Rota
-// continua acessível por URL direta — schema intacto pra reversibilidade.
-// Fase 3+: simplificar enum etapa pra binário, refactor de Processos.tsx.
+// DECISION-001 Fase 2+3 (13/05/2026): "/processos" + página kanban removidas.
+// Banco migrou pra etapa binária ('ativo'/'finalizado'). Bookmark legado de
+// /processos redireciona pra /processos-ativos (drill-in detail). Schema
+// continua tolerante a valores antigos via helpers em types/process.ts.
 const navItems = [
   // PERM-XYZ (13/05/2026): "Cadastro Rápido" estava mapeado pra módulo
   // `processos`, o que confundia o controle de permissão — desmarcar

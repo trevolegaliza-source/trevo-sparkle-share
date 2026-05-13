@@ -10,6 +10,7 @@ import { Search, ChevronDown, ChevronRight, FileText, DollarSign } from 'lucide-
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import ValoresAdicionaisModal from './ValoresAdicionaisModal';
+import { getEtapaSimplificada } from '@/types/process';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -391,7 +392,7 @@ export default function ClientesFinanceiroTab() {
                                     <td className="py-2">
                                       <Badge variant="outline" className="text-[10px]">{p.tipo}</Badge>
                                     </td>
-                                    <td className="py-2 text-xs text-muted-foreground">{p.etapa}</td>
+                                    <td className="py-2 text-xs text-muted-foreground">{getEtapaSimplificada(p.etapa)}</td>
                                     <td className="py-2 text-right font-medium">{fmt(p.lancamento_valor || p.valor || 0)}</td>
                                     <td className="py-2">
                                       {p.lancamento_status === 'pago' ? (
@@ -457,7 +458,7 @@ export default function ClientesFinanceiroTab() {
 
                               <div className="flex items-center gap-2 flex-wrap ml-6">
                                 <Badge variant="outline" className="text-[10px]">{p.tipo}</Badge>
-                                <span className="text-xs text-muted-foreground">{p.etapa}</span>
+                                <span className="text-xs text-muted-foreground">{getEtapaSimplificada(p.etapa)}</span>
                                 {p.lancamento_status === 'pago' ? (
                                   <Badge className="text-[10px] bg-primary/20 text-primary">Pago</Badge>
                                 ) : p.lancamento_etapa === 'cobranca_enviada' ? (
@@ -539,7 +540,7 @@ function ProcessoExpandido({
     <div className="space-y-3">
       <div className="flex gap-4 text-xs text-muted-foreground flex-wrap">
         <span>Criado em: {p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : '—'}</span>
-        <span>Etapa: {p.etapa}</span>
+        <span>Etapa: {getEtapaSimplificada(p.etapa)}</span>
         {p.auditado_em && <span>Auditado em: {new Date(p.auditado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
       </div>
       <div>

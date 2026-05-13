@@ -86,8 +86,6 @@ export default function ProcessosAtivosDetalhe() {
                     <p className="text-sm font-medium truncate">{proc.razao_social}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-xs text-muted-foreground">{proc.cliente?.nome || '-'}</p>
-                      <span className="text-xs text-muted-foreground">·</span>
-                      <p className="text-xs text-muted-foreground">{proc.etapa}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

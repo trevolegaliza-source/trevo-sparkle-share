@@ -54,21 +54,18 @@ Investigação do bug "não persiste": provavelmente o Thales fechou o modal sem
 ### 🟡 DECISION-001 Fase 2 (resto) — esconder badges de etapa
 **Status:** ✅ FEITO em 13/05 tarde. Helper `getEtapaSimplificada` em `types/process.ts` mapeia as 18 etapas pra Ativo/Finalizado. Aplicado em 3 lugares de ClienteDetalhe (aguardando deferimento, lista de processos, sidebar). UI agora mostra só "Ativo"/"Finalizado". Banco intacto.
 
-### 🟡 DECISION-001 Fase 3 — simplificar enum etapa NO BANCO
-**Por quê:** Thales: *"tira essa merda"* sobre kanban operacional. Banco usa só 4 das 18 etapas. UI já simplificada (Fase 2 resto). Falta migrar dados.
-**Esforço:** ~4h. **Sessão dedicada — risco de quebrar relatórios PDF e RPCs.**
-**Plano:**
-- Migration: `etapa` text only aceita `'ativo'`/`'finalizado'`
-- UPDATE em massa normalizando dados existentes (recebidos/registro/etc → ativo, finalizados/arquivo/concluido → finalizado)
-- RPCs atualizadas (`criar_processo_com_lancamento`, `marcar_processo_pago` etc)
-- Remover `KANBAN_STAGES` do TS
+### ✅ DECISION-001 Fase 3 + Fase 4 antecipada — entregue 13/05/2026 noite
+- Banco: SQL `docs/sql/decision-001-fase3-enum-etapa.sql` (UPDATE dados + CHECK + DROP trigger + 5 RPCs + view + backfill data_deferimento)
+- Frontend: `types/process.ts` com helpers tolerantes (`getEtapaSimplificada`, `isProcessoFinalizado`); 10+ queries Supabase atualizadas
+- Fase 4 antecipada: `Processos.tsx` deletada, `/processos → /processos-ativos`, dep `@hello-pangea/dnd` removida
+- Gráfico "Pipeline" do Dashboard removido (5 fatias → sem sentido com binário)
+- `relatorio-status-pdf.ts` reescrito (badge simples, sem progress bar 17-etapas)
+- 2 escritas diretas de etapa eliminadas (`ClientesAuditoria` agora usa RPC `marcar_deferimento`; `Documentos` não rebaixa no reject)
 
-### 🟡 DECISION-001 Fase 4 — remover Processos.tsx
-**Esforço:** ~2h.
-**Plano:**
-- Deletar `Processos.tsx` inteiro
-- Remover dependência `@hello-pangea/dnd` (se só era usada lá)
-- Limpar relatórios filtrados por etapa específica
+**Pendente Thales:**
+- ⏳ **Publish no Lovable** (sobe frontend tolerante)
+- ⏳ **Rodar SQL** `docs/sql/decision-001-fase3-enum-etapa.sql` no SQL Editor
+- 🧪 Smoke test: criar processo, marcar deferido, gerar extrato, marcar pago, desfazer pago
 
 ### 🔵 Auditoria exaustiva página por página, clique por clique
 **Por quê:** Thales pediu *"faça uma análise de absolutamente tudo, página por página, clique por clique e afins"*.
@@ -115,6 +112,9 @@ Investigação do bug "não persiste": provavelmente o Thales fechou o modal sem
 ---
 
 ## 📚 HISTÓRICO — feito em sessões anteriores
+
+### 13/05/2026 (noite)
+- ✅ **DECISION-001 Fase 3 + Fase 4 antecipada**: etapa binária no banco + Processos.tsx deletada (vide acima)
 
 ### 13/05/2026 (manhã + tarde)
 - 🚨 **SEC-028 (CRÍTICO)**: vulnerabilidade NULL bypass em 4 funções (`set_master_password_hash`, `marcar_deferimento`, `desfazer_deferimento`, `promover_lancamento_ao_deferir`) + REVOKE EXECUTE de anon em 30+ funções

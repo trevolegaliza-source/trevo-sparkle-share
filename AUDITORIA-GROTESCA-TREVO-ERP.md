@@ -1,7 +1,39 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: **12/05/2026 noite/13/05 madrugada** — bloco de segurança + polish + RFC atomicidade financeira + re-verificação noturna eliminando ruído stale.
+> **Doc vivo.** Atualizado a cada commit. Última atualização: **13/05/2026 noite** — DECISION-001 Fase 3 fechada (enum etapa binário no banco + delete Processos.tsx).
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 🆕 DECISION-001 Fase 3 — enum etapa BINÁRIO (13/05/2026 noite)
+
+**Antes:** campo `processos.etapa` text livre, 4 valores em uso (recebidos 119, registro 23, finalizados 12, concluido 2) de um espaço histórico de 18 etapas (kanban).
+
+**Depois:** text com CHECK aceitando só `('ativo','finalizado')`.
+
+**Entregue:**
+- SQL único `docs/sql/decision-001-fase3-enum-etapa.sql` (rodar manualmente no SQL Editor após Publish):
+  - Backfill `data_deferimento` pros 10 órfãos pré-deferimento sem data
+  - UPDATE em massa normalizando dados (recebidos+registro → ativo; finalizados+concluido → finalizado)
+  - ALTER COLUMN default `'ativo'` + CHECK constraint
+  - DROP trigger `sync_deferimento_on_etapa_change` (redundante com RPC `marcar_deferimento`)
+  - View `processos_zombies` atualizada pra `etapa = 'finalizado'`
+  - 5 RPCs reescritas: `criar_processo_com_lancamento`, `converter_orcamento_em_processo`, `marcar_processo_pago`, `marcar_pago_em_lote`, `desfazer_marcar_pago`
+- Frontend tolerante a AMBOS formatos (legado E novo) via `getEtapaSimplificada` / `isProcessoFinalizado` em `types/process.ts`. Cobre a janela entre Publish e SQL.
+- **Fase 4 antecipada:** `Processos.tsx` deletada (página kanban 18-colunas). `/processos` redireciona pra `/processos-ativos`. Dependência `@hello-pangea/dnd` removida do `package.json`.
+- Gráfico "Pipeline de processos" (5 fatias) removido do Dashboard — não fazia sentido com etapa binária.
+- `relatorio-status-pdf.ts` reescrito: progress bar sequencial substituída por badge "Ativo"/"Finalizado" simples.
+- 2 caminhos de escrita direta de etapa removidos (`ClientesAuditoria.tsx` → usa RPC `marcar_deferimento`; `Documentos.tsx` → não rebaixa mais etapa no reject).
+- `useUpdateProcessoEtapa` hook removido (era usado só pelo kanban).
+- `ETAPAS_PRE_DEFERIMENTO` esvaziado — quem precisa de "pré-deferimento" usa `data_deferimento IS NULL`.
+
+**Sequência de deploy:**
+1. Publish do Lovable (sobe frontend tolerante) — pode rodar antes do SQL sem quebrar.
+2. Rodar `docs/sql/decision-001-fase3-enum-etapa.sql` no SQL Editor.
+3. Verificar SQL no fim do arquivo (queries de validação).
+4. Smoke test em prod: criar processo, marcar deferido, gerar extrato, marcar pago, desfazer pago.
+
+**Pendente Fase 4 (resto):** Avaliar se há outros consumidores de KANBAN_STAGES legado pra limpar futuramente.
 
 ---
 

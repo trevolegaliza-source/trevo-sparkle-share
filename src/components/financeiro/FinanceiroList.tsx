@@ -32,7 +32,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import ProcessoEditModal from './ProcessoEditModal';
 import { TIPO_PROCESSO_LABELS } from '@/types/financial';
 
-const ETAPAS_DEFERIDAS = ['registro', 'finalizados'];
+// DECISION-001 Fase 3 (13/05/2026): "deferido" = processo_data_deferimento setada.
+// Etapa virou binária — manter helper local pra clareza.
+const isDeferido = (p: ProcessoFinanceiro): boolean => !!(p as any).data_deferimento;
 
 interface DeferimentoAlertData {
   clienteNome: string;
@@ -211,7 +213,7 @@ export default function FinanceiroList({ processos }: FinanceiroListProps) {
       .single();
 
     if (clienteCheck?.momento_faturamento === 'no_deferimento') {
-      const naoDeferidos = selectedProcessos.filter(p => !ETAPAS_DEFERIDAS.includes(p.etapa));
+      const naoDeferidos = selectedProcessos.filter(p => !isDeferido(p));
 
       if (naoDeferidos.length > 0) {
         setDeferimentoAlertData({
@@ -230,7 +232,7 @@ export default function FinanceiroList({ processos }: FinanceiroListProps) {
   async function handleDeferimentoApenasDeferidos() {
     setShowDeferimentoAlert(false);
 
-    const deferidos = deferimentoAlertData?.todosSelecionados?.filter(p => ETAPAS_DEFERIDAS.includes(p.etapa)) || [];
+    const deferidos = deferimentoAlertData?.todosSelecionados?.filter(p => isDeferido(p)) || [];
     if (deferidos.length === 0) {
       toast.warning('Nenhum processo deferido para gerar extrato.');
       return;
@@ -334,7 +336,7 @@ export default function FinanceiroList({ processos }: FinanceiroListProps) {
               const total = Number(lanc?.valor ?? p.valor ?? 0) + Number(lanc?.honorario_extra || 0);
               const status = (lanc?.status || 'pendente') as StatusFinanceiro;
               const isDeferimentoCliente = clienteMomentoMap.get(p.cliente_id) === 'no_deferimento';
-              const isAguardandoDeferimento = isDeferimentoCliente && !ETAPAS_DEFERIDAS.includes(p.etapa);
+              const isAguardandoDeferimento = isDeferimentoCliente && !isDeferido(p);
 
               return (
                 <tr key={p.id} className={cn('border-t border-border/30 cursor-pointer hover:bg-muted/30', isOverdue && 'bg-destructive/5')} onDoubleClick={() => { setEditProcesso(p); setEditModalOpen(true); }}>
@@ -447,8 +449,7 @@ export default function FinanceiroList({ processos }: FinanceiroListProps) {
                 <ul className="list-disc pl-5 space-y-1 text-sm">
                   {deferimentoAlertData?.naoDeferidos.map(p => (
                     <li key={p.id}>
-                      {TIPO_PROCESSO_LABELS[p.tipo] || p.tipo} — {p.razao_social}{' '}
-                      <span className="text-muted-foreground">(Etapa: {p.etapa})</span>
+                      {TIPO_PROCESSO_LABELS[p.tipo] || p.tipo} — {p.razao_social}
                     </li>
                   ))}
                 </ul>

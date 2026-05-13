@@ -390,7 +390,10 @@ function ClientesFaturarBase({
   const hasMensalistas = mensalistasSemFatura.length > 0;
   const hasClientes = clientes.length > 0;
 
-  const ETAPAS_DEFERIDAS = ['registro', 'finalizados', 'mat', 'inscricao_me', 'alvaras', 'conselho', 'deferido', 'concluido'];
+  // DECISION-001 Fase 3 (13/05/2026): "deferido" = processo_data_deferimento setado.
+  // Antes filtrava por lista de etapas — etapa virou binária no banco.
+  const isLancDeferido = (l: { processo_data_deferimento: string | null }) =>
+    !!l.processo_data_deferimento;
 
   const { prontos, aguardandoDef } = useMemo(() => {
     const prontosMap = new Map<string, ClienteFinanceiro>();
@@ -402,8 +405,8 @@ function ClientesFaturarBase({
         continue;
       }
 
-      const lancDeferidos = c.lancamentos.filter(l => ETAPAS_DEFERIDAS.includes(l.processo_etapa));
-      const lancNaoDeferidos = c.lancamentos.filter(l => !ETAPAS_DEFERIDAS.includes(l.processo_etapa));
+      const lancDeferidos = c.lancamentos.filter(isLancDeferido);
+      const lancNaoDeferidos = c.lancamentos.filter(l => !isLancDeferido(l));
 
       if (lancDeferidos.length > 0) {
         prontosMap.set(c.cliente_id, {
@@ -805,9 +808,9 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
     }
   }
 
-  const nenhumDeferido = isDeferimento && cliente.lancamentos.every(l => {
-    return l.processo_etapa ? ['recebidos', 'analise_documental', 'contrato', 'viabilidade', 'dbe', 'vre', 'aguardando_pagamento', 'taxa_paga', 'assinaturas', 'assinado', 'em_analise'].includes(l.processo_etapa) : true;
-  });
+  // DECISION-001 Fase 3 (13/05/2026): "nenhum deferido" = todos os lancamentos
+  // do cliente sem processo_data_deferimento (etapa binária agora).
+  const nenhumDeferido = isDeferimento && cliente.lancamentos.every(l => !l.processo_data_deferimento);
 
   return (
     <AccordionItem value={cliente.cliente_id} className={cn("border rounded-lg bg-card", isDeferimento && "border-dashed opacity-60")}>
