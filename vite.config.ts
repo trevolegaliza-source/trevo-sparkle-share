@@ -25,9 +25,10 @@ export default defineConfig(({ mode }) => ({
       output: {
         // PERF-005: isola libs pesadas em chunks separados pra cache long-term
         // e evita re-download em deploys que não tocam essas libs.
+        // 'd3-vendor' removido em Sprint 2.BCDG (13/05/2026 noite) — d3 saiu
+        // junto com /inteligencia-geografica.
         manualChunks: {
           'pdf-vendor': ['jspdf', 'jspdf-autotable', 'html2canvas'],
-          'd3-vendor': ['d3'],
         },
       },
     },
