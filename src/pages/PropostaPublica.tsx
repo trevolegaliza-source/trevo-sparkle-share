@@ -4,6 +4,8 @@ import { Loader2, CheckCircle, XCircle, Download, FileText, Lock as LockIcon } f
 import { normalizeItem, type OrcamentoItem, type CenarioOrcamento } from '@/components/orcamentos/types';
 import DOMPurify from 'dompurify';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY as SUPABASE_KEY } from '@/integrations/supabase/client';
+import logoTrevo from '@/assets/logo-trevo-legaliza.png';
+import daniAvatar from '@/assets/dani-avatar.png';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -23,13 +25,13 @@ function buildStyles(accent: string, accentDark: string) {
     .page { min-height: 100vh; background: #f1f5f9; padding-bottom: 110px; }
     .max { max-width: 700px; margin: 0 auto; padding: 0 16px; }
 
-    .header { background: #0f172a; padding: 18px 0; position: sticky; top: 0; z-index: 40; box-shadow: 0 1px 0 rgba(255,255,255,0.06); }
+    .header { background: #0f172a; padding: 14px 0; position: sticky; top: 0; z-index: 40; box-shadow: 0 1px 0 rgba(255,255,255,0.06); }
     .header-inner { max-width: 700px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; }
-    .header-logo { display: flex; align-items: center; gap: 10px; }
-    .header-logo-mark { width: 30px; height: 30px; background: ${accent}; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-    .header-logo-name { font-size: 14px; font-weight: 700; color: #f8fafc; }
-    .header-logo-sub { font-size: 10px; color: #64748b; margin-top: 1px; }
-    .header-badge { font-size: 11px; font-weight: 600; color: ${accent}; background: ${accent}18; padding: 4px 10px; border-radius: 20px; letter-spacing: 0.04em; }
+    .header-logo { display: flex; align-items: center; gap: 12px; }
+    .header-logo-mark { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0; }
+    .header-logo-name { font-size: 15px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em; }
+    .header-logo-sub { font-size: 10px; color: #94a3b8; margin-top: 1px; font-weight: 500; }
+    .header-badge { font-size: 11px; font-weight: 600; color: ${accent}; background: ${accent}18; padding: 5px 12px; border-radius: 20px; letter-spacing: 0.04em; }
 
     .hero { background: #0f172a; padding: 44px 0 36px; border-bottom: 1px solid #1e293b; }
     .hero-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: ${accent}; margin-bottom: 10px; }
@@ -724,11 +726,12 @@ export default function PropostaPublica() {
 
       <div className="page" data-theme="light">
 
-        {/* HEADER */}
+        {/* HEADER — Fix 3 (13/05/2026 noite): logo Trevo Legaliza real (PNG) em
+            vez do emoji 🍀. Header mais limpo, focado em quem é. */}
         <div className="header">
           <div className="header-inner">
             <div className="header-logo">
-              <div className="header-logo-mark">🍀</div>
+              <img src={logoTrevo} alt={nomeDisplay} className="header-logo-mark" />
               <div>
                 <div className="header-logo-name">{nomeDisplay}</div>
                 <div className="header-logo-sub">{isContador ? 'Painel do Parceiro' : 'Assessoria Empresarial'}</div>
@@ -749,15 +752,21 @@ export default function PropostaPublica() {
             {orc?.prospect_cnpj && orc.prospect_cnpj !== '0000000000' && orc.prospect_cnpj !== '00000000000000' && (
               <div className="hero-cnpj">CNPJ: {orc.prospect_cnpj}</div>
             )}
+            {/* Fix 3 (13/05/2026 noite): hero invertido pra contador — o que importa
+                pra ele é o VALOR QUE COBRA DO CLIENTE (resultado). Custo Trevo vira
+                subtítulo discreto. Não-contador (cliente direto) mantém Investimento. */}
             <div className="hero-price-box">
               <div className="hero-price-label">
-                {isContador ? 'Custo Trevo (seus honorários)' : 'Investimento Estimado'}
+                {isContador ? 'Você cobra do cliente' : 'Investimento Estimado'}
               </div>
-              <div className="hero-price">{totalStr}</div>
+              <div className="hero-price">{isContador ? fmt(totalContador) : totalStr}</div>
             </div>
             {isContador && (
-              <div style={{ marginTop: 12, fontSize: 12, color: '#4ade80', fontWeight: 500 }}>
-                💰 Você cobra do cliente: <strong style={{ fontSize: 14 }}>{fmt(totalContador)}</strong>
+              <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
+                Custo Trevo: <strong style={{ color: '#cbd5e1' }}>{totalStr}</strong>
+                <span style={{ margin: '0 8px', opacity: 0.5 }}>·</span>
+                Sua margem: <strong style={{ color: '#4ade80' }}>{fmt(totalContador - totalSel)}</strong>
+                <span style={{ marginLeft: 4, opacity: 0.7 }}>({totalSel > 0 ? Math.round(((totalContador - totalSel) / totalSel) * 100) : 0}%)</span>
               </div>
             )}
             <div className="hero-meta">
@@ -773,10 +782,11 @@ export default function PropostaPublica() {
         <div className="max">
           <div className="content">
 
-            {/* ── HINT (contador) */}
+            {/* HINT contador — Fix 3 (13/05/2026 noite): texto enxuto, foco
+                em ação. Antes era um parágrafo verboso explicando demais. */}
             {isContador && (
               <div className="hint-box">
-                <strong>Como usar:</strong> Selecione os serviços que quer fechar com o cliente, ajuste os valores que você vai cobrar (coluna "Você cobra"), depois clique em <strong>Gerar PDF pro cliente</strong>. Quando o cliente aprovar, volte aqui e clique em <strong>Aprovar Proposta</strong>.
+                <strong>Como usar:</strong> Marque os serviços, ajuste a coluna "Você cobra", baixe o PDF do cliente. Quando ele aprovar, volte e clique <strong>Aprovar e fechar negócio</strong>.
               </div>
             )}
 
@@ -1016,31 +1026,43 @@ export default function PropostaPublica() {
               </div>
             )}
 
-            {/* RESUMO */}
+            {/* RESUMO — Fix 3 (13/05/2026 noite): pro contador, foco no valor que
+                ele COBRA do cliente (resultado). Custo Trevo + margem viram
+                detalhamento embaixo, mais discreto. Pra cliente direto, mantém. */}
             <div className="card">
               <div className="card-hd"><div className="card-hd-icon">💰</div><div className="card-title">
-                {isContador ? 'Resumo (Custo Trevo)' : 'Resumo do Investimento'}
+                {isContador ? 'Resumo' : 'Resumo do Investimento'}
               </div></div>
               <div className="card-body">
-                {(descontoSel > 0 || totalTaxaMinSel > 0 || totalTaxaMaxSel > 0) && (
+                {isContador ? (
                   <>
-                    <div className="total-row"><span className="lbl">Honorários</span><span className="val">{fmt(subtotalSel)}</span></div>
-                    {descontoSel > 0 && <div className="total-row red"><span className="lbl">Desconto ({orc.desconto_pct}%)</span><span className="val">- {fmt(descontoSel)}</span></div>}
-                    {(totalTaxaMinSel > 0 || totalTaxaMaxSel > 0) && <div className="total-row amber"><span className="lbl">Taxas estimadas</span><span className="val">{fmt(totalTaxaMinSel)} a {fmt(totalTaxaMaxSel)}</span></div>}
-                  </>
-                )}
-                <div className="total-final">
-                  <span className="total-final-lbl">Total</span>
-                  <span className="total-final-val">{totalStr}</span>
-                </div>
-                {isContador && (
-                  <div style={{ marginTop: 12, padding: '12px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#16a34a', marginBottom: 4 }}>Você cobra do cliente</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: '#15803d' }}>{fmt(totalContador)}</div>
-                    <div style={{ fontSize: 11, color: '#86efac', marginTop: 2 }}>
-                      Margem estimada: {fmt(totalContador - totalSel)} ({totalSel > 0 ? Math.round(((totalContador - totalSel) / totalSel) * 100) : 0}%)
+                    <div style={{ padding: '14px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#16a34a', marginBottom: 4 }}>Você cobra do cliente</div>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: '#15803d', lineHeight: 1 }}>{fmt(totalContador)}</div>
                     </div>
-                  </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', padding: '8px 4px' }}>
+                      <span>Custo Trevo (seus honorários)</span>
+                      <span style={{ fontWeight: 600, color: '#475569' }}>{totalStr}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#16a34a', padding: '8px 4px', borderTop: '1px dashed #e2e8f0' }}>
+                      <span>Sua margem</span>
+                      <span style={{ fontWeight: 700 }}>{fmt(totalContador - totalSel)} ({totalSel > 0 ? Math.round(((totalContador - totalSel) / totalSel) * 100) : 0}%)</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {(descontoSel > 0 || totalTaxaMinSel > 0 || totalTaxaMaxSel > 0) && (
+                      <>
+                        <div className="total-row"><span className="lbl">Honorários</span><span className="val">{fmt(subtotalSel)}</span></div>
+                        {descontoSel > 0 && <div className="total-row red"><span className="lbl">Desconto ({orc.desconto_pct}%)</span><span className="val">- {fmt(descontoSel)}</span></div>}
+                        {(totalTaxaMinSel > 0 || totalTaxaMaxSel > 0) && <div className="total-row amber"><span className="lbl">Taxas estimadas</span><span className="val">{fmt(totalTaxaMinSel)} a {fmt(totalTaxaMaxSel)}</span></div>}
+                      </>
+                    )}
+                    <div className="total-final">
+                      <span className="total-final-lbl">Total</span>
+                      <span className="total-final-val">{totalStr}</span>
+                    </div>
+                  </>
                 )}
               </div>
               {/* DOWNLOAD BAR */}
@@ -1084,8 +1106,15 @@ export default function PropostaPublica() {
               <div className="alert-rascunho">Esta proposta ainda está sendo preparada. Você será notificado quando estiver pronta.</div>
             )}
 
-            {/* FOOTER */}
+            {/* FOOTER — Fix 3 (13/05/2026 noite): adicionada Dani como assistente
+                visual (mesmo padrão CobrancaPublica). Logo Trevo + Dani juntos
+                reforçam a marca. */}
             <div className="footer">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 12 }}>
+                <img src={logoTrevo} alt="Trevo Legaliza" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                <div style={{ width: 1, height: 28, background: '#cbd5e1' }} />
+                <img src={daniAvatar} alt="Dani" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: '50%' }} title="Dani · Digital Assistant" />
+              </div>
               <div className="footer-name">{isContador ? 'Trevo Legaliza' : (escritorioNome || 'Trevo Legaliza')}</div>
               {isContador ? (
                 <div className="footer-info">

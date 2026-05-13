@@ -518,6 +518,12 @@ export default function OrcamentoNovo() {
           <Button variant="outline" size="sm" onClick={() => handleSave('rascunho')} disabled={saveMutation.isPending}>
             <Save className="h-4 w-4 mr-1" /> Salvar Rascunho
           </Button>
+          {/* Fix 1 (13/05/2026 noite): botao "Salvar e Enviar" elimina o fluxo de
+              3 telas (criar > voltar lista > marcar enviado). Salva direto como
+              enviado, libera link publico imediatamente. */}
+          <Button size="sm" onClick={() => handleSave('enviado')} disabled={saveMutation.isPending} className="bg-primary hover:bg-primary/90">
+            <Save className="h-4 w-4 mr-1" /> Salvar e Enviar
+          </Button>
           {orcamentoId && (
             <Button variant="outline" size="sm" onClick={handleDuplicate}>
               <Copy className="h-4 w-4 mr-1" /> Duplicar
@@ -723,16 +729,27 @@ export default function OrcamentoNovo() {
                     </div>
                   )}
 
-                  {/* Toggle Obrigatório/Opcional */}
-                  <div className="flex items-center gap-2 pl-2">
+                  {/* Toggle Obrigatório/Opcional — Fix 2 (13/05/2026 noite):
+                      mais visível + tooltip explicando. Antes era um toggle pequeno
+                      sem contexto, Thales não sabia o que significava. */}
+                  <div className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-md border",
+                    item.isOptional ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "bg-muted/30 border-border"
+                  )}>
                     <Switch
                       checked={item.isOptional || false}
                       onCheckedChange={(checked) => updateItem(idx, 'isOptional', checked)}
-                      className="scale-75"
                     />
-                    <span className={cn("text-xs", item.isOptional ? "text-amber-600 font-medium" : "text-muted-foreground")}>
-                      {item.isOptional ? 'Opcional' : 'Obrigatório'}
-                    </span>
+                    <div className="flex-1">
+                      <p className={cn("text-xs font-semibold", item.isOptional ? "text-amber-700 dark:text-amber-500" : "text-foreground")}>
+                        {item.isOptional ? '⚠️ Opcional — cliente pode desmarcar' : '🔒 Obrigatório — cliente NÃO pode desmarcar'}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {item.isOptional
+                          ? 'O cliente verá uma caixinha pra escolher se quer este item.'
+                          : 'Item sempre vai junto da proposta — sem opção pro cliente recusar.'}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Cenário selector removido em Sprint 2.A.1 — cenários eliminados do form. */}
