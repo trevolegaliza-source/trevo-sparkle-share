@@ -103,11 +103,11 @@ Leitor de tela agora anuncia ação ao invés de "botão".
 
 | ID | O que |
 |---|---|
-| UX-004 | AlertDialogs sem descrição clara (varredura global) |
-| UX-023 | Cliente PRÉ-PAGO sem histórico visível de movimentações |
-| INFRA-002 | Documentar `build` vs `build:dev` no README |
-| INFRA-005 | Avaliar D3 → Leaflet (60KB → 14KB) |
-| INFRA-006 | Auditar `tailwindcss-animate` keyframes |
+| ~~UX-004~~ | ✅ AlertDialogs já 100% com Description (varredura 13/05 noite — nenhum sem) |
+| UX-023 | Cliente PRÉ-PAGO — **maior do que parecia** (13/05 noite): tabela `prepago_movimentacoes` existe (id, cliente_id, tipo, valor, saldo_anterior, saldo_posterior, descricao, processo_id, created_at, empresa_id) mas está VAZIA (0 linhas). Fluxo atual é UPDATE direto em `clientes.saldo_prepago` (vide HANDOFF). Pra resolver de verdade: (A) UI no ClienteDetalhe lendo a tabela, (B) RPC atômica `registrar_movimentacao_prepago` com tenant check, (C) migrar fluxo edit cadastro pra usar a RPC. **Pendente decisão Thales** — toca dinheiro, não atacar sozinho. |
+| ~~INFRA-002~~ | ✅ Já documentado no README (13/05 noite — varredura) |
+| INFRA-005 | Avaliar D3 → Leaflet (60KB → 14KB) — **refactor visual, esperar Thales validar** |
+| ~~INFRA-006~~ | ✅ Limpeza tailwind.config: `fade-in` e `scale-in` keyframes não usadas removidas. `tailwindcss-animate` plugin mantido (Radix usa `animate-in`/`animate-out`). |
 
 ---
 
