@@ -449,6 +449,7 @@ export default function ClienteDetalhe() {
       mensalidade: String((cliente as any).mensalidade ?? ''),
       franquia_processos: String((cliente as any).franquia_processos ?? ''),
       saldo_prepago: String((cliente as any).saldo_prepago ?? ''),
+      observacoes: (cliente as any).observacoes || '',
     });
     // Load existing negotiations into inline rows
     setEditHonorariosRows(
@@ -518,6 +519,7 @@ export default function ClienteDetalhe() {
         mensalidade: isMensalistaEdit && editCadastroForm.mensalidade ? Number(editCadastroForm.mensalidade) : null,
         franquia_processos: isMensalistaEdit && editCadastroForm.franquia_processos ? Number(editCadastroForm.franquia_processos) : 0,
         saldo_prepago: isPrePagoEdit && editCadastroForm.saldo_prepago ? Number(editCadastroForm.saldo_prepago) : undefined,
+        observacoes: editCadastroForm.observacoes || null,
       };
       // Fetch coordinates in background
       if (editCadastroForm.cidade && editCadastroForm.estado) {
@@ -769,7 +771,7 @@ export default function ClienteDetalhe() {
 
       {/* Tabs — UX-010: controlado pra preservar aba após refresh do loadAll */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className={cn("grid w-full", isPrePago ? "grid-cols-7" : "grid-cols-6")}>
+        <TabsList className={cn("grid w-full", isPrePago ? "grid-cols-6" : "grid-cols-5")}>
           <TabsTrigger value="financeiro-config" className="text-xs gap-1"><Settings className="h-3.5 w-3.5" />Financeiro</TabsTrigger>
           <TabsTrigger value="honorarios" className="text-xs gap-1"><List className="h-3.5 w-3.5" />Serviços</TabsTrigger>
           <TabsTrigger value="processos" className="text-xs gap-1"><FileText className="h-3.5 w-3.5" />Processos</TabsTrigger>
@@ -781,7 +783,7 @@ export default function ClienteDetalhe() {
           </TabsTrigger>
           <TabsTrigger value="contratos" className="text-xs gap-1"><FileText className="h-3.5 w-3.5" />Contratos</TabsTrigger>
           {isPrePago && <TabsTrigger value="prepago" className="text-xs gap-1"><DollarSign className="h-3.5 w-3.5" />Pré-Pago</TabsTrigger>}
-          <TabsTrigger value="observacoes" className="text-xs gap-1"><FileText className="h-3.5 w-3.5" />Obs.</TabsTrigger>
+          {/* Tab "Observações" consolidada no Edit Cadastro em 13/05/2026 noite (auditoria). */}
         </TabsList>
 
         {/* ── Config Financeira ── */}
@@ -1438,42 +1440,6 @@ export default function ClienteDetalhe() {
           </TabsContent>
         )}
 
-        {/* ── Observações ── */}
-        <TabsContent value="observacoes">
-          <Card className="border-border/60">
-            <CardHeader className="flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base">Observações Adicionais</CardTitle>
-              {!editing ? (
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditing(true)}>
-                  <Edit2 className="h-3.5 w-3.5" /> Editar
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditForm(cliente); }}><X className="h-3.5 w-3.5 mr-1" />Cancelar</Button>
-                  <Button size="sm" className="gap-1.5" onClick={() => {
-                    if (!cliente) return;
-                    const payload: any = { id: cliente.id, observacoes: (editForm as any).observacoes || null };
-                    updateCliente.mutate(payload, {
-                      onSuccess: () => { setEditing(false); loadAll(cliente.id, { silent: true }); toast.success('Observações salvas!'); },
-                    });
-                  }} disabled={updateCliente.isPending}><Save className="h-3.5 w-3.5" />Salvar</Button>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              {editing ? (
-                <textarea
-                  className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
-                  placeholder="Observações sobre o cliente, condições especiais, etc."
-                  value={(editForm as any).observacoes || ''}
-                  onChange={(e) => setEditForm(f => ({ ...f, observacoes: e.target.value }))}
-                />
-              ) : (
-                <p className="text-sm whitespace-pre-wrap">{(cliente as any).observacoes || 'Nenhuma observação registrada.'}</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Edit Cadastro Dialog */}
@@ -1761,6 +1727,18 @@ export default function ClienteDetalhe() {
             {/* Honorários Específicos inline */}
             <div className="pt-3 border-t border-border/40">
               <HonorariosInlineRepeater rows={editHonorariosRows} onChange={setEditHonorariosRows} />
+            </div>
+
+            {/* Observações Gerais — antes era uma Tab separada, consolidada aqui em 13/05/2026 noite (auditoria). */}
+            <div className="pt-3 border-t border-border/40">
+              <Label className="text-sm font-semibold">Observações Gerais</Label>
+              <p className="text-xs text-muted-foreground mb-2">Condições especiais, anotações operacionais, etc.</p>
+              <textarea
+                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                placeholder="Observações sobre o cliente, condições especiais, etc."
+                value={editCadastroForm.observacoes || ''}
+                onChange={(e) => setEditCadastroForm(f => ({ ...f, observacoes: e.target.value }))}
+              />
             </div>
           </div>
           <DialogFooter>
