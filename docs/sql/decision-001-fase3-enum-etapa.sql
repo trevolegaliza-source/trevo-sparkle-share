@@ -1,6 +1,16 @@
 -- ============================================================================
 -- DECISION-001 Fase 3 — enum etapa BINÁRIO no banco        (13/05/2026 noite)
 -- ============================================================================
+-- ⚠️ AVISO PÓS-EXECUÇÃO (13/05 noite): este SQL rodou com sucesso mas
+-- a ordem das ops causou um efeito colateral — a trigger sync_deferimento
+-- (dropada apenas no passo 5) rodou DURANTE o UPDATE em massa do passo 2
+-- e apagou data_deferimento de ~37 processos (interpretou 'ativo'/'finalizado'
+-- como "saiu do pós-deferimento"). Hotfix restaurando os valores via
+-- heurística em decision-001-fase3-HOTFIX-data-deferimento.sql.
+--
+-- Lição: em futuras migrations que mudam enum, dropar triggers DEPENDENTES
+-- ANTES do UPDATE em massa. Aqui a ordem correta seria 5 → 1 → 2 → 3 → 4 → 6 → 7.
+-- ============================================================================
 -- Antes: text livre, 4 valores em uso (recebidos 119, registro 23,
 --        finalizados 12, concluido 2) de um espaço de 18 etapas históricas.
 -- Depois: text com CHECK aceitando só ('ativo','finalizado').

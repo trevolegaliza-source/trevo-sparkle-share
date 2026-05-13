@@ -27,13 +27,14 @@
 - `useUpdateProcessoEtapa` hook removido (era usado só pelo kanban).
 - `ETAPAS_PRE_DEFERIMENTO` esvaziado — quem precisa de "pré-deferimento" usa `data_deferimento IS NULL`.
 
-**Sequência de deploy:**
-1. Publish do Lovable (sobe frontend tolerante) — pode rodar antes do SQL sem quebrar.
-2. Rodar `docs/sql/decision-001-fase3-enum-etapa.sql` no SQL Editor.
-3. Verificar SQL no fim do arquivo (queries de validação).
-4. Smoke test em prod: criar processo, marcar deferido, gerar extrato, marcar pago, desfazer pago.
+**Sequência de deploy aplicada (13/05 noite):**
+1. ✅ Publish do Lovable
+2. ✅ `docs/sql/decision-001-fase3-enum-etapa.sql` rodado
+3. ⚠️ **Efeito colateral**: a trigger `sync_deferimento_on_etapa_change` (que era dropada no passo 5 do SQL) rodou DURANTE o UPDATE em massa do passo 2 e apagou `data_deferimento` de 37 processos. Bug de ordem do SQL — DROP de trigger deveria vir antes do UPDATE.
+4. ✅ Hotfix `docs/sql/decision-001-fase3-HOTFIX-data-deferimento.sql` rodado, restaurou via heurística (finalizados → todos foram deferidos; ativos no_deferimento com lancamento já promovido → claro que foram deferidos). Verificado: 14 finalizados + 28 ativos com `data_deferimento`, 114 ativos sem (clientes `na_solicitacao` + ainda não deferidos).
+5. Smoke test em prod pendente: criar processo, marcar deferido, gerar extrato, marcar pago, desfazer pago.
 
-**Pendente Fase 4 (resto):** Avaliar se há outros consumidores de KANBAN_STAGES legado pra limpar futuramente.
+**Lição arquivada:** em migrations que mudam enum + têm triggers dependentes, dropar triggers ANTES do UPDATE em massa. Custo zero pra dropar antes vs custo alto pra restaurar dados perdidos.
 
 ---
 
