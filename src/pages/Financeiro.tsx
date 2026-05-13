@@ -31,13 +31,12 @@ import { useQuery } from '@tanstack/react-query';
 
 function toISO(d: Date) { return d.toISOString().split('T')[0]; }
 
-// Map legacy tab keys (auditoria/cobrar/aguardando/contestado/pagos/todos) to new 3-tab structure
-function mapLegacyTab(tab: string): string {
-  if (['auditoria', 'cobrar'].includes(tab)) return 'a_fazer';
-  if (['aguardando', 'contestado', 'enviados'].includes(tab)) return 'em_andamento';
-  if (['pagos', 'todos'].includes(tab)) return 'historico';
-  if (['a_fazer', 'em_andamento', 'historico'].includes(tab)) return tab;
-  return 'a_fazer';
+// Aceita os 3 valores de aba novos. Mapeamento legado (6 abas antigas) removido
+// na auditoria 13/05/2026 noite — nenhuma navegação ativa dispara nomes antigos.
+const TABS_VALIDAS = new Set(['a_fazer', 'em_andamento', 'historico']);
+const TAB_DEFAULT = 'a_fazer';
+function resolveTab(tab: unknown): string {
+  return typeof tab === 'string' && TABS_VALIDAS.has(tab) ? tab : TAB_DEFAULT;
 }
 
 type PeriodoPreset = 'este_mes' | 'mes_anterior' | 'ultimos_3' | 'custom';
@@ -68,17 +67,12 @@ export default function Financeiro() {
   const [customInicio, setCustomInicio] = useState('');
   const [customFim, setCustomFim] = useState('');
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState(() => {
-    const stateTab = (location.state as any)?.tab;
-    if (stateTab) return mapLegacyTab(stateTab);
-    return 'a_fazer';
-  });
+  const [activeTab, setActiveTab] = useState(() => resolveTab((location.state as any)?.tab));
   const [searchTodos, setSearchTodos] = useState('');
-  const [showFuturas, setShowFuturas] = useState(false);
   const [extratoGerado, setExtratoGerado] = useState<ExtratoGeradoPayload | null>(null);
   useEffect(() => {
     const stateTab = (location.state as any)?.tab;
-    if (stateTab) setActiveTab(mapLegacyTab(stateTab));
+    if (stateTab) setActiveTab(resolveTab(stateTab));
   }, [location.state]);
 
   const dates = periodo === 'custom'
