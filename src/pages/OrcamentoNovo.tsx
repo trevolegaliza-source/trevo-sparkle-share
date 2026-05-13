@@ -47,7 +47,9 @@ const defaultForm = (): OrcamentoForm => ({
   cliente_id: null,
   modo: 'simples',
   contexto: '',
-  ordem_execucao: '',
+  // ordem_execucao removido em Sprint 2.A.2 — campo paralelo a `contexto`
+  // que nunca tinha input no form. PDF e PropostaPublica continuam lendo
+  // dados legados se houver (fallback vazio).
   itens: [createItem()],
   pacotes: [],
   secoes: [...DEFAULT_SECOES],
@@ -103,7 +105,7 @@ export default function OrcamentoNovo() {
     (async () => {
       const { data } = await supabase.from('orcamentos').select('*').eq('id', editId).single();
       if (!data) return;
-      const orc = data as unknown as Orcamento & { contexto?: string; ordem_execucao?: string; pacotes?: any; secoes?: any; destinatario?: string };
+      const orc = data as unknown as Orcamento & { contexto?: string; pacotes?: any; secoes?: any; destinatario?: string };
       setOrcamentoNumero(orc.numero);
 
       let itens: OrcamentoItem[] = [];
@@ -138,7 +140,6 @@ export default function OrcamentoNovo() {
         cliente_id: orc.cliente_id || null,
         modo,
         contexto: (orc as any).contexto || '',
-        ordem_execucao: (orc as any).ordem_execucao || '',
         itens: itens.length ? itens : [createItem()],
         pacotes: Array.isArray(rawPacotes) ? rawPacotes : [],
         secoes: Array.isArray(rawSecoes) && rawSecoes.length > 0 ? rawSecoes : [...DEFAULT_SECOES],
@@ -193,7 +194,6 @@ export default function OrcamentoNovo() {
         cliente_id: orc.cliente_id || null,
         modo,
         contexto: orc.contexto || '',
-        ordem_execucao: orc.ordem_execucao || '',
         itens: itens.length ? itens : [createItem()],
         pacotes: Array.isArray(rawPacotes) ? rawPacotes : [],
         secoes: Array.isArray(rawSecoes) && rawSecoes.length > 0 ? rawSecoes : [...DEFAULT_SECOES],
@@ -288,7 +288,6 @@ export default function OrcamentoNovo() {
       observacoes: form.observacoes || null,
       prazo_execucao: form.prazo_execucao || null,
       contexto: form.contexto || null,
-      ordem_execucao: form.ordem_execucao || null,
       pacotes: form.pacotes as any,
       secoes: form.secoes as any,
       riscos: form.riscos as any,
@@ -340,7 +339,6 @@ export default function OrcamentoNovo() {
       pacotes: form.pacotes,
       secoes: form.secoes,
       contexto: form.contexto,
-      ordem_execucao: form.ordem_execucao,
       desconto_pct: form.desconto_pct,
       subtotal,
       total: totalFinal,
