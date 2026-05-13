@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Users, Loader2, UserPlus, MoreHorizontal, UserX, UserCheck, Shield, Mail, Lock, Trash2, AlertTriangle, ShieldOff } from 'lucide-react';
+import { Users, Loader2, UserPlus, MoreHorizontal, UserX, UserCheck, Shield, Mail, Lock, Trash2, AlertTriangle, ShieldOff, Eye } from 'lucide-react';
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -92,6 +92,12 @@ export default function GestaoUsuarios() {
   const [editPerms, setEditPerms] = useState<Record<string, boolean[]>>({});
   const [editNome, setEditNome] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // PERM (13/05/2026): rastreia estado inicial pra detectar mudanças
+  // não salvas. Antes do refactor, Thales relatou que mexia no modal
+  // mas as mudanças não persistiam — provavelmente fechava sem clicar
+  // Salvar. Agora detectamos isso e avisamos.
+  const [editInitialSnapshot, setEditInitialSnapshot] = useState<string>('');
 
   // Deactivation state
   const [deactivateUser, setDeactivateUser] = useState<Profile | null>(null);
@@ -220,8 +226,51 @@ export default function GestaoUsuarios() {
 
     setEditPerms(permsMap);
     setEditModulos(moduloSet);
+    // Snapshot do estado inicial pra detectar mudanças não salvas
+    setEditInitialSnapshot(JSON.stringify({ role: profile.role, perms: permsMap, nome: profile.nome || '' }));
     setEditModalOpen(true);
   };
+
+  // PERM (13/05/2026): true se houve mudança no role/nome/permissões
+  // desde abrir o modal. Computado a cada render — barato.
+  const editHasChanges = (() => {
+    if (!editModalOpen) return false;
+    if (!editInitialSnapshot) return false;
+    const current = JSON.stringify({ role: editRole, perms: editPerms, nome: editNome });
+    return current !== editInitialSnapshot;
+  })();
+
+  // Tenta fechar o modal: se há mudanças não salvas, pede confirmação.
+  const tryCloseEditModal = () => {
+    if (editHasChanges) {
+      const ok = window.confirm('Você tem alterações não salvas. Fechar mesmo assim e perder as mudanças?');
+      if (!ok) return;
+    }
+    setEditModalOpen(false);
+  };
+
+  // Preview do menu lateral que o user vai ver, baseado nas permissões
+  // atuais do modal (sem ter salvo ainda). Reflete o filtro do AppSidebar.
+  const editPreviewMenu = (() => {
+    if (!editModalOpen) return [] as string[];
+    const items: Array<{ label: string; mod: string }> = [
+      { label: 'Cadastro Rápido', mod: 'cadastro_rapido' },
+      { label: 'Clientes', mod: 'clientes' },
+      { label: 'Orçamentos', mod: 'orcamentos' },
+      { label: 'Financeiro', mod: 'financeiro' },
+      { label: 'Contas a Pagar', mod: 'contas_pagar' },
+      { label: 'Cartão', mod: 'contas_pagar' },
+      { label: 'Colaboradores', mod: 'colaboradores' },
+      { label: 'Configurações', mod: 'configuracoes' },
+    ];
+    return items.filter(i => editPerms[i.mod]?.[0]).map(i => i.label);
+  })();
+
+  // Módulos críticos: acesso a financeiro/configuracoes/colaboradores
+  // expõe dados sensíveis. Renderizamos badge de aviso pra master
+  // pensar duas vezes antes de marcar pra operacional.
+  const isModuloCritico = (mod: string) =>
+    ['financeiro','contas_pagar','colaboradores','configuracoes','relatorios_dre','fluxo_caixa'].includes(mod);
 
   const handleRoleChange = (newRole: string) => {
     setEditRole(newRole);
@@ -974,15 +1023,23 @@ export default function GestaoUsuarios() {
       </Dialog>
 
       {/* Edit Modal */}
-      <Dialog open={editModalOpen} onOpenChange={o => !o && setEditModalOpen(false)}>
+      <Dialog open={editModalOpen} onOpenChange={o => { if (!o) tryCloseEditModal(); }}>
         <DialogContent
           className="sm:max-w-lg"
           style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+          onPointerDownOutside={(e) => { if (editHasChanges) e.preventDefault(); }}
+          onEscapeKeyDown={(e) => { if (editHasChanges) { e.preventDefault(); tryCloseEditModal(); } }}
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
               <Shield className="h-4 w-4 text-primary" />
               Editar Usuário — {editUser?.nome || editUser?.email}
+              {editHasChanges && (
+                <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium text-amber-500 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  ALTERAÇÕES NÃO SALVAS
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -1051,7 +1108,17 @@ export default function GestaoUsuarios() {
                                 checked={editModulos.has(modulo.value)}
                                 onCheckedChange={(checked) => toggleModulo(modulo.value, !!checked)}
                               />
-                              <span className="text-sm flex-1 min-w-0">{modulo.label}</span>
+                              <span className="text-sm flex-1 min-w-0 flex items-center gap-1.5">
+                                {modulo.label}
+                                {isModuloCritico(modulo.value) && (
+                                  <span
+                                    className="text-[9px] font-semibold text-destructive bg-destructive/10 border border-destructive/30 px-1.5 py-0.5 rounded-full"
+                                    title="Módulo crítico: dá acesso a dados sensíveis (financeiro/colaboradores/configurações). Marque com cuidado."
+                                  >
+                                    SENSÍVEL
+                                  </span>
+                                )}
+                              </span>
                               {editModulos.has(modulo.value) && (
                                 <div className="flex gap-2">
                                   {PERM_LABELS.slice(1).map((acao, idx) => (
@@ -1077,11 +1144,34 @@ export default function GestaoUsuarios() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>
+          {/* PERM (13/05/2026): preview do menu lateral que o usuário verá
+              com as permissões atuais. Ajuda a master verificar antes de salvar. */}
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs space-y-1.5">
+            <div className="flex items-center gap-2 font-semibold uppercase text-[10px] text-muted-foreground">
+              <Eye className="h-3 w-3" />
+              Preview · menu lateral do usuário
+            </div>
+            {editPreviewMenu.length === 0 ? (
+              <p className="text-muted-foreground italic">
+                Nenhum módulo marcado — usuário não verá itens no menu.
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                {editPreviewMenu.join(' · ')}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={tryCloseEditModal}>Cancelar</Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !editHasChanges}
+              className={editHasChanges ? 'bg-primary text-primary-foreground' : ''}
+              title={!editHasChanges ? 'Nenhuma alteração pra salvar' : undefined}
+            >
               {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Salvar
+              {editHasChanges ? 'Salvar alterações' : 'Sem alterações'}
             </Button>
           </DialogFooter>
         </DialogContent>

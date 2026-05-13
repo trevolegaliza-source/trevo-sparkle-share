@@ -18,15 +18,28 @@ export type NotificacaoTipo =
 export interface NotificacaoFilterInput {
   tipo: NotificacaoTipo;
   orcamento_id: string | null;
+  /** SEC-020 (13/05/2026): destinatario direto. NULL = broadcast empresa. */
+  destinatario_id?: string | null;
 }
 
 export interface PermCtx {
   isMaster: boolean;
   podeVerFinanceiro: boolean;
   podeVerOrcamentos: boolean;
+  /** SEC-020: id do usuário atual (auth.uid()) pra match em destinatario_id direto. */
+  userId?: string | null;
 }
 
 export function canSeeNotificacao(n: NotificacaoFilterInput, ctx: PermCtx): boolean {
+  // SEC-020 (13/05/2026): se a notif tem destinatario_id direto, só o
+  // destinatário vê (independente de role). Caminho do refactor estrutural.
+  if (n.destinatario_id) {
+    return ctx.userId === n.destinatario_id;
+  }
+
+  // Notif broadcast (destinatario_id NULL): aplica regras de role
+  // (compatibilidade com notifs antigas sem destinatario_id e com
+  // broadcasts pra todos da empresa).
   if (ctx.isMaster) return true;
 
   // "Novo usuário aguardando aprovação" usa tipo=aprovacao sem orcamento_id.

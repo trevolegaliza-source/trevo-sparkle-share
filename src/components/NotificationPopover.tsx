@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getEmpresaId } from '@/lib/storage-path';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
 import { canSeeNotificacao, type NotificacaoTipo } from '@/lib/notificacao-filter';
 
 interface Notificacao {
@@ -19,6 +20,7 @@ interface Notificacao {
   mensagem: string;
   lida: boolean;
   orcamento_id: string | null;
+  destinatario_id: string | null;
   created_at: string;
 }
 
@@ -56,11 +58,13 @@ export function NotificationPopover() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { loading: permsLoading, role, podeVer, isMaster } = usePermissions();
+  const { user } = useAuth();
 
   const permCtx = {
     isMaster: isMaster(),
     podeVerFinanceiro: podeVer('financeiro'),
     podeVerOrcamentos: podeVer('orcamentos'),
+    userId: user?.id ?? null,
   };
 
   const { data: notificacoesRaw = [] } = useQuery({

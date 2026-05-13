@@ -9,10 +9,16 @@
 
 ## ⏳ AÇÕES SUAS (Thales) — em aberto
 
+### Rodar SQL + deploy (SEC-020 — nova entrega de hoje à tarde)
+- 🟢 **Rodar** [`docs/sql/sec-020-notificacoes-destinatario.sql`](sql/sec-020-notificacoes-destinatario.sql) no Supabase SQL Editor
+- 🟢 **Deploy** `supabase functions deploy registrar-login --project-ref aahhauquuicvtwtrxyan`
+- 🟢 **Publish no Lovable** (sobe refactor UX Gestão de Usuários + canSeeNotificacao com destinatario_id)
+
 ### Testes pendentes do que entrou hoje
 - 🧪 **Testar 1 extrato real** (REL-014 atomicidade) — gera extrato em cliente real, confere que extrato + cobrança pública nascem juntos
 - 🧪 **Testar marcar pago em lote** (UX-015) — `/contas-receber` → seleciona 1-2 → "Marcar como Pagos" → confirma na janela → vê viraram pagos
 - 🧪 **Testar exclusão como secretária** — pede pra ela tentar excluir um valor adicional. Deve aparecer "Tem certeza?" simples, sem campo de senha.
+- 🧪 **Testar refactor UX Gestão de Usuários** — abre edição da secretária, mexe em algo, tenta fechar sem salvar. Deve aparecer aviso "ALTERAÇÕES NÃO SALVAS" + confirmação ao fechar.
 
 ### Esperando externo
 - ⏳ **Paulo libera SPFBL** pro servidor `.com.br` (texto enviado por WhatsApp). Quando avisar, testar `Send password recovery` pro email `thales.burger@trevolegaliza.com.br` no Supabase Users.
@@ -24,26 +30,26 @@
 
 ## 🔴 Próximas frentes (sessão dedicada cada)
 
-### 🟡 Refactor UX da Gestão de Usuários
-**Por quê:** modal de edição confuso (queixa Thales 13/05 — "tá péssimo!!").
-**Esforço:** ~3h.
-**Próximas decisões/ideias:**
-- Agrupar módulos por área com cabeçalhos colapsíveis (Comercial / Financeiro / Gestão / Sistema) ← já agrupa parcial
-- Descrição clara de cada role (o que MUDA quando troca)
-- **Preview "o que ela vai ver" antes de salvar** (lista de items do menu)
-- Indicador visual de módulos críticos (financeiro, configuracoes) com aviso "atenção: dá acesso a dados sensíveis"
-- Botão "voltar ao template do role" pra resetar fácil
-- **Validar que Save de fato persiste** (Thales relatou que mudou role pra Operacional + desmarcou módulos no modal mas nada persistiu — provável bug no `handleEditSave` ou ele fechou sem clicar). Investigar urgente.
+### ✅ Refactor UX da Gestão de Usuários — entregue 13/05 tarde
+- **Dirty state**: badge "ALTERAÇÕES NÃO SALVAS" no header quando há mudança
+- **Confirm ao fechar sujo**: Cancelar/Esc/click-fora pede confirmação se há mudanças não salvas
+- **Save button condicional**: "Salvar alterações" (highlighted) vs "Sem alterações" (disabled)
+- **Preview do menu lateral**: mostra exatamente o que o user vai ver baseado nas permissões atuais
+- **Badge SENSÍVEL**: módulos críticos (financeiro, contas_pagar, configuracoes, colaboradores, relatorios_dre, fluxo_caixa) ganham badge vermelho de aviso
 
-### 🟡 SEC-020 — refactor estrutural notificação
-**Por quê:** hoje `lida` é compartilhada por empresa (se um marca lida, todos veem lida). Filtro client-side SEC-019 é cosmético, payload realtime ainda chega via WebSocket pra todos da empresa.
-**Esforço:** ~2-3h.
-**Plano:**
+Investigação do bug "não persiste": provavelmente o Thales fechou o modal sem clicar Salvar (botão estava menos destacado). Agora o badge "ALTERAÇÕES NÃO SALVAS" + confirm-on-close evita o problema.
+
+### ✅ SEC-020 — destinatario_id em notificações — entregue 13/05 tarde (essencial)
 - Coluna `destinatario_id NULLABLE` em `notificacoes` (NULL = broadcast empresa, X = direto pra X)
-- Tabela `notificacao_leituras (notif_id, user_id, lida_em)` pra `lida` per-user
-- RLS `destinatario_id IS NULL OR destinatario_id = auth.uid()`
-- Migrar 6 insert points (3 client + 3 edge functions, incl `asaas-webhook` em `.txt`)
-- Realtime filter `or(destinatario_id.eq.{uid},destinatario_id.is.null)`
+- RLS apertada: `empresa_id = get_empresa_id() AND (destinatario_id IS NULL OR destinatario_id = auth.uid())`
+- Função `get_empresa_master_id(p_empresa_id uuid)` pra inserts setarem destinatário
+- `canSeeNotificacao` client respeita `destinatario_id` quando setado
+- Edge function `registrar-login` passa a setar destinatario = master da empresa em notifs de login_novo
+
+**Pendente da SEC-020 (não-essencial):**
+- Tabela `notificacao_leituras (notif_id, user_id, lida_em)` pra `lida` per-user (hoje continua compartilhada por empresa)
+- Migrar inserts `convidar-usuario`, `criar-usuario-com-senha`, `asaas-webhook` (.txt zumbi) pra setar destinatario_id
+- Realtime filter passar a usar `or(destinatario_id.is.null,destinatario_id.eq.{userId})` — Supabase Realtime não suporta `or()` filter; alternativa = continuar empresa_id no servidor + canSeeNotificacao no client (atual)
 
 ### 🟡 DECISION-001 Fase 3 — simplificar enum etapa pra binário
 **Por quê:** Thales: *"tira essa merda"* sobre kanban operacional. Banco usa só 4 das 18 etapas. UI inteira do kanban é teatro.
