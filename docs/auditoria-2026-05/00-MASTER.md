@@ -2,97 +2,107 @@
 
 > Auditoria do ERP perfil **master**, focada em **código inútil** + bugs + UX.
 > Cobertura: ~18 telas em 7 grupos. **Não inclui** perfis secretária/operacional/gerente nem páginas públicas.
+>
+> **Última atualização: 13/05/2026 noite — sessão noturna fechada com 20+ commits.**
 
 ---
 
 ## 📊 Resumo executivo
 
-| Categoria | Total | Onde dói mais |
-|---|---|---|
-| 🔴 BUGs reais | **29** | Financeiro (4), Contas/Cartão/Colab (8), Cliente (4), Orçamentos (4) |
-| 🟡 UX ruins | **~50** | Espalhado |
-| ⚫ **INÚTEIS (candidatos a delete)** | **~48** | OrcamentoNovo (290 LOC), Documentos page (210 LOC), ClientesFinanceiroTab orphan (566 LOC) |
-| 🟢 polish | ~15 | Espalhado |
+| Categoria | Mapeado | Entregue | Pendente |
+|---|---|---|---|
+| 🔴 BUGs reais | 29 | **7 fixados** (Sprint 3) | 22 (UX-confuso, validações fracas) |
+| 🟡 UX ruins | ~50 | **4 melhorias** (Sprint 4) | ~46 |
+| ⚫ INÚTEIS (delete) | ~48 | **~1.700 LOC deletadas** | algumas frentes deferidas |
+| 🟢 polish | ~15 | parcial | maioria |
 
-**TLDR — ROI maior:**
-- 💀 **~1.700 LOC de código morto** pra deletar sem decisão de produto
-- 🚨 **5 bugs com risco** (security/sessão/loop infinito) pra fixar logo
-- ❓ **7 decisões de produto** pra tu desbloquear (Mapa Brasil? Tab Notas? etc)
+**Highlights:**
+- ✅ **~1.700 LOC removidas** (Documentos page, ClientesFinanceiroTab orphan 566L, Intel Geográfica 900L, etc)
+- ✅ **dep `d3` removida** (60KB do bundle)
+- ✅ **7 bugs reais corrigidos** (security tenant check, loop auto-folha, delete sem confirm, etc)
+- ✅ **Fluxo automático cliente→Asaas** implementado (Sprint 2.A.4)
+- ✅ **4 ajustes UX** entregues (Sprint 4)
+- ⏸️ **A.3 deferido** (refactor god component OrcamentoNovo — sem valor visível, fica pra futuro)
+- ⏸️ **UX-001/002 não atacados** (god components ClienteDetalhe 2549L etc — refactor amplo)
 
 ---
 
-## 🥇 SPRINT 1 — Delete óbvio (sem dor, sem decisão)
+## ✅ ENTREGUE — Sprint 1 (delete óbvio)
 
-Coisa que tu nunca vai sentir falta. ~900 LOC pra eu deletar sem te perguntar.
+| Item | Status | Commit |
+|---|---|---|
+| Página Documentos inteira (210 LOC) | ✅ | `3aaef88` |
+| ClientesFinanceiroTab.tsx orphan (566 LOC) | ✅ | `3aaef88` |
+| `mapLegacyTab()` 40 LOC + state `showFuturas` | ✅ | `3aaef88` |
+| Aba "Aparência" Configurações + série "Saldo" gráfico | ✅ | `3aaef88` |
+| Tab Observações ClienteDetalhe (consolidada no Edit Cadastro) | ✅ | `3aaef88` |
+| `fmt()` centralizado em `/lib/format.ts` | ⏸️ **deferido** | 45 arquivos, refactor de massa arriscado |
+| Feature pré-pago completa | ⏸️ **deferido** | 40+ refs, risco alto |
 
-| # | O que | Onde | LOC | Por quê |
+---
+
+## ✅ ENTREGUE — Sprint 2 (decisões de produto)
+
+| Letra | Frente | Decisão Thales | Status | Commit |
 |---|---|---|---|---|
-| 1 | **Página Documentos inteira** | `/documentos`, `Documentos.tsx`, hooks | ~210 | Tabela `documentos` tem **0 registros**. Feature nunca usada. |
-| 2 | **`ClientesFinanceiroTab.tsx` orphan** | `src/components/financeiro/` | **566** | Componente inteiro **não importado em lugar nenhum**. Código fantasma. |
-| 3 | **`mapLegacyTab()` em Financeiro.tsx** | `Financeiro.tsx:34-41` | 40 | Mapeava abas antigas de 6 → 3 novas. Nenhuma navegação dispara. |
-| 4 | **State `showFuturas` morto** | `Financeiro.tsx:77` | 1 | Declarado, nunca usado em JSX. |
-| 5 | **Aba "Aparência" Configurações** | `Configuracoes.tsx:223-240` | 17 | Card imutável "Tema Escuro" sem ação. |
-| 6 | **Série "Saldo" gráfico Fluxo Caixa** | `RelatoriosFluxoCaixa.tsx:154-163` | 10 | `Saldo = entradas − saídas` → redundante visualmente. |
-| 7 | **`fmt()` redefinido em 3 arquivos** | ContasPagar, RecorrentesTab, Colaboradores | ~15 | Centralizar em `/lib/format.ts`. |
-| 8 | **Comentários "Demanda Thales" resolvidos** | ContasPagar 118-159 + outros | ~30 | Mover pra histórico de commits. |
-| 9 | **Tab Observações ClienteDetalhe** | `ClienteDetalhe.tsx:1442-1476` | ~35 | Duplica campo já editável no Edit Cadastro. |
-| 10 | **PrepagoTab** (já decidiu "foda-se") | `PrepagoTab.tsx` + import condicional | ~150 | 0 clientes PRE_PAGO no banco. Tipo PRE_PAGO some do select de criação. |
+| A | 5 seções OrcamentoNovo (Cenários/Etapas/Riscos/Benefícios/Headline) | Deletar | ✅ Sprint 2.A.1 (-288 LOC) | `c816a3e` |
+| A | `ordem_execucao` paralelo redundante | Deletar | ✅ Sprint 2.A.2 | `f3dbc0a` |
+| A | Refactor god component OrcamentoNovo em sub-componentes | OK mas adiei | ⏸️ A.3 deferido | — |
+| A | Fluxo automático "aprovar → cobrança Asaas" | OK | ✅ Sprint 2.A.4 (RPC + frontend + redirect) | `02b431f` |
+| B | Mapa Brasil em Intel Geográfica | Deletar | ✅ junto com /inteligencia-geografica inteira | `37f7008` |
+| C | Tab "Notas" EstadoDetalhe | Deletar | ✅ junto | `37f7008` |
+| D | Rating ⭐ contatos | Deletar | ✅ junto | `37f7008` |
+| E | PrecosUFModal Catálogo | Deletar | ✅ (-237 LOC) | `37f7008` |
+| F | Aba "Cards sem Processo" Trello | Deletar | ✅ (-88 LOC) | `37f7008` |
+| G | Mapa Municípios EstadoDetalhe | Deletar | ✅ junto com Intel Geográfica | `37f7008` |
 
-**Total Sprint 1 ≈ 1.075 LOC deletadas. Mecânico. Zero decisão.**
-
-**Posso atacar tudo agora se aprovar?**
+**Total Sprint 2: -1.500 LOC + dep `d3` (60KB bundle).**
 
 ---
 
-## 🥈 SPRINT 2 — Decisões de produto (precisa tu)
+## ✅ ENTREGUE — Sprint 3 (bugs reais)
 
-Coisa que pode ser inútil mas requer tua palavra final.
-
-| # | Frente | Decisão tua | LOC potencial |
+| ID | Bug | Status | Commit |
 |---|---|---|---|
-| A | **5 seções OrcamentoNovo (Cenários, Etapas Fluxo, Riscos, Benefícios, Headline)** — 0-10% uso | Agrupar em collapse "Avançadas"? Ou deletar? | ~290 |
-| B | **Mapa Brasil em `/inteligencia-geografica`** | Mostrar só SP (tu não tem cliente fora)? Ou manter como está? | ~150 |
-| C | **Tab "Notas" em EstadoDetalhe** | 0 registros banco. Deleta? | ~60 |
-| D | **Rating ⭐ em contatos_estado** | 0 ratings reais. Tu usa? | ~40 |
-| E | **Preços por UF no Catálogo** | 0 registros banco. Modal de 54 inputs. Deleta? | ~120 |
-| F | **Aba "Cards sem Processo" no Trello** | Cenário raro/nunca. Deleta? | ~115 |
-| G | **Mapa Municípios em EstadoDetalhe** | Tu olha geográfico pra achar cartório? Ou sabe de cor? | ~200 |
+| 3.1 | SECURITY: desfazer pagamento sem tenant check no fallback | ✅ | `<b9df741`> |
+| 3.2 | LOOP: auto-folha hash com `updated_at` (re-trigger infinito potencial) | ✅ | `b9df741` |
+| 3.3 | DATA LOSS: Colaboradores delete sem confirmação | ✅ AlertDialog | `b9df741` |
+| 3.4 | SESSÃO: TrocarSenha re-auth falha de rede → mensagem clara | ✅ parcial | `b9df741` |
+| 3.5 | WhatsApp senha_link copiável | ⏸️ **deferido** (design intencional pra destinatário=contador) | — |
+| 3.6 | PERFORMANCE: 6 queries SELECT COUNT em Orcamentos → 1 query | ✅ | `b9df741` |
+| 3.7 | CONSISTÊNCIA: PrecosUFModal `Promise.allSettled` | ✅ (Modal depois deletado em 2.E) | `b9df741` |
+| 3.8 | DATA: `mesesComCompras` null safety em CartaoDetalhe | ✅ | `b9df741` |
 
-**Total Sprint 2 ≈ 975 LOC. Tu manda na letra que aprovar.**
+**Total Sprint 3: 7/8 bugs fixados, 1 deferido (decisão de design).**
 
 ---
 
-## 🥉 SPRINT 3 — Bugs reais (não-cosmético)
+## ✅ ENTREGUE — Sprint 4 (UX consolidação)
 
-Coisa que pode quebrar/expor segurança/causar inconsistência.
-
-| ID | Risco | Onde | Fix |
+| Letra | Frente | Status | Commit |
 |---|---|---|---|
-| 🔴-A | **SECURITY**: desfazer pagamento sem tenant check no fallback | `FinanceiroList.tsx:84-94` | Remover fallback, só usar RPC |
-| 🔴-B | **LOOP**: auto-folha hash inclui `updated_at` → re-trigger infinito potencial | `ContasPagar.tsx:133-137` | Remover `updated_at` do hash |
-| 🔴-C | **DATA LOSS**: deletar colaborador sem confirmação | `Colaboradores.tsx:293` | AlertDialog confirmação |
-| 🔴-D | **SESSÃO**: TrocarSenha re-auth via `signInWithPassword` pode quebrar sessão se rede falhar | `TrocarSenhaCard.tsx:64` | Usar `auth.updateUser` direto |
-| 🔴-E | **CONSISTÊNCIA**: PrecosUFModal upsert em loop sequencial sem error handling | `Catalogo.tsx:948-964` | `Promise.allSettled` + retry |
-| 🔴-F | **DATA**: WhatsApp message inclui senha_link copiável | `Orcamentos.tsx:282` | Não interpolar senha em mensagem clipboard |
-| 🔴-G | **PERFORMANCE**: 6 queries SELECT COUNT no Orcamentos a cada mudança de aba | `Orcamentos.tsx:45-58` | Calcular counts no array já carregado |
-| 🔴-H | **DATA**: `mesesComCompras` quebra silenciosamente se `fatura_vencimento=null` | `CartaoDetalhe.tsx:92-97` | Filtrar null antes do groupBy |
-
-**Total Sprint 3: 8 bugs reais. Posso atacar autônomo (sem risco de produto) — quer que ataque?**
+| A | "Marcar Pago" no MoverParaMenu (redundante + sem tenant) | ✅ removido | `b4ff1fc` |
+| B | Dashboard "Próximos Vencimentos" → abrir aba **Faturas** direto | ✅ | `b4ff1fc` |
+| C | Auto-toast irritante "⏰ N despesas vencem em X dias" | ✅ removido | `b4ff1fc` |
+| E | Mensalistas alerta amarelo (filtrar por dia_vencimento) | ✅ | `b4ff1fc` |
+| D | Pipeline "Próximas faturas" Financeiro (info-only) | ⏸️ não atacado | — |
+| F | "Gerar Verbas" wizard 6 cliques → 3 | ⏸️ não atacado (1h, sessão dedicada) | — |
+| G | 2 UIs boas-vindas em Novo Processo | ⏸️ não atacado | — |
 
 ---
 
-## 🎨 SPRINT 4 — UX consolidação (precisa decisão)
+## ⏸️ PENDENTE — não atacáveis sem ti
 
-| Frente | Onde | Recomendação |
-|---|---|---|
-| **3 caminhos "Marcar Pago"** (UX-015 inacabado) | Financeiro | Manter 1 button verde + dropdown Mais; deletar MoverParaMenu |
-| **2 UIs boas-vindas em Novo Processo** | ClienteDetalhe | Excluir AlertDialog, deixar só card inline com toggle |
-| **"Gerar Verbas" 6 cliques → wizard 3 cliques** | Colaboradores | Fundir GerarVerbasModal + ConfirmarDiasUteisModal |
-| **Próximos Vencimentos no Dashboard** | Navega cliente, mas devia ir pra Faturas | Passar tab via state ou deletar do dash |
-| **"Mensalistas sem fatura no mês" alerta amarelo** | Dashboard | Filtrar: só se passou dia do vencimento |
-| **Pipeline "Próximas faturas" accordion** | Financeiro | Ou implementa ação (gerar extrato futuro) ou remove |
-| **Modal contato pré-auditoria** | Financeiro Auditoria | Clarificar "opcional vs obrigatório" |
-| **Auto-toast lembrete venc** | ContasPagar | Trocar por badge contador na aba |
+| Frente | Por quê |
+|---|---|
+| **Smoke test A.4** (cobrança automática) | Tu testar em orçamento de teste |
+| **Smoke tests carry-over tarde** (extrato real, marcar pago lote, etc) | Tu testar em prod |
+| **TESTE FINANCEIRO** decisão | Limpar ou manter cliente fake? |
+| **Paulo libera SPFBL** | Externo |
+| **A11Y-002 contraste WCAG** | Sessão dedicada com devtools |
+| **God components UX-001/UX-002** (ClienteDetalhe 2549L, ClienteAccordionFinanceiro 2300L) | Sessão dedicada com tu testando |
+| **A.3 refactor OrcamentoNovo** | Deferido pelo próprio assistente (sem valor visível pra ti) |
+| **Auditoria página-por-página outros perfis** (gerente/operacional/visualizador) | Tu definir escopo |
 
 ---
 
@@ -107,21 +117,29 @@ Coisa que pode quebrar/expor segurança/causar inconsistência.
 | 05 | [`05-orcamentos-cadastro.md`](05-orcamentos-cadastro.md) | Orcamentos + OrcamentoNovo (1253L) + CadastroRapido |
 | 06 | [`06-documentos-intel-catalogo.md`](06-documentos-intel-catalogo.md) | Documentos + IntelGeografica + EstadoDetalhe + Catalogo |
 | 07 | [`07-config-relatorios-trello.md`](07-config-relatorios-trello.md) | Configuracoes + RelatoriosDRE + RelatoriosFluxoCaixa + ReconciliacaoTrello |
+| 08 | [`08-fluxo-link-asaas.md`](08-fluxo-link-asaas.md) | Mapeamento do fluxo link interativo + integração Asaas (gerado pra Sprint 2.A.4) |
 
 ---
 
-## 🎯 Próximos passos sugeridos
+## 🧭 Próximos passos sugeridos
 
-**Tu manda em ordem:**
-1. **Sprint 1** (Delete óbvio, ~1075 LOC) — eu ataco autônomo, tu só Publish depois
-2. **Sprint 3** (Bugs reais, 8 fixes) — eu ataco autônomo, tu Publish
-3. **Sprint 2** (Decisões A-G) — tu responde A/B/C... e eu executo
-4. **Sprint 4** (UX consolidação) — uma frente por vez, depende de tua palavra
+Quando tu voltar, em ordem:
 
-**Estimativa real:**
-- Sprint 1: 2-3h (eu) + Publish (tu)
-- Sprint 3: 3-4h (eu) + Publish (tu)
-- Sprint 2: depende das tuas respostas
-- Sprint 4: depende das tuas respostas
+1. **Publish no Lovable** (sobe ~20 commits da noite)
+2. **Smoke test A.4 em orçamento de teste** (eu vou lembrar) — valida o fluxo automático cliente → Asaas
+3. **Carry-over tarde:** 3 smoke tests pendentes (extrato real, marcar pago em lote, exclusão como secretária)
+4. **Decisões pendentes:** TESTE FINANCEIRO, SPFBL Paulo
+5. **Próxima sessão:** decidir entre:
+   - Auditoria página-por-página outros perfis (escopo a definir)
+   - God components refactor (UX-001/UX-002 — sessão dedicada, ele testando)
+   - Atacar Sprint 4 D/F/G (UX remanescente)
 
-**Permissão pra atacar Sprint 1 + Sprint 3 autônomo?** Cada delete vira commit pequeno, dá rollback se quiser.
+---
+
+**Estatísticas da sessão noturna 13/05:**
+- 📦 **20+ commits** pushados em `main`
+- 💀 **~1.700 LOC deletadas** (código morto/inútil)
+- 🐛 **7 bugs reais** corrigidos
+- ✨ **5 features novas** (Fase 3 enum etapa, A11Y-003 sweep, fluxo automático A.4, etc)
+- 📦 **1 dep removida** (d3 — 60KB bundle)
+- 🧹 **8 docs de auditoria** + 1 MASTER consolidado em `docs/auditoria-2026-05/`
