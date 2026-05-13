@@ -127,6 +127,11 @@ Leitor de tela agora anuncia ação ao invés de "botão".
 - ✅ **Sprint 2.F**: deletada aba "Cards sem Processo" Trello (-88 LOC)
 - ✅ **Sprint 2.A.1**: deletadas 5 seções inúteis OrcamentoNovo (Cenários, Etapas Fluxo, Riscos, Benefícios, Headline — ~290 LOC)
 - ✅ **Sprint 2.A.2**: removido `ordem_execucao` dead field
+- ✅ **Sprint 4 (UX consolidação)**: 4 frentes UX entregues
+  - 4.B: Dashboard "Próximos Vencimentos" agora abre `/clientes/{id}` direto na aba **Faturas** (`location.state.tab`)
+  - 4.E: Mensalistas alerta amarelo "sem fatura no mês" só dispara depois do dia de vencimento (era falso positivo no início do mês)
+  - 4.C: removido auto-toast "⏰ N despesas vencem em X dias" em /contas-pagar (irritante; KPIs Total Vencido/Pendente já visíveis)
+  - 4.A: removido item "Marcar como Pago" do dropdown MoverParaMenu (era redundante com botão verde principal que usa RPC com tenant check)
 - ✅ **Sprint 2.A.4**: fluxo automático cliente aprova → cobrança Asaas pronta + redirect:
   - SQL: RPC `aprovar_orcamento_e_gerar_cobranca` em `docs/sql/sprint-2.A.4-aprovar-orcamento-asaas.sql`
   - Frontend: `PropostaPublica.handleAprovar` chama RPC + edge `asaas-gerar-cobranca` + redirect pra `/cobranca/{token}`

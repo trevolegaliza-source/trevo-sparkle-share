@@ -255,32 +255,10 @@ export default function ContasPagar() {
   type DateFilter = 'all' | 'today' | '7d';
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
-  // Demanda Thales 04/05 (C4): toast lembrete ao abrir Pagar pela
-  // primeira vez na sessão. Mostra soma dos próximos `diasAlerta` dias.
-  // Anti-irritação: 1x por sessão (sessionStorage), só dispara se tiver
-  // ao menos 1 lançamento pendente na janela.
-  useEffect(() => {
-    const flagKey = 'trevo_lembrete_pagar_sessao';
-    if (sessionStorage.getItem(flagKey)) return;
-    if (!lancamentos || lancamentos.length === 0) return;
-    const hojeStr = new Date().toISOString().split('T')[0];
-    const limite = new Date();
-    limite.setDate(limite.getDate() + diasAlerta);
-    const limiteStr = limite.toISOString().split('T')[0];
-    const proximos = lancamentos.filter((l: any) =>
-      l.status === 'pendente' && l.data_vencimento >= hojeStr && l.data_vencimento <= limiteStr
-    );
-    if (proximos.length === 0) {
-      sessionStorage.setItem(flagKey, '1'); // marca mesmo sem aviso pra não tentar de novo
-      return;
-    }
-    const total = proximos.reduce((s: number, l: any) => s + Number(l.valor), 0);
-    const totalFmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    toast.warning(`⏰ ${proximos.length} despesa(s) vencem nos próximos ${diasAlerta} dia(s) · ${totalFmt}`, {
-      duration: 6000,
-    });
-    sessionStorage.setItem(flagKey, '1');
-  }, [lancamentos, diasAlerta]);
+  // Sprint 4.C (13/05/2026 noite): auto-toast "⏰ N despesas vencem em X dias"
+  // removido. Auditoria flagou como irritante (aparecia uma vez por sessão,
+  // mas usuário entrando/saindo de Contas a Pagar várias vezes via mensagens
+  // repetidas). KPIs "Total Vencido" + "Total Pendente" já visíveis na tela.
 
   const lancamentosFiltrados = useMemo(() => {
     if (dateFilter === 'all') return lancamentos;

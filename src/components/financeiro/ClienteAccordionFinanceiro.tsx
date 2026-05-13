@@ -29,7 +29,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { ClienteFinanceiro, LancamentoFinanceiro, MensalistaSemFatura } from '@/hooks/useFinanceiroClientes';
@@ -2224,11 +2223,10 @@ function MoverParaMenu({ cliente }: { cliente: ClienteFinanceiro }) {
           <Clock className="h-4 w-4 mr-2" />
           Ag. Pagamento (enviado)
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => handleMoverPara('honorario_pago')} className="text-emerald-500">
-          <CheckCircle className="h-4 w-4 mr-2" />
-          Marcar como Pago
-        </DropdownMenuItem>
+        {/* "Marcar como Pago" removido daqui em Sprint 4.A (13/05 noite) —
+            era redundante com botão verde principal (que usa RPC com tenant
+            check). Marcar pago segue via fluxo: ClientesAguardando > botão
+            "Marcar como Pago" verde, ou linha individual com checkbox + bulk. */}
       </DropdownMenuContent>
     </DropdownMenu>
   );

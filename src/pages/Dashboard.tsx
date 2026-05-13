@@ -108,10 +108,16 @@ export default function Dashboard() {
         .lte('data_vencimento', fimMes)
         .in('cliente_id', mensalistas.map(m => m.id));
 
+      // Sprint 4.E (13/05/2026 noite): só alerta mensalista sem fatura
+      // SE já passou o dia de vencimento do ciclo. Antes: alerta amarelo
+      // aparecia desde dia 1 do mês, gerando falso positivo (mensalista
+      // com vencimento dia 10 não tinha por que aparecer no dia 2).
       const comFatura = new Set((lancMes || []).map(l => l.cliente_id));
+      const diaHoje = now.getDate();
       setMensalistaAlerts(
         mensalistas
           .filter(m => !comFatura.has(m.id))
+          .filter(m => diaHoje >= (m.dia_vencimento_mensal || 10))
           .map(m => ({ id: m.id, nome: m.apelido || m.nome, valor_base: Number(m.valor_base || 0), dia: m.dia_vencimento_mensal || 10 }))
       );
     }
@@ -612,7 +618,7 @@ export default function Dashboard() {
                   <div
                     key={item.id}
                     className={`flex items-center justify-between py-1.5 border-b border-border/50 last:border-0 -mx-2 px-2 rounded-md ${clienteId ? 'cursor-pointer hover:bg-muted/40 transition-colors' : ''}`}
-                    onClick={() => clienteId && navigate(`/clientes/${clienteId}`)}
+                    onClick={() => clienteId && navigate(`/clientes/${clienteId}`, { state: { tab: 'faturas' } })}
                     role={clienteId ? 'button' : undefined}
                     tabIndex={clienteId ? 0 : undefined}
                   >

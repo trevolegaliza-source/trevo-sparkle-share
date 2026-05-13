@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ValorProtegido } from '@/components/auth/ValorProtegido';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -130,10 +130,14 @@ export default function ClienteDetalhe() {
   const [aplicarBoasVindas, setAplicarBoasVindas] = useState(false);
 
   // UX-010 (11/05/2026): aba controlada pra preservar contexto após refresh.
-  // Antes: <Tabs defaultValue=...> + loadAll setando loading=true → Skeleton
-  // remontava a árvore inteira e Tabs voltava pra aba default. Toda vez que
-  // o usuário cadastrava processo na aba "Processos", caía pra "Financeiro".
-  const [activeTab, setActiveTab] = useState('financeiro-config');
+  // Sprint 4.B (13/05 noite): aceita tab via location.state pra deep-link
+  // (Dashboard > Próximos Vencimentos abre direto na aba Faturas).
+  const location = useLocation();
+  const stateTab = (location.state as any)?.tab;
+  const TABS_VALIDAS = ['financeiro-config', 'honorarios', 'processos', 'faturas', 'contratos', 'prepago'];
+  const [activeTab, setActiveTab] = useState(
+    typeof stateTab === 'string' && TABS_VALIDAS.includes(stateTab) ? stateTab : 'financeiro-config'
+  );
   const [isFirstProcessNovo, setIsFirstProcessNovo] = useState(false);
 
   const [showNovoProcesso, setShowNovoProcesso] = useState(false);
