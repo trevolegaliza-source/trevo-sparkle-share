@@ -21,7 +21,12 @@ import logoTrevo from '@/assets/logo-trevo.png';
 // continua acessível por URL direta — schema intacto pra reversibilidade.
 // Fase 3+: simplificar enum etapa pra binário, refactor de Processos.tsx.
 const navItems = [
-  { path: '/cadastro-rapido', label: 'Cadastro Rápido', icon: PlusCircle, modulo: 'processos' },
+  // PERM-XYZ (13/05/2026): "Cadastro Rápido" estava mapeado pra módulo
+  // `processos`, o que confundia o controle de permissão — desmarcar
+  // `processos` pra esconder a aba Processos (DECISION-001 F2) tirava
+  // o Cadastro Rápido junto. Agora usa o módulo `cadastro_rapido`
+  // dedicado (que já existe nos role_templates).
+  { path: '/cadastro-rapido', label: 'Cadastro Rápido', icon: PlusCircle, modulo: 'cadastro_rapido' },
   { path: '/clientes', label: 'Clientes', icon: Users, modulo: 'clientes' },
   { path: '/orcamentos', label: 'Orçamentos', icon: Receipt, modulo: 'orcamentos' },
   { path: '/financeiro', label: 'Financeiro', icon: DollarSign, modulo: 'financeiro' },
