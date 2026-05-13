@@ -127,7 +127,14 @@ Leitor de tela agora anuncia ação ao invés de "botão".
 - ✅ **UX-004**: AlertDialogs já 100% com Description (varredura confirmou)
 - ✅ **INFRA-002**: README já documenta `build` vs `build:dev`
 - ✅ **INFRA-006**: tailwind.config limpo (fade-in/scale-in keyframes não usadas removidas)
-- 🔍 **UX-023 mapeado**: feature ja totalmente implementada (PrepagoTab + RecargaModal + RPC mutation). Bug real é bypass via Edit Cadastro — decisao Thales (A/B acima)
+- ❌ **UX-023**: deferido permanente (Thales não usa pré-pago, 0 clientes ativos)
+- ✅ **SEC-020 fechada**: SQL rodado + edge `registrar-login` v3 deployada
+- ✅ **Auditoria página-por-página** (perfil master, 18 telas, 7 docs): mapeou ~48 inúteis + 29 bugs. Doc consolidado em `docs/auditoria-2026-05/00-MASTER.md`.
+- ✅ **Sprint 1 (delete óbvio)**: -784 LOC (Documentos page + ClientesFinanceiroTab orphan), cleanup Financeiro (mapLegacyTab + showFuturas), aba Aparência removida, série Saldo gráfico FluxoCaixa, Tab Observações consolidada em Edit Cadastro
+- ✅ **Sprint 3 (bugs reais)**: security desfazer pagamento (tenant check), auto-folha hash sem updated_at (loop), Colaboradores delete confirm AlertDialog, TrocarSenha tratar falha de rede, Orcamentos counts 6→1 query, PrecosUFModal Promise.allSettled, CartaoDetalhe null safety
+- ⏸️ **Sprint 1.4 deferido**: fmt() centralizado (45 arquivos, refactor de massa arriscado em TS)
+- ⏸️ **Sprint 1.6 deferido**: feature pré-pago removida (40+ refs, risco grande)
+- ⏸️ **Sprint 3.5 deferido**: WhatsApp senha_link (design intencional pra destinatário contador)
 
 ### 13/05/2026 (manhã + tarde)
 - 🚨 **SEC-028 (CRÍTICO)**: vulnerabilidade NULL bypass em 4 funções (`set_master_password_hash`, `marcar_deferimento`, `desfazer_deferimento`, `promover_lancamento_ao_deferir`) + REVOKE EXECUTE de anon em 30+ funções
