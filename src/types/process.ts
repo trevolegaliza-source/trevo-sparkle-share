@@ -41,6 +41,21 @@ export const KANBAN_STAGES: { key: KanbanStage; label: string }[] = [
   { key: 'arquivo', label: 'Arquivo' },
 ];
 
+// DECISION-001 Fase 2 (resto) — 13/05/2026: simplificação visual da etapa.
+// Thales: "meu sistema nao tem que ver em que etapa o processo está! Apenas
+// saber se ele existe." Aqui mapeamos as 18 etapas pra binário Ativo/Finalizado.
+// Enum no banco continua como text — refactor de schema fica pra Fase 3
+// dedicada. Aqui só ajuste de UI.
+const ETAPAS_FINALIZADAS: KanbanStage[] = ['finalizados', 'arquivo'];
+
+export function getEtapaSimplificada(etapa: string | null | undefined): 'Ativo' | 'Finalizado' {
+  if (!etapa) return 'Ativo';
+  if ((ETAPAS_FINALIZADAS as string[]).includes(etapa)) return 'Finalizado';
+  // 'concluido' é zumbi histórico (DATA-005) mas tratamos como finalizado pra não confundir
+  if (etapa === 'concluido') return 'Finalizado';
+  return 'Ativo';
+}
+
 export const PROCESS_TYPE_LABELS: Record<ProcessType, string> = {
   abertura: 'Abertura',
   alteracao: 'Alteração',

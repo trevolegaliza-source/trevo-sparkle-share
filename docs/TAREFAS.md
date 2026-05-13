@@ -51,12 +51,15 @@ Investigação do bug "não persiste": provavelmente o Thales fechou o modal sem
 - Migrar inserts `convidar-usuario`, `criar-usuario-com-senha`, `asaas-webhook` (.txt zumbi) pra setar destinatario_id
 - Realtime filter passar a usar `or(destinatario_id.is.null,destinatario_id.eq.{userId})` — Supabase Realtime não suporta `or()` filter; alternativa = continuar empresa_id no servidor + canSeeNotificacao no client (atual)
 
-### 🟡 DECISION-001 Fase 3 — simplificar enum etapa pra binário
-**Por quê:** Thales: *"tira essa merda"* sobre kanban operacional. Banco usa só 4 das 18 etapas. UI inteira do kanban é teatro.
-**Esforço:** ~4h.
+### 🟡 DECISION-001 Fase 2 (resto) — esconder badges de etapa
+**Status:** ✅ FEITO em 13/05 tarde. Helper `getEtapaSimplificada` em `types/process.ts` mapeia as 18 etapas pra Ativo/Finalizado. Aplicado em 3 lugares de ClienteDetalhe (aguardando deferimento, lista de processos, sidebar). UI agora mostra só "Ativo"/"Finalizado". Banco intacto.
+
+### 🟡 DECISION-001 Fase 3 — simplificar enum etapa NO BANCO
+**Por quê:** Thales: *"tira essa merda"* sobre kanban operacional. Banco usa só 4 das 18 etapas. UI já simplificada (Fase 2 resto). Falta migrar dados.
+**Esforço:** ~4h. **Sessão dedicada — risco de quebrar relatórios PDF e RPCs.**
 **Plano:**
 - Migration: `etapa` text only aceita `'ativo'`/`'finalizado'`
-- UPDATE em massa normalizando dados existentes
+- UPDATE em massa normalizando dados existentes (recebidos/registro/etc → ativo, finalizados/arquivo/concluido → finalizado)
 - RPCs atualizadas (`criar_processo_com_lancamento`, `marcar_processo_pago` etc)
 - Remover `KANBAN_STAGES` do TS
 
@@ -79,8 +82,11 @@ Investigação do bug "não persiste": provavelmente o Thales fechou o modal sem
 - Profundidade: só "o que acontece quando clico?" ou "o que acontece em cada estado de erro?"
 - Cobertura: master + gerente + operacional + visualizador (4 perfis), ou só master?
 
-### 🟡 A11Y-002 / A11Y-003 — contraste WCAG + aria-label em buttons só com ícone
-**Esforço:** ~2h, audit visual contigo.
+### 🟡 A11Y-002 — contraste WCAG
+**Esforço:** ~1h audit visual contigo (devtools color contrast checker).
+
+### 🟢 A11Y-003 — aria-label em buttons só com ícone
+**Status:** ✅ PARCIAL em 13/05 — sweep cirúrgico em 4 buttons mais visíveis (ItemCardSimples, ItemCardDetalhado, PacotesEditor, HonorariosRepeater). ~40+ buttons ainda restantes — sweep completo numa sessão dedicada.
 
 ### 🟡 UX-001 / UX-002 / PERF-002 — god components
 **Por quê:** ClienteDetalhe (2549 linhas, 59 useState), ClienteAccordionFinanceiro (2302), OrcamentoNovo (1253), PropostaPublica (1142). 4 god components > 1000 linhas.

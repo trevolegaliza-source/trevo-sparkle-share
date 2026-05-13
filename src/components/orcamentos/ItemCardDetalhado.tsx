@@ -52,7 +52,7 @@ export function ItemCardDetalhado({ item, idx, secoes, modoContador, onChange, o
           />
         </div>
         <div className="flex-1" />
-        <Button variant="ghost" size="icon" onClick={() => onRemove(idx)} className="text-destructive shrink-0">
+        <Button variant="ghost" size="icon" onClick={() => onRemove(idx)} className="text-destructive shrink-0" aria-label="Remover item">
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>

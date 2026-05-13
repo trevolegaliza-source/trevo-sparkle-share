@@ -179,7 +179,7 @@ export default function HonorariosRepeater({ clienteId }: Props) {
                   className="h-9 text-sm"
                 />
               </div>
-              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeRow(row.key)}>
+              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeRow(row.key)} aria-label="Remover linha">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>

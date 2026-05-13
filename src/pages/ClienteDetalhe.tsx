@@ -29,7 +29,7 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useUpdateCliente, useCreateProcesso, useDeleteCliente, useArchiveCliente, useUnarchiveCliente, calcularDescontoProgressivo } from '@/hooks/useFinanceiro';
-import { KANBAN_STAGES } from '@/types/process';
+import { KANBAN_STAGES, getEtapaSimplificada } from '@/types/process';
 import { STATUS_LABELS, STATUS_STYLES, TIPO_PROCESSO_LABELS } from '@/types/financial';
 import type { ClienteDB, ProcessoDB, Lancamento, StatusFinanceiro, TipoProcesso } from '@/types/financial';
 import { cn } from '@/lib/utils';
@@ -977,7 +977,7 @@ export default function ClienteDetalhe() {
                   <div key={p.id} className="flex items-center justify-between text-sm">
                     <span>{p.razao_social}</span>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px]">{KANBAN_STAGES.find(s => s.key === p.etapa)?.label || p.etapa}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{getEtapaSimplificada(p.etapa)}</Badge>
                       <span className="text-xs text-muted-foreground">
                         {p.valor ? Number(p.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
                       </span>
@@ -1121,7 +1121,7 @@ export default function ClienteDetalhe() {
                           </div>
                         </TableCell>
                         <TableCell className={cn("text-sm", pago && "text-muted-foreground")}>
-                          {pago ? 'Concluído' : (KANBAN_STAGES.find(s => s.key === p.etapa)?.label || p.etapa)}
+                          {pago ? 'Concluído' : getEtapaSimplificada(p.etapa)}
                         </TableCell>
                         <TableCell>
                           <PagamentoBadge status={classificarPagamento(lancamentos.find(l => l.processo_id === p.id && l.tipo === 'receber'))} />
@@ -2220,7 +2220,7 @@ export default function ClienteDetalhe() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{p.razao_social}</p>
-                      <p className="text-xs text-muted-foreground">{TIPO_PROCESSO_LABELS[p.tipo as TipoProcesso] || p.tipo} · {KANBAN_STAGES.find(s => s.key === p.etapa)?.label || p.etapa}</p>
+                      <p className="text-xs text-muted-foreground">{TIPO_PROCESSO_LABELS[p.tipo as TipoProcesso] || p.tipo} · {getEtapaSimplificada(p.etapa)}</p>
                     </div>
                     <span className="text-xs font-medium">{Number(p.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                   </label>

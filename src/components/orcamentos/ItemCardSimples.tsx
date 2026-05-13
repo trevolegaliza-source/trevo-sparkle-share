@@ -43,7 +43,7 @@ export function ItemCardSimples({ item, idx, onChange, onRemove }: Props) {
             className="text-center"
           />
         </div>
-        <Button variant="ghost" size="icon" onClick={() => onRemove(idx)} className="text-destructive shrink-0">
+        <Button variant="ghost" size="icon" onClick={() => onRemove(idx)} className="text-destructive shrink-0" aria-label="Remover item">
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>

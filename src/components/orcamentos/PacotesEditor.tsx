@@ -89,7 +89,7 @@ export function PacotesEditor({ pacotes, itens, onChange }: Props) {
                     className="text-center"
                   />
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => removePacote(pidx)} className="text-destructive">
+                <Button variant="ghost" size="icon" onClick={() => removePacote(pidx)} className="text-destructive" aria-label="Remover pacote">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
