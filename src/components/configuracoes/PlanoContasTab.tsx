@@ -143,10 +143,10 @@ export default function PlanoContasTab() {
                             </Badge>
                           )}
                           <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openNew(conta.codigo)}>
+                            <Button aria-label="Adicionar subconta" variant="ghost" size="icon" className="h-6 w-6" onClick={() => openNew(conta.codigo)}>
                               <Plus className="h-3 w-3" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(conta)}>
+                            <Button aria-label="Editar conta" variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(conta)}>
                               <Pencil className="h-3 w-3" />
                             </Button>
                             {nivel > 1 && (

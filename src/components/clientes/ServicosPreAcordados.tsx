@@ -126,10 +126,10 @@ export default function ServicosPreAcordados({ clienteId, isPrePago }: Props) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingRow(row); setModalOpen(true); }}>
+                      <Button aria-label="Editar serviço pré-acordado" variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingRow(row); setModalOpen(true); }}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(row.key)}>
+                      <Button aria-label="Excluir serviço pré-acordado" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(row.key)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>

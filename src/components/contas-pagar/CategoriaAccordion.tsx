@@ -165,11 +165,11 @@ function LancamentoRow({ l, onEdit, onMarcarPago }: { l: any; onEdit: (l: any) =
       {getStatusBadge(l)}
       <div className="flex gap-1">
         {l.status === 'pendente' && (
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMarcarPago(l)}>
+          <Button aria-label="Marcar despesa como paga" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMarcarPago(l)}>
             <CheckCircle className="h-3.5 w-3.5 text-primary" />
           </Button>
         )}
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(l)}>
+        <Button aria-label="Editar despesa" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(l)}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -547,11 +547,11 @@ function FolhaSubgrupos({ items, onEdit, onMarcarPago, onPagarMerged }: { items:
                       </Button>
                     )}
                     {l.status === 'pendente' && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMarcarPago(l)}>
+                      <Button aria-label="Marcar despesa como paga" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMarcarPago(l)}>
                         <CheckCircle className="h-3.5 w-3.5 text-primary" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(l)}>
+                    <Button aria-label="Editar despesa" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(l)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -683,11 +683,11 @@ export default function CategoriaAccordion({ lancamentos, onEdit, onMarcarPago, 
                       {getStatusBadge(l)}
                       <div className="flex gap-1">
                         {l.status === 'pendente' && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMarcarPago(l)}>
+                          <Button aria-label="Marcar despesa como paga" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMarcarPago(l)}>
                             <CheckCircle className="h-3.5 w-3.5 text-primary" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(l)}>
+                        <Button aria-label="Editar despesa" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(l)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       </div>

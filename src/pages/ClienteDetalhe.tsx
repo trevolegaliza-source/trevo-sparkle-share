@@ -676,7 +676,7 @@ export default function ClienteDetalhe() {
     <div className="space-y-6">
       {/* Back + Header */}
       <div className="flex items-start gap-4">
-        <Button variant="ghost" size="icon" className="mt-1" asChild>
+        <Button aria-label="Voltar para clientes" variant="ghost" size="icon" className="mt-1" asChild>
           <Link to="/clientes"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div className="flex-1">

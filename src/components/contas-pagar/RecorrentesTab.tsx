@@ -61,13 +61,13 @@ export default function RecorrentesTab({ recorrentes, onNew, onEdit, onToggle, o
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(r)}>
+                      <Button aria-label="Editar despesa recorrente" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(r)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onToggle(r)}>
+                      <Button aria-label={r.ativo ? 'Pausar despesa recorrente' : 'Ativar despesa recorrente'} variant="ghost" size="icon" className="h-7 w-7" onClick={() => onToggle(r)}>
                         {r.ativo ? <Pause className="h-3.5 w-3.5 text-warning" /> : <Play className="h-3.5 w-3.5 text-primary" />}
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(r)}>
+                      <Button aria-label="Excluir despesa recorrente" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(r)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     </div>

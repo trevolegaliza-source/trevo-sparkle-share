@@ -82,8 +82,16 @@ Investigação do bug "não persiste": provavelmente o Thales fechou o modal sem
 ### 🟡 A11Y-002 — contraste WCAG
 **Esforço:** ~1h audit visual contigo (devtools color contrast checker).
 
-### 🟢 A11Y-003 — aria-label em buttons só com ícone
-**Status:** ✅ PARCIAL em 13/05 — sweep cirúrgico em 4 buttons mais visíveis (ItemCardSimples, ItemCardDetalhado, PacotesEditor, HonorariosRepeater). ~40+ buttons ainda restantes — sweep completo numa sessão dedicada.
+### ✅ A11Y-003 — aria-label em buttons só com ícone (entregue 13/05 noite)
+Sweep completo após Fase 3: 35 buttons em 15 arquivos receberam `aria-label` apropriado.
+- AppLayout (Menu, Search mobile), ContasReceberLista (Marcar pago, Cobrar)
+- GerarVerbasModal (nav mês), ConfirmarDiasUteisModal (+/-), ContasPagarLista (comprovante)
+- HonorariosInlineRepeater (Excluir), ServicosPreAcordados (Editar/Excluir), PlanoContasTab (Adicionar/Editar)
+- CategoriaAccordion × 3 (Marcar pago/Editar nos 3 accordions), RecorrentesTab (Editar/Toggle/Excluir)
+- FinanceiroList (Mais ações), ClienteDetalhe (Voltar), Clientes (Baixar/Excluir contrato)
+- FaturamentoDetalhe, ProcessosAtivosDetalhe (Voltar), OrcamentoNovo (Voltar + 4 botões Trash2)
+
+Leitor de tela agora anuncia ação ao invés de "botão".
 
 ### 🟡 UX-001 / UX-002 / PERF-002 — god components
 **Por quê:** ClienteDetalhe (2549 linhas, 59 useState), ClienteAccordionFinanceiro (2302), OrcamentoNovo (1253), PropostaPublica (1142). 4 god components > 1000 linhas.
@@ -115,6 +123,7 @@ Investigação do bug "não persiste": provavelmente o Thales fechou o modal sem
 
 ### 13/05/2026 (noite)
 - ✅ **DECISION-001 Fase 3 + Fase 4 antecipada**: etapa binária no banco + Processos.tsx deletada (vide acima)
+- ✅ **A11Y-003 sweep completo**: 35 buttons icon-only ganharam aria-label (vide acima)
 
 ### 13/05/2026 (manhã + tarde)
 - 🚨 **SEC-028 (CRÍTICO)**: vulnerabilidade NULL bypass em 4 funções (`set_master_password_hash`, `marcar_deferimento`, `desfazer_deferimento`, `promover_lancamento_ao_deferir`) + REVOKE EXECUTE de anon em 30+ funções

@@ -128,6 +128,7 @@ export default function ConfirmarDiasUteisModal({ open, onOpenChange, year, mont
               </p>
               <div className="flex items-center justify-center gap-3">
                 <Button
+                  aria-label="Diminuir dias úteis"
                   variant="outline"
                   size="icon"
                   className="h-9 w-9"
@@ -140,6 +141,7 @@ export default function ConfirmarDiasUteisModal({ open, onOpenChange, year, mont
                   {diasUteis}
                 </span>
                 <Button
+                  aria-label="Aumentar dias úteis"
                   variant="outline"
                   size="icon"
                   className="h-9 w-9"

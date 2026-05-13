@@ -34,7 +34,7 @@ export default function FaturamentoDetalhe() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+        <Button aria-label="Voltar ao dashboard" variant="ghost" size="icon" className="h-8 w-8" asChild>
           <Link to="/"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div>

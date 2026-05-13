@@ -379,7 +379,7 @@ export default function FinanceiroList({ processos }: FinanceiroListProps) {
                     {p.etapa_financeiro === 'honorario_pago' && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <Button aria-label="Mais ações" variant="ghost" size="icon" className="h-7 w-7">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>

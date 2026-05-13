@@ -80,6 +80,7 @@ export function AppLayout() {
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-sm px-4 gap-3">
           {/* Hamburger (mobile only) */}
           <Button
+            aria-label="Abrir menu lateral"
             variant="ghost"
             size="icon"
             className="lg:hidden h-9 w-9 shrink-0"
@@ -104,6 +105,7 @@ export function AppLayout() {
 
           {/* Search icon (mobile only) */}
           <Button
+            aria-label="Buscar"
             variant="ghost"
             size="icon"
             className="sm:hidden h-9 w-9"

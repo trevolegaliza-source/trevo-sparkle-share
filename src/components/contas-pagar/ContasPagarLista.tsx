@@ -169,6 +169,7 @@ export default function ContasPagarLista({ lancamentos, onEdit, onMarcarPago, on
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
+                                aria-label="Ver comprovante"
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7"

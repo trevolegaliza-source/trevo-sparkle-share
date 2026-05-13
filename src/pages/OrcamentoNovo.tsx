@@ -506,7 +506,7 @@ export default function OrcamentoNovo() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/orcamentos')}>
+          <Button aria-label="Voltar para orçamentos" variant="ghost" size="icon" onClick={() => navigate('/orcamentos')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -727,7 +727,7 @@ export default function OrcamentoNovo() {
                           className="text-sm"
                         />
                       </div>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
+                      <Button aria-label="Remover cenário" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
                         const cenId = cen.id;
                         setForm(f => ({
                           ...f,
@@ -894,7 +894,7 @@ export default function OrcamentoNovo() {
                           className="text-sm"
                         />
                       </div>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
+                      <Button aria-label="Remover etapa do fluxo" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
                         setForm(f => ({
                           ...f,
                           etapas_fluxo: f.etapas_fluxo
@@ -953,7 +953,7 @@ export default function OrcamentoNovo() {
                           className="text-sm"
                         />
                       </div>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
+                      <Button aria-label="Remover risco" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
                         setForm(f => ({ ...f, riscos: f.riscos.filter((_, i) => i !== idx) }));
                       }}>
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -1006,7 +1006,7 @@ export default function OrcamentoNovo() {
                           className="text-sm"
                         />
                       </div>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
+                      <Button aria-label="Remover benefício" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => {
                         setForm(f => ({ ...f, beneficios_capa: f.beneficios_capa.filter((_, i) => i !== idx) }));
                       }}>
                         <Trash2 className="h-4 w-4 text-destructive" />

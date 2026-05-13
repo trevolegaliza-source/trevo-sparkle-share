@@ -618,10 +618,10 @@ export default function Clientes() {
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handlePreviewContract(c.name)} title="Preview">
                         <Eye className="h-3 w-3" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDownloadContract(c.name)}>
+                      <Button aria-label="Baixar contrato" variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDownloadContract(c.name)}>
                         <Download className="h-3 w-3" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteContract(c.name)}>
+                      <Button aria-label="Excluir contrato" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteContract(c.name)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>

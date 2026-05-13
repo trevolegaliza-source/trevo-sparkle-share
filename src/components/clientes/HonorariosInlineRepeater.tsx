@@ -93,7 +93,7 @@ export default function HonorariosInlineRepeater({ rows, onChange }: Props) {
                   className="h-8 text-sm"
                 />
               </div>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeRow(row.key)}>
+              <Button aria-label="Remover honorário" type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeRow(row.key)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>

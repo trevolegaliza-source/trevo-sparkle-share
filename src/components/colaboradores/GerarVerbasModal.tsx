@@ -58,9 +58,9 @@ export default function GerarVerbasModal({ open, onOpenChange, colaboradores, on
           </DialogHeader>
 
           <div className="flex items-center justify-center gap-3 py-2">
-            <Button variant="ghost" size="sm" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button aria-label="Mês anterior" variant="ghost" size="sm" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
             <span className="text-sm font-semibold text-foreground">{MESES_PT[month]} {year}</span>
-            <Button variant="ghost" size="sm" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+            <Button aria-label="Próximo mês" variant="ghost" size="sm" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
           </div>
 
           <p className="text-xs text-muted-foreground">
