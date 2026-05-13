@@ -16,6 +16,7 @@ import {
 } from '@/hooks/useValoresAdicionais';
 import { uploadFile, getSignedUrl } from '@/hooks/useStorageUpload';
 import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
 interface ValoresAdicionaisModalProps {
@@ -52,6 +53,7 @@ export default function ValoresAdicionaisModal({
   const addMut = useAddValorAdicional();
   const updateMut = useUpdateValorAdicional();
   const deleteMut = useDeleteValorAdicional();
+  const { isMaster } = usePermissions();
 
   const [tipoSelecionado, setTipoSelecionado] = useState<string>(TIPOS_TAXA[0].label);
   const [descLivre, setDescLivre] = useState('');
@@ -475,12 +477,16 @@ export default function ValoresAdicionaisModal({
         </DialogContent>
       </Dialog>
 
+      {/* PERM (13/05/2026): operacional/gerente pode excluir valor adicional
+          que cadastrou — pedido Thales. Master ainda passa pela senha master
+          como proteção contra clique errado. */}
       <PasswordConfirmDialog
         open={passwordOpen}
         onOpenChange={setPasswordOpen}
         onConfirm={handleDeleteConfirm}
         title="Excluir Valor Adicional"
-        description="Confirme a senha de administração para excluir este item."
+        description="Esta ação é irreversível."
+        bypassMasterPassword={!isMaster()}
       />
     </>
   );

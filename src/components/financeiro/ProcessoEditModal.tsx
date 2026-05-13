@@ -362,12 +362,16 @@ export default function ProcessoEditModal({ open, onOpenChange, processo }: Proc
 
       <ValoresAdicionaisModal open={valoresOpen} onOpenChange={setValoresOpen} processoId={processo.id} clienteApelido={clienteApelido} />
 
+      {/* PERM (13/05/2026): operacional/gerente que cadastrou pode excluir
+          sem senha master — pedido Thales. Master ainda passa pela senha
+          como proteção contra clique errado. */}
       <PasswordConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         onConfirm={handleDeleteConfirm}
         title="Excluir Processo"
-        description="Esta ação é irreversível. Confirme a senha master para excluir."
+        description="Esta ação é irreversível."
+        bypassMasterPassword={!isMaster()}
       />
 
       <PasswordConfirmDialog

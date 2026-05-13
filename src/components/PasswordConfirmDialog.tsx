@@ -2,6 +2,10 @@ import { useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,16 +19,54 @@ interface PasswordConfirmDialogProps {
   onConfirm: () => void;
   title?: string;
   description?: string;
+  /**
+   * Quando true, dispensa a senha master e mostra um AlertDialog simples
+   * "Tem certeza?". Usar pra ações que o caller já decidiu serem permitidas
+   * pelo role do user (ex: operacional excluindo o que ela mesma cadastrou).
+   * Default: false (mantém comportamento original — senha master obrigatória).
+   */
+  bypassMasterPassword?: boolean;
 }
 
 export default function PasswordConfirmDialog({
   open, onOpenChange, onConfirm,
   title = 'Confirmar Ação',
   description = 'Digite a senha de administração para confirmar esta ação.',
+  bypassMasterPassword = false,
 }: PasswordConfirmDialogProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Modo simples: AlertDialog sem campo de senha. Caller decidiu que esse
+  // user tem direito pelo role.
+  if (bypassMasterPassword) {
+    return (
+      <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              {title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {description.replace(/senha de administra[çc][ãa]o|senha master|senha de admin/gi, '').trim()
+                || 'Esta ação é irreversível.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { onOpenChange(false); onConfirm(); }}
+            >
+              Confirmar exclusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
+  }
 
   const handleConfirm = async () => {
     if (!password) return;
