@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Kanban, Users, DollarSign, Settings,
+  Users, DollarSign, Settings,
   PlusCircle, ArrowUpCircle, LogOut, UsersRound, Receipt, X, CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -14,9 +14,14 @@ import logoTrevo from '@/assets/logo-trevo.png';
 // (Dashboard, Relatórios DRE, Fluxo de Caixa, Intel. Geográfica,
 // Portfólio & Preços, Trello ↔ ERP) ficam acessíveis só por URL direta —
 // rotas mantidas em App.tsx. Decisão registrada no doc Auditoria.
+//
+// DECISION-001 Fase 2 (13/05/2026): "/processos" removida do menu
+// (Thales: "tira essa merda"). Banco usa só 4 das 18 etapas do kanban
+// (76% em "recebidos", 15% em "registro", 7% finalizados). Rota
+// continua acessível por URL direta — schema intacto pra reversibilidade.
+// Fase 3+: simplificar enum etapa pra binário, refactor de Processos.tsx.
 const navItems = [
   { path: '/cadastro-rapido', label: 'Cadastro Rápido', icon: PlusCircle, modulo: 'processos' },
-  { path: '/processos', label: 'Processos', icon: Kanban, modulo: 'processos' },
   { path: '/clientes', label: 'Clientes', icon: Users, modulo: 'clientes' },
   { path: '/orcamentos', label: 'Orçamentos', icon: Receipt, modulo: 'orcamentos' },
   { path: '/financeiro', label: 'Financeiro', icon: DollarSign, modulo: 'financeiro' },

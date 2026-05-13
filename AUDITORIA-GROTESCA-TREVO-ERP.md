@@ -36,7 +36,7 @@ Thales precisa rodar **antes de tudo** amanhã.
 **Atomicidade financeira** — 5 fluxos sem rollback. **REL-014 e UX-013 já preparados** (madrugada 13/05): SQLs em `docs/sql/rel-014-*.sql` e `docs/sql/ux-013-*.sql`; client refatorado pra usar RPC com **fallback pro fluxo antigo** se RPC não existir (zero downtime). UX-019 (ativar Trevo), UX-015+FEAT-004 (marcar pago lote) ainda precisam Thales acompanhar.
 
 ### 🟡 Outros pendentes reais (sem ataque autônomo)
-- **DECISION-001 Fase 2** — esconder kanban operacional ("tira essa merda")
+- **DECISION-001 Fase 2** — ✅ PARCIAL FEITA (13/05 madrugada): entrada `/processos` removida do menu lateral + tirada da prioridade do `RootRedirect`. Rota continua viva por URL direta (schema intacto = reversível). Falta: esconder badges de etapa em ClienteDetalhe/Clientes/Dashboard (caso a caso, com Thales acompanhando).
 - **SEC-020** — refactor estrutural notificação (`destinatario_id` + tabela leituras per-user)
 - **A11Y-002** (contraste WCAG — precisa audit visual com devtools)
 - **A11Y-003** (aria-label em buttons só com ícone — caso a caso)

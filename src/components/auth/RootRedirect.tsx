@@ -13,9 +13,12 @@ import Dashboard from '@/pages/Dashboard';
 //
 // Agora: rota `/` renderiza este componente que escolhe destino baseado
 // nas permissões do usuário.
+// DECISION-001 Fase 2 (13/05/2026): `/processos` (kanban operacional)
+// removido da lista de prioridade. Visualizador/financeiro caem em
+// `/clientes`. Rota `/processos` continua viva por URL direta mas não
+// é mais destino default. Thales: "tira essa merda".
 const MODULES_PRIORITY = [
   { mod: 'cadastro_rapido', path: '/cadastro-rapido' },
-  { mod: 'processos',       path: '/processos' },
   { mod: 'clientes',        path: '/clientes' },
   { mod: 'orcamentos',      path: '/orcamentos' },
   { mod: 'financeiro',      path: '/financeiro' },
