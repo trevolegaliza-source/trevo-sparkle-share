@@ -32,8 +32,15 @@ Thales precisa rodar **antes de tudo** amanhã.
 **Polish:** REL-015, UX-024, UX-026, UX-027.
 **Docs:** RFC atomicidade financeira ([`docs/rfc/atomicidade-financeira.md`](./docs/rfc/atomicidade-financeira.md)) + checklist amanhã ([`docs/amanha-thales.md`](./docs/amanha-thales.md)).
 
-### 🔴 Próximas bombas (RFC pronta, aguarda decisão Thales)
-**Atomicidade financeira** — 5 fluxos sem rollback. **REL-014 e UX-013 já preparados** (madrugada 13/05): SQLs em `docs/sql/rel-014-*.sql` e `docs/sql/ux-013-*.sql`; client refatorado pra usar RPC com **fallback pro fluxo antigo** se RPC não existir (zero downtime). UX-019 (ativar Trevo), UX-015+FEAT-004 (marcar pago lote) ainda precisam Thales acompanhar.
+### ✅ Atomicidade financeira — completa (Bloco B, 13/05 manhã)
+Todos os 5 fluxos sem rollback preparados com fallback:
+- REL-014 (gerar extrato) — `docs/sql/rel-014-gerar-extrato-completo.sql`
+- UX-013 (deferimento lote) — `docs/sql/ux-013-marcar-deferimento-em-lote.sql`
+- UX-019 (Método Trevo) — `docs/sql/ux-019-metodo-trevo-atomico.sql`
+- UX-015 + FEAT-004 (marcar pago lote + desfazer) — `docs/sql/ux-015-feat-004-marcar-pago-lote.sql`
+- **DATA-001 + DATA-002** (cartões multi-tenant + índices FK) — `docs/sql/data-001-002-cartao-multi-tenant.sql` — fecha PERM-008
+
+Client refatorado com fallback automático. Pode dar Publish antes de rodar SQL — fluxo antigo continua funcionando. Quando rodar SQL no Supabase Editor, RPC nova passa a ser usada sem Publish extra.
 
 ### 🟡 Outros pendentes reais (sem ataque autônomo)
 - **DECISION-001 Fase 2** — ✅ PARCIAL FEITA (13/05 madrugada): entrada `/processos` removida do menu lateral + tirada da prioridade do `RootRedirect`. Rota continua viva por URL direta (schema intacto = reversível). Falta: esconder badges de etapa em ClienteDetalhe/Clientes/Dashboard (caso a caso, com Thales acompanhando).

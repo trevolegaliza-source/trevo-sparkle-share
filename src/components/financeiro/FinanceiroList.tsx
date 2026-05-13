@@ -63,18 +63,37 @@ export default function FinanceiroList({ processos }: FinanceiroListProps) {
     if (!undoProcesso) return;
     setUndoing(true);
     try {
-      const { error } = await supabase
-        .from('lancamentos')
-        .update({
-          status: 'pendente' as const,
-          etapa_financeiro: 'solicitacao_criada',
-          data_pagamento: null,
-          confirmado_recebimento: false,
-        })
-        .eq('processo_id', undoProcesso.id)
-        .eq('status', 'pago');
+      // FEAT-004 (13/05/2026): tenta RPC atômica com tenant check + bloqueio
+      // se cobranca_enviada. Antes: UPDATE bruto sem tenant check, qualquer
+      // user da empresa podia desfazer pagamento de qualquer processo.
+      const { error: rpcErr } = await supabase.rpc('desfazer_marcar_pago' as any, {
+        p_processo_id: undoProcesso.id,
+      } as any) as any;
 
-      if (error) throw error;
+      const rpcAusente = rpcErr && (
+        rpcErr.code === '42883' ||
+        rpcErr.code === 'PGRST202' ||
+        (typeof rpcErr.message === 'string' && rpcErr.message.toLowerCase().includes('could not find the function'))
+      );
+
+      if (!rpcErr) {
+        // Sucesso via RPC
+      } else if (rpcAusente) {
+        console.warn('[FEAT-004] RPC desfazer_marcar_pago não deployada — UPDATE legado');
+        const { error } = await supabase
+          .from('lancamentos')
+          .update({
+            status: 'pendente' as const,
+            etapa_financeiro: 'solicitacao_criada',
+            data_pagamento: null,
+            confirmado_recebimento: false,
+          })
+          .eq('processo_id', undoProcesso.id)
+          .eq('status', 'pago');
+        if (error) throw error;
+      } else {
+        throw rpcErr;
+      }
 
       qc.invalidateQueries({ queryKey: ['processos_financeiro'] });
       qc.invalidateQueries({ queryKey: ['financeiro_dashboard'] });

@@ -117,13 +117,34 @@ export function useMarcarRecebidoLote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ ids, data_pagamento }: { ids: string[]; data_pagamento: string }) => {
-      const { error } = await supabase.from('lancamentos').update({
-        status: 'pago',
-        data_pagamento,
-        confirmado_recebimento: true,
-        updated_at: new Date().toISOString(),
-      } as any).in('id', ids);
-      if (error) throw error;
+      // UX-015 + FEAT-004 (13/05/2026): tenta RPC atômica com tenant check.
+      // Se RPC ainda não foi deployada (Thales não rodou
+      // docs/sql/ux-015-feat-004-marcar-pago-lote.sql), cai pro UPDATE
+      // direto sem tenant check (comportamento legado).
+      const { error: rpcErr } = await supabase.rpc('marcar_pago_em_lote' as any, {
+        p_lancamento_ids: ids,
+        p_data_pagamento: data_pagamento,
+      } as any) as any;
+
+      const rpcAusente = rpcErr && (
+        rpcErr.code === '42883' ||
+        rpcErr.code === 'PGRST202' ||
+        (typeof rpcErr.message === 'string' && rpcErr.message.toLowerCase().includes('could not find the function'))
+      );
+
+      if (!rpcErr) return;
+      if (rpcAusente) {
+        console.warn('[UX-015] RPC marcar_pago_em_lote não deployada — UPDATE direto (legado)');
+        const { error } = await supabase.from('lancamentos').update({
+          status: 'pago',
+          data_pagamento,
+          confirmado_recebimento: true,
+          updated_at: new Date().toISOString(),
+        } as any).in('id', ids);
+        if (error) throw error;
+        return;
+      }
+      throw rpcErr;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lancamentos_receber'] });

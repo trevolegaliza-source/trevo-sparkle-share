@@ -517,39 +517,53 @@ function AuditoriaFicha({
     if (valorBase <= 0) { toast.error('Cliente sem valor base cadastrado'); return; }
     setSavingTrevo(true);
     try {
-      const timestamp = new Date().toISOString();
-      // 1. Update processo: append etiqueta + recalc valor
-      const { data: procData, error: procFetchErr } = await supabase
-        .from('processos')
-        .select('etiquetas')
-        .eq('id', l.processo_id)
-        .single();
-      if (procFetchErr) throw procFetchErr;
-      const etiquetasAtuais: string[] = (procData?.etiquetas as string[]) || [];
-      const novasEtiquetas = etiquetasAtuais.includes('metodo_trevo')
-        ? etiquetasAtuais
-        : [...etiquetasAtuais, 'metodo_trevo'];
+      // UX-019 (13/05/2026): tenta RPC atômica. Se a RPC ainda não foi
+      // deployada (Thales não rodou docs/sql/ux-019-*.sql), cai pro
+      // fluxo antigo de 2-3 awaits sem rollback.
+      const { error: rpcErr } = await supabase.rpc('set_metodo_trevo' as any, {
+        p_processo_id: l.processo_id,
+        p_lancamento_id: l.id,
+        p_ativar: true,
+        p_novo_valor: novoValorTrevo,
+      } as any) as any;
 
-      const { error: procErr } = await supabase
-        .from('processos')
-        .update({ etiquetas: novasEtiquetas, valor: novoValorTrevo, updated_at: timestamp } as any)
-        .eq('id', l.processo_id);
-      if (procErr) throw procErr;
+      const rpcAusente = rpcErr && (
+        rpcErr.code === '42883' ||
+        rpcErr.code === 'PGRST202' ||
+        (typeof rpcErr.message === 'string' && rpcErr.message.toLowerCase().includes('could not find the function'))
+      );
 
-      // 2. Update lancamento (only if not pago)
-      if (l.status !== 'pago') {
-        const { data: { user } } = await supabase.auth.getUser();
-        const { error: lancErr } = await supabase
-          .from('lancamentos')
-          .update({
-            valor: novoValorTrevo,
-            valor_original: l.valor_original ?? l.valor,
-            valor_alterado_por: user?.id,
-            valor_alterado_em: timestamp,
-            updated_at: timestamp,
-          } as any)
-          .eq('id', l.id);
-        if (lancErr) throw lancErr;
+      if (rpcErr && !rpcAusente) throw rpcErr;
+
+      if (rpcAusente) {
+        // Fallback: fluxo antigo
+        console.warn('[UX-019] RPC set_metodo_trevo não deployada — fluxo antigo');
+        const timestamp = new Date().toISOString();
+        const { data: procData, error: procFetchErr } = await supabase
+          .from('processos').select('etiquetas').eq('id', l.processo_id).single();
+        if (procFetchErr) throw procFetchErr;
+        const etiquetasAtuais: string[] = (procData?.etiquetas as string[]) || [];
+        const novasEtiquetas = etiquetasAtuais.includes('metodo_trevo')
+          ? etiquetasAtuais : [...etiquetasAtuais, 'metodo_trevo'];
+        const { error: procErr } = await supabase
+          .from('processos')
+          .update({ etiquetas: novasEtiquetas, valor: novoValorTrevo, updated_at: timestamp } as any)
+          .eq('id', l.processo_id);
+        if (procErr) throw procErr;
+        if (l.status !== 'pago') {
+          const { data: { user } } = await supabase.auth.getUser();
+          const { error: lancErr } = await supabase
+            .from('lancamentos')
+            .update({
+              valor: novoValorTrevo,
+              valor_original: l.valor_original ?? l.valor,
+              valor_alterado_por: user?.id,
+              valor_alterado_em: timestamp,
+              updated_at: timestamp,
+            } as any)
+            .eq('id', l.id);
+          if (lancErr) throw lancErr;
+        }
       }
 
       toast.success(`Método Trevo ativado · ${fmt(novoValorTrevo)}`);
@@ -567,52 +581,58 @@ function AuditoriaFicha({
     if (!l.processo_id) return;
     setSavingTrevo(true);
     try {
-      const timestamp = new Date().toISOString();
+      // UX-019 (13/05/2026): tenta RPC atômica. Banco calcula valor restaurado.
+      const { data: rpcResult, error: rpcErr } = await supabase.rpc('set_metodo_trevo' as any, {
+        p_processo_id: l.processo_id,
+        p_lancamento_id: l.id,
+        p_ativar: false,
+      } as any) as any;
 
-      // 1. Busca etiquetas atuais e remove metodo_trevo
-      const { data: procData, error: procFetchErr } = await supabase
-        .from('processos')
-        .select('etiquetas')
-        .eq('id', l.processo_id)
-        .single();
-      if (procFetchErr) throw procFetchErr;
-      const etiquetasAtuais: string[] = (procData?.etiquetas as string[]) || [];
-      const novasEtiquetas = etiquetasAtuais.filter(e => e !== 'metodo_trevo');
+      const rpcAusente = rpcErr && (
+        rpcErr.code === '42883' ||
+        rpcErr.code === 'PGRST202' ||
+        (typeof rpcErr.message === 'string' && rpcErr.message.toLowerCase().includes('could not find the function'))
+      );
 
-      // 2. Calcula valor a restaurar.
-      //    Prioridade: valor_original do lançamento (se existir) → valor base do cliente
-      //    Se nenhum dos dois for válido, não mexe no valor (evita zerar por engano).
-      const valorRestaurado: number | null =
-        (l.valor_original != null && Number(l.valor_original) > 0)
-          ? Number(l.valor_original)
-          : (valorBase > 0 ? valorBase : null);
+      let valorRestaurado: number | null = null;
 
-      // 3. Update processo: tira etiqueta + reverte valor (se temos valor válido)
-      const processoUpdate: Record<string, any> = {
-        etiquetas: novasEtiquetas,
-        updated_at: timestamp,
-      };
-      if (valorRestaurado !== null) processoUpdate.valor = valorRestaurado;
-
-      const { error: procErr } = await supabase
-        .from('processos')
-        .update(processoUpdate as any)
-        .eq('id', l.processo_id);
-      if (procErr) throw procErr;
-
-      // 4. Update lancamento (só se pendente E tivermos valor pra restaurar)
-      if (valorRestaurado !== null && l.status !== 'pago') {
-        const { data: { user } } = await supabase.auth.getUser();
-        const { error: lancErr } = await supabase
-          .from('lancamentos')
-          .update({
-            valor: valorRestaurado,
-            valor_alterado_por: user?.id,
-            valor_alterado_em: timestamp,
-            updated_at: timestamp,
-          } as any)
-          .eq('id', l.id);
-        if (lancErr) throw lancErr;
+      if (!rpcErr && rpcResult?.ok) {
+        valorRestaurado = rpcResult.valor_restaurado ?? null;
+      } else if (rpcAusente) {
+        console.warn('[UX-019] RPC set_metodo_trevo não deployada — fluxo antigo');
+        const timestamp = new Date().toISOString();
+        const { data: procData, error: procFetchErr } = await supabase
+          .from('processos').select('etiquetas').eq('id', l.processo_id).single();
+        if (procFetchErr) throw procFetchErr;
+        const etiquetasAtuais: string[] = (procData?.etiquetas as string[]) || [];
+        const novasEtiquetas = etiquetasAtuais.filter(e => e !== 'metodo_trevo');
+        valorRestaurado =
+          (l.valor_original != null && Number(l.valor_original) > 0)
+            ? Number(l.valor_original)
+            : (valorBase > 0 ? valorBase : null);
+        const processoUpdate: Record<string, any> = {
+          etiquetas: novasEtiquetas,
+          updated_at: timestamp,
+        };
+        if (valorRestaurado !== null) processoUpdate.valor = valorRestaurado;
+        const { error: procErr } = await supabase
+          .from('processos').update(processoUpdate as any).eq('id', l.processo_id);
+        if (procErr) throw procErr;
+        if (valorRestaurado !== null && l.status !== 'pago') {
+          const { data: { user } } = await supabase.auth.getUser();
+          const { error: lancErr } = await supabase
+            .from('lancamentos')
+            .update({
+              valor: valorRestaurado,
+              valor_alterado_por: user?.id,
+              valor_alterado_em: timestamp,
+              updated_at: timestamp,
+            } as any)
+            .eq('id', l.id);
+          if (lancErr) throw lancErr;
+        }
+      } else {
+        throw rpcErr;
       }
 
       toast.success(
