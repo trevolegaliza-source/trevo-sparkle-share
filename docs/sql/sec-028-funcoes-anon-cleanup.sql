@@ -292,17 +292,17 @@ REVOKE EXECUTE ON FUNCTION public.register_master_password_attempt(uuid, text, b
 REVOKE EXECUTE ON FUNCTION public.hash_master_password(text)                FROM anon, public;
 
 -- Mutação autenticada (defesa em profundidade)
-REVOKE EXECUTE ON FUNCTION public.alterar_valor_lancamento(uuid, numeric, numeric)               FROM anon;
-REVOKE EXECUTE ON FUNCTION public.arquivar_cliente(uuid)                                         FROM anon;
-REVOKE EXECUTE ON FUNCTION public.desarquivar_cliente(uuid)                                      FROM anon;
-REVOKE EXECUTE ON FUNCTION public.converter_orcamento_em_processo(uuid)                          FROM anon;
-REVOKE EXECUTE ON FUNCTION public.desfazer_deferimento(uuid)                                     FROM anon;
-REVOKE EXECUTE ON FUNCTION public.marcar_deferimento(uuid, date)                                 FROM anon;
-REVOKE EXECUTE ON FUNCTION public.marcar_processo_pago(uuid, date)                               FROM anon;
-REVOKE EXECUTE ON FUNCTION public.promover_lancamento_ao_deferir(uuid)                           FROM anon;
-REVOKE EXECUTE ON FUNCTION public.rotacionar_cobranca_token(uuid)                                FROM anon;
-REVOKE EXECUTE ON FUNCTION public.tentar_aplicar_boas_vindas(uuid)                               FROM anon;
-REVOKE EXECUTE ON FUNCTION public.reverter_boas_vindas(uuid)                                     FROM anon;
+REVOKE EXECUTE ON FUNCTION public.alterar_valor_lancamento(uuid, numeric, numeric)               FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.arquivar_cliente(uuid)                                         FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.desarquivar_cliente(uuid)                                      FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.converter_orcamento_em_processo(uuid)                          FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.desfazer_deferimento(uuid)                                     FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.marcar_deferimento(uuid, date)                                 FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.marcar_processo_pago(uuid, date)                               FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.promover_lancamento_ao_deferir(uuid)                           FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.rotacionar_cobranca_token(uuid)                                FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.tentar_aplicar_boas_vindas(uuid)                               FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.reverter_boas_vindas(uuid)                                     FROM PUBLIC, anon;
 
 -- criar_processo_com_lancamento tem 21 argumentos — usa regclass
 DO $$
