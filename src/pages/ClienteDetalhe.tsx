@@ -125,7 +125,7 @@ export default function ClienteDetalhe() {
   const [deferimentoAlertData, setDeferimentoAlertData] = useState<DeferimentoAlertData | null>(null);
 
   // Boas-vindas (1º processo) — alert antes de abrir o formulário
-  const [showBoasVindasAlert, setShowBoasVindasAlert] = useState(false);
+  // showBoasVindasAlert state removido Sprint 4.G — AlertDialog era código morto.
   const [boasVindasPct, setBoasVindasPct] = useState('50');
   const [aplicarBoasVindas, setAplicarBoasVindas] = useState(false);
 
@@ -1773,91 +1773,10 @@ export default function ClienteDetalhe() {
         onConfirm={() => { pendingDeleteAction?.(); setPendingDeleteAction(null); }}
       />
 
-      {/* Boas-vindas (1º processo) — AlertDialog antes do formulário */}
-      <AlertDialog
-        open={showBoasVindasAlert}
-        onOpenChange={(open) => {
-          setShowBoasVindasAlert(open);
-          if (!open) setAplicarBoasVindas(false);
-        }}
-      >
-        <AlertDialogContent className="max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">🎉 Primeiro processo deste cliente!</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <p>Este é o primeiro processo de <strong>{cliente.apelido || cliente.nome}</strong>. Deseja aplicar desconto de boas-vindas?</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          {aplicarBoasVindas && (
-            <div className="space-y-3">
-              <div className="grid gap-1.5">
-                <Label className="text-sm">Percentual de desconto (%)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={100}
-                    className="w-24"
-                    value={boasVindasPct}
-                    onChange={(e) => setBoasVindasPct(e.target.value)}
-                  />
-                  <span className="text-sm text-muted-foreground">%</span>
-                </div>
-              </div>
-              {(() => {
-                const valorBase = Number((cliente as any).valor_base ?? 0);
-                const pct = Number(boasVindasPct) || 0;
-                const valorComDesconto = Math.round(valorBase * (1 - pct / 100) * 100) / 100;
-                return valorBase > 0 ? (
-                  <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                    <p>Valor base: <strong>{valorBase.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></p>
-                    <p>Com desconto: <strong className="text-primary">{valorComDesconto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></p>
-                  </div>
-                ) : null;
-              })()}
-            </div>
-          )}
-
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            {/* UX-016 (12/05/2026): "Não, obrigado" sugeria cancelar — mas o
-                comportamento real é "pular desconto e seguir pro cadastro
-                de processo". Label honesto agora. */}
-            <AlertDialogCancel
-              onClick={() => {
-                setAplicarBoasVindas(false);
-                setShowBoasVindasAlert(false);
-                setProcessoForm({ ...defaultProcessoForm });
-                setShowNovoProcesso(true);
-              }}
-            >
-              Pular desconto, seguir
-            </AlertDialogCancel>
-            {!aplicarBoasVindas ? (
-              <AlertDialogAction
-                onClick={(e) => {
-                  e.preventDefault();
-                  setAplicarBoasVindas(true);
-                }}
-              >
-                Sim, aplicar desconto
-              </AlertDialogAction>
-            ) : (
-              <AlertDialogAction
-                onClick={() => {
-                  setShowBoasVindasAlert(false);
-                  setProcessoForm({ ...defaultProcessoForm, boas_vindas: true, boas_vindas_pct: boasVindasPct || '50' });
-                  setShowNovoProcesso(true);
-                }}
-              >
-                Confirmar {boasVindasPct}%
-              </AlertDialogAction>
-            )}
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* AlertDialog "Boas-vindas" removido em Sprint 4.G (13/05/2026 noite):
+          setShowBoasVindasAlert(true) nunca era chamado em lugar nenhum —
+          era código morto. handleNovoProcesso abre direto o Dialog Novo Processo,
+          que tem card inline de boas-vindas quando isFirstProcessNovo=true. */}
 
       {/* Dialog Novo Processo — Reformulado */}
       <Dialog

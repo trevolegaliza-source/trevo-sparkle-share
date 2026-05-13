@@ -642,50 +642,10 @@ export default function Financeiro() {
                   </AccordionContent>
                 </AccordionItem>
 
-                {!masterBypassJanela && (
-                  <AccordionItem value="futuras" className="border rounded-lg px-4 bg-card">
-                    <AccordionTrigger className="hover:no-underline py-3">
-                      <div className="flex items-center gap-2 flex-1 pr-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium text-sm">Próximas faturas</span>
-                        <Badge variant="outline" className="ml-auto text-[10px]">
-                          {clientesFuturaFatura.length}
-                        </Badge>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      {clientesFuturaFaturaFiltered.length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-4 text-center">
-                          {searchAFazer ? 'Nenhum cliente bate com a busca.' : 'Nada por aqui ✨'}
-                        </p>
-                      ) : (
-                        <div className="space-y-2 opacity-80">
-                          {clientesFuturaFaturaFiltered.map(c => {
-                            const diaFatura = c.cliente_dia_vencimento_mensal || 0;
-                            const hoje = new Date().getDate();
-                            const diaInicioJanela = Math.max(1, diaFatura - 5);
-                            const diasAteCobranca = hoje > diaFatura
-                              ? (new Date(new Date().getFullYear(), new Date().getMonth() + 1, diaInicioJanela).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24) | 0
-                              : Math.max(1, diaInicioJanela - hoje);
-                            return (
-                              <div key={c.cliente_id} className="flex items-center justify-between p-3 rounded-lg border border-dashed border-border/60">
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium truncate">{c.cliente_apelido || c.cliente_nome}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {c.qtd_sem_extrato} proc. · {formatBRL(c.total_faturado)} · Fatura dia {diaFatura}
-                                  </p>
-                                </div>
-                                <Badge variant="outline" className="text-xs shrink-0 ml-2">
-                                  Cobrar em {diasAteCobranca} dia{diasAteCobranca > 1 ? 's' : ''}
-                                </Badge>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                )}
+                {/* Sprint 4.D (13/05/2026 noite): accordion "Próximas faturas"
+                    removido — era info-only sem ação, polui a aba A Fazer.
+                    Master bypass de qualquer forma já via essas linhas merged
+                    em "Prontos pra cobrar" (vide linha 637). */}
               </Accordion>
             </TabsContent>
 
