@@ -61,7 +61,19 @@ function TrocarSenhaCard() {
       const { data: userData } = await supabase.auth.getUser();
       const email = userData?.user?.email;
       if (!email) throw new Error('Sessão sem email associado');
-      const { error: reAuthErr } = await supabase.auth.signInWithPassword({ email, password: senhaAtual });
+
+      // audit-sprint-3.4 (13/05/2026 noite): diferenciar erro de credencial
+      // vs erro de rede. Falha de rede durante re-auth podia deixar usuário
+      // num estado ambíguo (request envia mas response perde) — agora msg clara.
+      let reAuthErr;
+      try {
+        const result = await supabase.auth.signInWithPassword({ email, password: senhaAtual });
+        reAuthErr = result.error;
+      } catch (netErr: any) {
+        toast.error('Falha de conexão ao validar senha. Tente novamente.');
+        setLoading(false);
+        return;
+      }
       if (reAuthErr) {
         toast.error('Senha atual incorreta.');
         setLoading(false);

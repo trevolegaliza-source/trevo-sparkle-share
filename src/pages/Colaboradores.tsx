@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Users, Search, Pencil, Trash2, Zap, Copy, Cake, DollarSign, CalendarDays } from 'lucide-react';
 import { useColaboradores, useCreateColaborador, useUpdateColaborador, useDeleteColaborador, type Colaborador } from '@/hooks/useColaboradores';
@@ -33,6 +34,7 @@ export default function Colaboradores() {
   const [gerando, setGerando] = useState(false);
   const [verbasModal, setVerbasModal] = useState(false);
   const [detalheColab, setDetalheColab] = useState<Colaborador | null>(null);
+  const [colabParaExcluir, setColabParaExcluir] = useState<Colaborador | null>(null);
 
   const diasUteis = getBusinessDaysInMonth();
 
@@ -289,8 +291,8 @@ export default function Colaboradores() {
                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e) => openEdit(c, e)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                              onClick={(e) => { e.stopPropagation(); del.mutate(c.id); }}>
+                            <Button aria-label="Excluir colaborador" variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); setColabParaExcluir(c); }}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -325,6 +327,31 @@ export default function Colaboradores() {
         open={!!detalheColab}
         onOpenChange={(open) => { if (!open) setDetalheColab(null); }}
       />
+
+      {/* Delete confirm — audit-sprint-3.3 (13/05/2026 noite): antes o lixo
+          deletava direto sem confirmar. Risco de perda acidental. */}
+      <AlertDialog open={!!colabParaExcluir} onOpenChange={(open) => !open && setColabParaExcluir(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir colaborador?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{colabParaExcluir?.nome}</strong>? Essa ação não pode ser desfeita. Lançamentos de folha já gerados não serão afetados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (colabParaExcluir) del.mutate(colabParaExcluir.id);
+                setColabParaExcluir(null);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

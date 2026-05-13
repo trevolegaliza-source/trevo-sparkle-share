@@ -17,7 +17,7 @@ import {
   Copy, Download, Trash2, Pencil, Link as LinkIcon, ArrowLeft, FileCheck, Eye, MessageCircle, DollarSign,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ContratoModal from '@/components/orcamentos/ContratoModal';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -41,21 +41,20 @@ export default function Orcamentos() {
   const converterMutation = useConverterOrcamentoEmProcesso();
   const { podeCriar } = usePermissions();
 
-  // Status counts
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  useEffect(() => {
-    (async () => {
-      const statuses = ['rascunho', 'enviado', 'aprovado', 'aguardando_pagamento', 'convertido', 'recusado'];
-      const results: Record<string, number> = {};
-      await Promise.all(statuses.map(async (s) => {
-        const { count } = await supabase.from('orcamentos')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', s);
-        results[s] = count || 0;
-      }));
-      setCounts(results);
-    })();
-  }, [orcamentos]);
+  // Status counts — audit-sprint-3.6 (13/05/2026 noite): antes fazia 6
+  // queries SELECT COUNT a cada mudança de aba. Agora 1 query que pega
+  // só a coluna status e conta no client. ~6x menos roundtrips.
+  const { data: counts = {} } = useQuery({
+    queryKey: ['orcamentos_status_counts'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('orcamentos').select('status');
+      if (error) throw error;
+      const acc: Record<string, number> = {};
+      (data || []).forEach((r: any) => { acc[r.status] = (acc[r.status] || 0) + 1; });
+      return acc;
+    },
+    staleTime: 60_000,
+  });
 
   // Contrato modal
   const [contratoOrc, setContratoOrc] = useState<Orcamento | null>(null);

@@ -89,9 +89,12 @@ export default function CartaoDetalhe() {
   const [confirmReabrir, setConfirmReabrir] = useState(false);
 
   // Lista de meses de fatura que têm compras (pra navegação inteligente)
+  // audit-sprint-3.8: skip compras com fatura_vencimento null pra não quebrar groupBy
   const mesesComCompras = useMemo(() => {
     const set = new Set<string>();
-    todasCompras.forEach((c) => set.add(isoToYearMonth(c.fatura_vencimento)));
+    todasCompras.forEach((c) => {
+      if (c.fatura_vencimento) set.add(isoToYearMonth(c.fatura_vencimento));
+    });
     set.add(mesAtualISO()); // garante mês atual disponível mesmo vazio
     return Array.from(set).sort();
   }, [todasCompras]);

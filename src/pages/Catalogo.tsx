@@ -946,24 +946,40 @@ function PrecosUFModal({ servicoId, servicoNome, onClose }: { servicoId: string;
   }
 
   async function handleSaveAll() {
-    let count = 0;
-    for (const uf of UFS_BRASIL) {
-      const d = formData[uf];
-      if (!d) continue;
-      const hon = parseFloat(d.honorario) || 0;
-      const taxa = parseFloat(d.taxa) || 0;
-      if (hon === 0 && taxa === 0 && !d.obs) continue;
-      await upsertMut.mutateAsync({
-        servico_id: servicoId,
-        uf,
-        honorario_trevo: hon,
-        taxa_orgao: taxa,
-        observacoes: d.obs || undefined,
-      });
-      count++;
-    }
-    if (count === 0) {
+    // audit-sprint-3.7 (13/05/2026 noite): antes loop sequencial sem error
+    // handling — primeira falha interrompia silenciosamente, deixando metade
+    // dos UFs salvos. Agora paraleliza + reporta sucessos/erros.
+    const payloads = UFS_BRASIL
+      .map((uf) => {
+        const d = formData[uf];
+        if (!d) return null;
+        const hon = parseFloat(d.honorario) || 0;
+        const taxa = parseFloat(d.taxa) || 0;
+        if (hon === 0 && taxa === 0 && !d.obs) return null;
+        return {
+          servico_id: servicoId,
+          uf,
+          honorario_trevo: hon,
+          taxa_orgao: taxa,
+          observacoes: d.obs || undefined,
+        };
+      })
+      .filter((p): p is NonNullable<typeof p> => p !== null);
+
+    if (payloads.length === 0) {
       toast.info('Nenhum preço preenchido para salvar.');
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      payloads.map((p) => upsertMut.mutateAsync(p))
+    );
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const fail = results.length - ok;
+    if (fail === 0) {
+      toast.success(`${ok} UF(s) salvo(s).`);
+    } else {
+      toast.error(`${ok} salvo(s), ${fail} falharam. Tente novamente.`);
     }
   }
 
