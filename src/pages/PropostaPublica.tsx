@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle, Download, FileText, Lock as LockIcon } from 'lucide-react';
 import { normalizeItem, type OrcamentoItem, type CenarioOrcamento } from '@/components/orcamentos/types';
 import DOMPurify from 'dompurify';
@@ -215,6 +215,7 @@ function parseInput(s: string): number {
 
 export default function PropostaPublica() {
   const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [orc, setOrc] = useState<any>(null);
@@ -402,37 +403,52 @@ export default function PropostaPublica() {
     : fmt(totalSel);
 
   // ── Aprovação
-  // REL-006 (12/05/2026): res.ok check nos awaits críticos. Antes
-  // 4xx/5xx silenciava — RPC rejeitava (token expirado, proposta já
-  // aprovada por outra aba, etc) mas UI marcava "aprovado" como se
-  // tivesse dado certo. Resultado: cliente via "Proposta aprovada" mas
-  // master nunca via no banco.
+  // Sprint 2.A.4 (13/05/2026 noite): fluxo automático.
+  //   1. RPC aprovar_orcamento_e_gerar_cobranca → cria processo + lancamento + cobrança em transação
+  //   2. Edge function asaas-gerar-cobranca → gera PIX/boleto Asaas
+  //   3. Redirect pra /cobranca/{cobranca_token} → cliente já vê tela de pagamento
+  // Se Asaas falhar, segue pro /cobranca mesmo (tela mostra "Gerando..." e
+  // Thales pode regenerar Asaas manualmente via Financeiro como fallback).
   async function handleAprovar() {
     setProcessando(true);
     try {
-      const r1 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/atualizar_proposta_por_token`, {
+      // 1. Aprovação atômica no banco
+      const r1 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/aprovar_orcamento_e_gerar_cobranca`, {
         method: 'POST', headers: anonHeaders,
-        body: JSON.stringify({ p_token: token, p_status: 'aprovado' }),
+        body: JSON.stringify({ p_token: token }),
       });
-      if (!r1.ok) throw new Error(`atualizar_proposta retornou ${r1.status}`);
-      const r2 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_notificacao_proposta`, {
+      if (!r1.ok) {
+        const errText = await r1.text().catch(() => '');
+        throw new Error(`Aprovação falhou (${r1.status}): ${errText.slice(0, 200)}`);
+      }
+      const result = await r1.json();
+      if (!result?.ok || !result.cobranca_id || !result.cobranca_token) {
+        throw new Error('Resposta inesperada da aprovação');
+      }
+
+      // 2. Gerar Asaas (assíncrono — se demorar/falhar, redirect mesmo assim)
+      fetch(`${SUPABASE_URL}/functions/v1/asaas-gerar-cobranca`, {
         method: 'POST', headers: anonHeaders,
-        body: JSON.stringify({
-          p_orcamento_id: orc.id, p_tipo: 'aprovacao',
-          p_mensagem: `${orc.prospect_nome} aprovou a proposta #${String(orc.numero).padStart(3, '0')} no valor de ${fmt(totalSel)}. Aguardando pagamento.`,
-        }),
-      });
-      if (!r2.ok) console.warn('[proposta] criar_notificacao retornou', r2.status);
+        body: JSON.stringify({ cobranca_id: result.cobranca_id }),
+      }).catch(err => console.warn('[proposta] asaas-gerar falhou:', err));
+
+      // 3. Log evento
       fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
         method: 'POST', headers: anonHeaders,
-        body: JSON.stringify({ p_orcamento_id: orc.id, p_tipo: 'aprovou', p_dados: { total: totalSel, itens_count: selecionados.size } }),
+        body: JSON.stringify({
+          p_orcamento_id: orc.id,
+          p_tipo: 'aprovou',
+          p_dados: { total: totalSel, itens_count: selecionados.size, cobranca_id: result.cobranca_id },
+        }),
       }).catch(err => console.warn('[proposta] log aprovou falhou:', err));
-      setStatusFinal('aprovado');
-      setShowAprovacao(false);
-    } catch (err) {
+
+      // 4. Redirect pra tela de pagamento (mesma janela)
+      navigate(`/cobranca/${result.cobranca_token}`, { replace: true });
+    } catch (err: any) {
       console.error('[proposta] handleAprovar falhou:', err);
-      alert('Não conseguimos confirmar sua aprovação. Tente recarregar a página.');
-    } finally { setProcessando(false); }
+      alert(`Não conseguimos confirmar sua aprovação: ${err?.message || 'tente novamente'}.\n\nSe persistir, recarregue a página ou entre em contato com a Trevo.`);
+      setProcessando(false);
+    }
   }
 
   async function handleRecusar() {

@@ -121,7 +121,19 @@ Leitor de tela agora anuncia ação ao invés de "botão".
 
 ## 📚 HISTÓRICO — feito em sessões anteriores
 
-### 13/05/2026 (noite)
+### 13/05/2026 (noite — Sprint 2 auditoria)
+- ✅ **Sprint 2.BCDG**: deletada `/inteligencia-geografica` inteira (-900 LOC + dep `d3` 60KB)
+- ✅ **Sprint 2.E**: deletado PrecosUFModal Catálogo (-237 LOC)
+- ✅ **Sprint 2.F**: deletada aba "Cards sem Processo" Trello (-88 LOC)
+- ✅ **Sprint 2.A.1**: deletadas 5 seções inúteis OrcamentoNovo (Cenários, Etapas Fluxo, Riscos, Benefícios, Headline — ~290 LOC)
+- ✅ **Sprint 2.A.2**: removido `ordem_execucao` dead field
+- ✅ **Sprint 2.A.4**: fluxo automático cliente aprova → cobrança Asaas pronta + redirect:
+  - SQL: RPC `aprovar_orcamento_e_gerar_cobranca` em `docs/sql/sprint-2.A.4-aprovar-orcamento-asaas.sql`
+  - Frontend: `PropostaPublica.handleAprovar` chama RPC + edge `asaas-gerar-cobranca` + redirect pra `/cobranca/{token}`
+  - **Pendente Thales rodar SQL + Publish + smoke test em orçamento de teste**
+- ⏸️ **Sprint 2.A.3 deferido**: refactor OrcamentoNovo em sub-componentes — Thales aprovou mas eu sugeri inverter pq A.4 entrega valor real; A.3 fica pra sessão futura se justificar
+
+### 13/05/2026 (noite — Fase 3)
 - ✅ **DECISION-001 Fase 3 + Fase 4 antecipada**: etapa binária no banco + Processos.tsx deletada (vide acima)
 - ✅ **A11Y-003 sweep completo**: 35 buttons icon-only ganharam aria-label (vide acima)
 - ✅ **UX-004**: AlertDialogs já 100% com Description (varredura confirmou)
