@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Webhook, Loader2, CheckCircle2, Palette, BookOpen, Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Shield, Webhook, Loader2, CheckCircle2, BookOpen, Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
 import PlanoContasTab from '@/components/configuracoes/PlanoContasTab';
 import GestaoUsuarios from '@/components/configuracoes/GestaoUsuarios';
 import { MfaEnroll } from '@/components/auth/MfaEnroll';
@@ -211,35 +211,15 @@ export default function Configuracoes() {
         <p className="text-sm text-muted-foreground">Gerenciamento do sistema</p>
       </div>
 
-      <Tabs defaultValue="aparencia">
+      {/* Aba "Aparência" removida em 13/05/2026 (auditoria) — só exibia
+          card informativo sem ação. Default agora é "rbac" (Master) ou "seguranca". */}
+      <Tabs defaultValue={isMaster() ? 'rbac' : 'seguranca'}>
         <TabsList>
-          <TabsTrigger value="aparencia" className="gap-1.5"><Palette className="h-3.5 w-3.5" />Aparência</TabsTrigger>
           {isMaster() && <TabsTrigger value="rbac" className="gap-1.5"><Shield className="h-3.5 w-3.5" />Usuários</TabsTrigger>}
           <TabsTrigger value="seguranca" className="gap-1.5"><Lock className="h-3.5 w-3.5" />Segurança</TabsTrigger>
           <TabsTrigger value="webhooks" className="gap-1.5"><Webhook className="h-3.5 w-3.5" />Webhooks</TabsTrigger>
           <TabsTrigger value="plano_contas" className="gap-1.5"><BookOpen className="h-3.5 w-3.5" />Plano de Contas</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="aparencia">
-          <Card className="border-border/60">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base"><Palette className="h-4 w-4 text-primary" />Aparência</CardTitle>
-              <CardDescription>Personalização visual do sistema</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/30 border border-border/40">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Palette className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Tema Escuro</p>
-                  <p className="text-xs text-muted-foreground">O sistema opera exclusivamente em dark mode para melhor experiência visual.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
 
         <TabsContent value="rbac">
           <GestaoUsuarios />

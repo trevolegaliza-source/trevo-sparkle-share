@@ -151,16 +151,8 @@ export default function RelatoriosFluxoCaixa() {
                 fillOpacity={0.1}
                 strokeWidth={2}
               />
-              <Area
-                type="monotone"
-                dataKey="saldo"
-                name="Saldo"
-                stroke="#6366f1"
-                fill="#6366f1"
-                fillOpacity={0.1}
-                strokeWidth={2}
-                strokeDasharray="4 2"
-              />
+              {/* Série "Saldo" removida em 13/05/2026 (auditoria) — era redundante
+                  (saldo = entradas - saídas), apenas poluía o gráfico. */}
             </AreaChart>
           </ResponsiveContainer>
         )}
