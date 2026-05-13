@@ -104,7 +104,7 @@ Leitor de tela agora anuncia ação ao invés de "botão".
 | ID | O que |
 |---|---|
 | ~~UX-004~~ | ✅ AlertDialogs já 100% com Description (varredura 13/05 noite — nenhum sem) |
-| UX-023 | Cliente PRÉ-PAGO — **descoberta 13/05 noite**: feature JÁ ESTÁ TODA IMPLEMENTADA (`PrepagoTab`, `RecargaModal`, `useRegistrarRecarga` atômica, PDF, tabela de extrato). Tabela vazia porque Thales nunca usou o botão "Nova Recarga" — recargas vão pelo form de Edit Cadastro que faz UPDATE direto sem registrar movimentação. **Bug real**: campo `saldo_prepago` editável no Edit Cadastro bypassa o registro. **Pendente decisão**: (A) tornar campo readonly forçando usar botão, ou (B) ao salvar Edit com saldo diferente, criar movimentação tipo `ajuste_manual`. |
+| ~~UX-023~~ | ❌ **DEFERIDO PERMANENTE (13/05 noite)**: Thales nunca teve cliente PRE_PAGO (0 ativos no banco — só 2 mensalistas + 48 avulsos) e disse "estou bem foda-se, eu não uso". Feature `PrepagoTab + RecargaModal` permanece no código pra reversibilidade. Reabre se algum dia cadastrar cliente PRE_PAGO de verdade. |
 | ~~INFRA-002~~ | ✅ Já documentado no README (13/05 noite — varredura) |
 | INFRA-005 | Avaliar D3 → Leaflet (60KB → 14KB) — **refactor visual, esperar Thales validar** |
 | ~~INFRA-006~~ | ✅ Limpeza tailwind.config: `fade-in` e `scale-in` keyframes não usadas removidas. `tailwindcss-animate` plugin mantido (Radix usa `animate-in`/`animate-out`). |
