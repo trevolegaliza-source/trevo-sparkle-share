@@ -423,7 +423,7 @@ export default function OrcamentoNovo() {
         return;
       }
 
-      const url = `https://trevolegaliza.lovable.app/proposta/${(data as any).share_token}`;
+      const url = `https://app.trevolegaliza.com/proposta/${(data as any).share_token}`;
       navigator.clipboard.writeText(url);
 
       if (form.destinatario === 'contador' && (form as any).senha_link) {
