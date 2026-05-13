@@ -23,7 +23,6 @@ const Cartao = lazy(() => import("./pages/Cartao"));
 const CartaoDetalhe = lazy(() => import("./pages/CartaoDetalhe"));
 const Colaboradores = lazy(() => import("./pages/Colaboradores"));
 const CadastroRapido = lazy(() => import("./pages/CadastroRapido"));
-const Documentos = lazy(() => import("./pages/Documentos"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
 const OrcamentoNovo = lazy(() => import("./pages/OrcamentoNovo"));
@@ -138,11 +137,8 @@ const App = () => (
                       <Colaboradores />
                     </RequirePermission>
                   } />
-                  <Route path="/documentos" element={
-                    <RequirePermission modulo="documentos">
-                      <Documentos />
-                    </RequirePermission>
-                  } />
+                  {/* Rota /documentos removida em 13/05/2026 noite — feature
+                      sem uso (0 registros) confirmado na auditoria. */}
                   <Route path="/inteligencia-geografica" element={
                     <RequirePermission modulo="intel_geografica">
                       <InteligenciaGeografica />
