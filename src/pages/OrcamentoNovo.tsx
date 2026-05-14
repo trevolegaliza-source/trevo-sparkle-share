@@ -4,18 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSaveOrcamento, type Orcamento } from '@/hooks/useOrcamentos';
 import { gerarOrcamentoPDF, sanitizeFilename, downloadBlob } from '@/lib/orcamento-pdf';
 import { useOrcamentoPDFs } from '@/hooks/useOrcamentoPDFs';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
-  Plus, FileText, Save, FileDown, ArrowLeft, Copy, ExternalLink, Loader2, ChevronDown, Trash2,
+  Plus, FileText, Save, Copy, Loader2, ChevronDown,
   Link as LinkIcon, CheckCircle2, XCircle, Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -26,10 +19,9 @@ import {
   type OrcamentoDestinatario,
   DEFAULT_SECOES, createItem, normalizeItem, getItemValor,
 } from '@/components/orcamentos/types';
-import { ItemCardSimples } from '@/components/orcamentos/ItemCardSimples';
-import { ItemCardDetalhado } from '@/components/orcamentos/ItemCardDetalhado';
+import { ItemCardRedesign } from '@/components/orcamentos/ItemCardRedesign';
 import { PacotesEditor } from '@/components/orcamentos/PacotesEditor';
-import { PreviewDetalhado } from '@/components/orcamentos/PreviewDetalhado';
+import '@/styles/orcamento-redesign.css';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -625,57 +617,56 @@ export default function OrcamentoNovo() {
     cliente_direto: { emoji: '🍀', label: 'Direto' },
   };
 
+  // Redesign 14/05/2026 — markup do design system Trevo (orcamento-redesign.css)
+  const showWhitelabel = form.destinatario === 'cliente_via_contador';
+  const showAdvancedPricingByDefault = form.destinatario === 'contador';
+  const hideAdvancedPricing = form.destinatario === 'cliente_direto';
+  const totalObrigatorio = form.itens
+    .filter((i) => !i.isOptional)
+    .reduce((s, i) => s + getItemValor(i) * (i.quantidade || 1), 0);
+  const totalOpcional = totalFinal - totalObrigatorio;
+  const statusLabel: Record<string, string> = {
+    rascunho: '✏️ Rascunho',
+    enviado: '📤 Enviado',
+    aprovado: '✅ Aprovado',
+    aguardando_pagamento: '⏳ Aguardando Pagamento',
+    convertido: '🎉 Convertido',
+    recusado: '❌ Recusado',
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button aria-label="Voltar para orçamentos" variant="ghost" size="icon" onClick={() => navigate('/orcamentos')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+    <div className="on-shell" data-screen-label="Editar Proposta">
+      {/* ─── Header ───────────────────────────────────────── */}
+      <header className="on-head">
+        <div className="on-head-left">
+          <div className="on-head-accent" />
           <div>
-            <h1 className="text-xl font-bold text-foreground">
-              {editId ? 'Editar Proposta' : 'Nova Proposta Comercial'}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Preencha os dados e gere um PDF profissional em minutos
-            </p>
+            <h1>{editId ? 'Editar Proposta' : 'Nova Proposta Comercial'}</h1>
+            <p className="sub">Preencha os dados e gere um PDF profissional em minutos.</p>
+            {orcamentoId && (
+              <div className="on-id">
+                <span style={{ opacity: 0.7 }}>#</span>
+                <b>ORC-{String(orcamentoNumero).padStart(4, '0')}</b>
+                <span style={{ color: 'var(--fg-4)' }}>·</span>
+                <span>ID {orcamentoId.slice(0, 8)}</span>
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Status atual visível — sempre. Sprint autônoma 13/05 noite: antes
-              status só aparecia em /orcamentos (lista) — tu precisava sair da tela. */}
+        <div className="on-head-actions">
           {orcamentoId && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50 border border-border">
-              <span className="text-xs text-muted-foreground">Status:</span>
-              <Badge variant={
-                orcamentoStatus === 'rascunho' ? 'outline' :
-                orcamentoStatus === 'enviado' ? 'default' :
-                orcamentoStatus === 'recusado' ? 'destructive' :
-                'default'
-              } className="text-xs">
-                {orcamentoStatus === 'rascunho' && '✏️ Rascunho'}
-                {orcamentoStatus === 'enviado' && '📤 Enviado'}
-                {orcamentoStatus === 'aprovado' && '✅ Aprovado'}
-                {orcamentoStatus === 'aguardando_pagamento' && '⏳ Aguardando Pagamento'}
-                {orcamentoStatus === 'convertido' && '🎉 Convertido'}
-                {orcamentoStatus === 'recusado' && '❌ Recusado'}
-              </Badge>
+            <div className="on-status-pill">
+              <span className="dot" /> <span className="lbl">Status:</span> {statusLabel[orcamentoStatus] || orcamentoStatus}
             </div>
           )}
-
           <Button variant="outline" size="sm" onClick={() => handleSave('rascunho')} disabled={saveMutation.isPending}>
             <Save className="h-4 w-4 mr-1" /> Salvar Rascunho
           </Button>
-
-          {/* Salvar e Enviar — só faz sentido se ainda for rascunho. */}
           {(orcamentoStatus === 'rascunho' || !orcamentoId) && (
-            <Button size="sm" onClick={() => handleSave('enviado')} disabled={saveMutation.isPending} className="bg-primary hover:bg-primary/90">
+            <Button size="sm" onClick={() => handleSave('enviado')} disabled={saveMutation.isPending}>
               <Save className="h-4 w-4 mr-1" /> Salvar e Enviar
             </Button>
           )}
-
-          {/* Mudança rápida de status pós-envio — sem voltar pra lista */}
           {orcamentoId && orcamentoStatus !== 'rascunho' && orcamentoStatus !== 'convertido' && (
             <Select value="" onValueChange={(v) => v && handleChangeStatus(v)}>
               <SelectTrigger className="h-9 w-44 text-xs">
@@ -685,641 +676,493 @@ export default function OrcamentoNovo() {
                 {orcamentoStatus !== 'rascunho' && <SelectItem value="rascunho">✏️ Voltar pra Rascunho</SelectItem>}
                 {orcamentoStatus !== 'enviado' && <SelectItem value="enviado">📤 Marcar como Enviado</SelectItem>}
                 {orcamentoStatus !== 'aprovado' && <SelectItem value="aprovado">✅ Marcar Aprovado</SelectItem>}
-                {/* 'aguardando_pagamento' REMOVIDO do dropdown manual (14/05/2026):
-                    esse status SO deve ser atingido pelo fluxo aprovacao do link publico
-                    (RPC aprovar_orcamento_e_gerar_cobranca cria processo+lancamento+cobranca
-                    atomicamente). Mudar manualmente quebrava o sistema — orcamento ficava
-                    com status mas sem dados, e nao gerava PIX. */}
                 {orcamentoStatus !== 'recusado' && <SelectItem value="recusado">❌ Marcar Recusado</SelectItem>}
               </SelectContent>
             </Select>
           )}
-
           {orcamentoId && (
             <Button variant="outline" size="sm" onClick={handleDuplicate}>
               <Copy className="h-4 w-4 mr-1" /> Duplicar
             </Button>
           )}
-
-          {/* Copiar Link — sempre disponível se tem share_token (mesmo rascunho avisa) */}
           {shareToken && form.destinatario !== 'cliente_via_contador' && (
-            <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-1">
-              <LinkIcon className="h-4 w-4" /> Copiar Link
+            <Button variant="outline" size="sm" onClick={handleCopyLink}>
+              <LinkIcon className="h-4 w-4 mr-1" /> Copiar Link
             </Button>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* Resposta do Cliente — visível quando cliente já aprovou via link público.
-          Mostra o que ele marcou/desmarcou + estado de pagamento. Resolve o bug
-          de "perdi visibilidade do que cliente aceitou" pois itens_selecionados
-          fica só no banco sem refletir na UI de edit. */}
+      {/* ─── Resposta do cliente (so quando aprovado ou pago) ─── */}
       {respostaCliente && respostaCliente.itens_selecionados && (() => {
         const aprovados = new Set(respostaCliente.itens_selecionados.map(i => i.id));
-        const valorTotal = form.itens.reduce((s, i) => s + getItemValor(i), 0);
+        const valorTotal = form.itens.reduce((s, i) => s + getItemValor(i) * (i.quantidade || 1), 0);
         const valorAprovado = respostaCliente.valor_aprovado;
         const pago = orcamentoStatus === 'convertido' || respostaCliente.cobranca_status === 'paga' || respostaCliente.asaas_status === 'RECEIVED' || respostaCliente.asaas_status === 'CONFIRMED';
         const dataPago = respostaCliente.pago_em || respostaCliente.cobranca_pago_em;
         return (
-          <Card className="p-5 border-primary/30 bg-primary/[0.03]">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div className="flex items-start gap-3">
-                <div className={cn(
-                  "h-9 w-9 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                  pago ? "bg-emerald-500/15 text-emerald-600" : "bg-amber-500/15 text-amber-600"
-                )}>
-                  {pago ? <CheckCircle2 className="h-5 w-5" /> : <Loader2 className="h-5 w-5" />}
+          <section className="on-card on-resp" style={{ marginBottom: 16 }}>
+            <div className="on-card-head">
+              <div className="meta" style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(34,197,94,0.18)', color: 'var(--brand-trevo)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {pago ? <CheckCircle2 size={18} /> : <Loader2 size={18} />}
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">
-                    📋 Resposta do cliente
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <div className="on-card-title">Resposta do cliente</div>
+                  <div className="on-card-desc">
                     {pago
-                      ? `Pago via Asaas em ${dataPago ? new Date(dataPago).toLocaleDateString('pt-BR') : '—'} · ${fmt(valorAprovado)}`
+                      ? `Pago via Asaas em ${dataPago ? new Date(dataPago).toLocaleDateString('pt-BR') : '—'} · `
                       : respostaCliente.aprovado_em
-                        ? `Aprovado em ${new Date(respostaCliente.aprovado_em).toLocaleDateString('pt-BR')} · aguardando pagamento`
-                        : 'Aguardando aprovação do cliente'}
-                  </p>
+                        ? `Aprovado em ${new Date(respostaCliente.aprovado_em).toLocaleDateString('pt-BR')} · `
+                        : 'Aguardando aprovação · '}
+                    <b style={{ color: 'var(--brand-trevo)' }}>{fmt(valorAprovado)}</b>
+                    {' · '}
+                    {respostaCliente.itens_selecionados.length} de {form.itens.length} itens aprovados
+                  </div>
                 </div>
               </div>
               {respostaCliente.cobranca_share_token && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(`/cobranca/${respostaCliente.cobranca_share_token}`, '_blank')}
-                  className="gap-1.5 shrink-0"
-                >
-                  <Eye className="h-3.5 w-3.5" /> Ver cobrança do cliente
+                <Button variant="outline" size="sm" onClick={() => window.open(`/cobranca/${respostaCliente.cobranca_share_token}`, '_blank')}>
+                  <Eye className="h-3.5 w-3.5 mr-1" /> Ver cobrança
                 </Button>
               )}
             </div>
-
-            {/* Lista de itens com marcação de aprovado/recusado */}
-            <div className="space-y-1.5 text-sm">
-              {form.itens.map((item, idx) => {
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {form.itens.map((item) => {
                 const aprovou = aprovados.has(item.id);
-                const valor = getItemValor(item);
+                const valor = getItemValor(item) * (item.quantidade || 1);
                 return (
-                  <div key={item.id || idx} className={cn(
-                    "flex items-center justify-between gap-3 px-3 py-2 rounded-md",
-                    aprovou ? "bg-emerald-500/[0.06]" : "bg-muted/40 opacity-60"
-                  )}>
-                    <div className="flex items-center gap-2 min-w-0">
-                      {aprovou
-                        ? <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                        : <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
-                      }
-                      <span className={cn("truncate", !aprovou && "line-through")}>
-                        {item.descricao || '(sem nome)'}
+                  <div key={item.id} className={`on-resp-line ${aprovou ? 'ok' : 'no'}`}>
+                    <div className="on-flex">
+                      <span className={`on-resp-icon ${aprovou ? 'ok' : 'no'}`}>
+                        {aprovou ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
                       </span>
+                      <span className="nm">{item.descricao || '(sem nome)'}</span>
                     </div>
-                    <span className={cn(
-                      "text-xs tabular-nums shrink-0",
-                      aprovou ? "text-emerald-700 font-medium" : "text-muted-foreground"
-                    )}>
+                    <span className="on-mono" style={{ color: aprovou ? 'var(--brand-trevo)' : 'var(--fg-4)', fontWeight: 600 }}>
                       {fmt(valor)}
                     </span>
                   </div>
                 );
               })}
             </div>
-
-            {/* Totais */}
-            <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
-                {respostaCliente.itens_selecionados.length} de {form.itens.length} item{form.itens.length !== 1 ? 's' : ''} aprovado{respostaCliente.itens_selecionados.length !== 1 ? 's' : ''}
-              </span>
-              <span className="font-semibold tabular-nums">
-                <span className="text-muted-foreground line-through mr-2">{fmt(valorTotal)}</span>
-                <span className="text-foreground">{fmt(valorAprovado)}</span>
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--fg-3)', display: 'flex', justifyContent: 'space-between' }}>
+              <span>{respostaCliente.itens_selecionados.length} de {form.itens.length} itens</span>
+              <span style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}>
+                <span style={{ textDecoration: 'line-through', color: 'var(--fg-4)', marginRight: 8 }}>{fmt(valorTotal)}</span>
+                <span style={{ fontWeight: 700, color: 'var(--fg-1)' }}>{fmt(valorAprovado)}</span>
               </span>
             </div>
-          </Card>
+          </section>
         );
       })()}
 
-      {/* Split Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* LEFT: Form (60%) */}
-        <div className="lg:col-span-3 space-y-5">
+      {/* ─── Main split ──────────────────────────────────── */}
+      <div className="on-grid">
+        <div className="on-form">
 
-          {/* SEÇÃO 0: Formato de apresentação — MOVIDA PRO TOPO (14/05/2026)
-              Antes ficava no fim. Decide o layout do PDF logo de cara. */}
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold mb-3">Formato de apresentação</h3>
-            <RadioGroup
-              value={form.modo}
-              onValueChange={(v: OrcamentoModo) => setForm(f => ({ ...f, modo: v }))}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-            >
-              <label htmlFor="modo-simples" className={cn(
-                "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                form.modo === 'simples' ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
-              )}>
-                <RadioGroupItem value="simples" id="modo-simples" className="mt-0.5" />
-                <div>
-                  <div className="font-medium text-sm">Simples</div>
-                  <div className="text-xs text-muted-foreground">Lista de serviços + total. Direto ao ponto.</div>
+          {/* ① Formato de apresentação — PASSO 1 */}
+          <section className="on-card" data-section="formato">
+            <div className="on-card-head">
+              <div className="meta">
+                <div className="on-card-step"><span className="num">01</span> Passo inicial</div>
+                <div className="on-card-title">Formato de apresentação</div>
+                <div className="on-card-desc">Como o cliente vai ver a proposta. Pode mudar a qualquer momento.</div>
+              </div>
+            </div>
+            <div className="on-seg on-seg-2">
+              <label className={`on-seg-opt ${form.modo === 'simples' ? 'active' : ''}`}>
+                <input type="radio" name="formato" checked={form.modo === 'simples'} onChange={() => setForm(f => ({ ...f, modo: 'simples' }))} style={{ display: 'none' }} />
+                <span className="ico">📋</span>
+                <div className="body">
+                  <div className="ttl">Simples</div>
+                  <div className="desc">Lista de serviços e valor total. Direto ao ponto, ideal para clientes que já conhecem o escopo.</div>
                 </div>
+                <span className="check" />
               </label>
-              <label htmlFor="modo-detalhado" className={cn(
-                "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                form.modo === 'detalhado' ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
-              )}>
-                <RadioGroupItem value="detalhado" id="modo-detalhado" className="mt-0.5" />
-                <div>
-                  <div className="font-medium text-sm">Detalhado</div>
-                  <div className="text-xs text-muted-foreground">Cards completos com prazo, documentos e contexto.</div>
+              <label className={`on-seg-opt ${form.modo === 'detalhado' ? 'active' : ''}`}>
+                <input type="radio" name="formato" checked={form.modo === 'detalhado'} onChange={() => setForm(f => ({ ...f, modo: 'detalhado' }))} style={{ display: 'none' }} />
+                <span className="ico">📑</span>
+                <div className="body">
+                  <div className="ttl">
+                    Detalhado{' '}
+                    <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'rgba(34,197,94,0.16)', color: 'var(--brand-trevo)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Recomendado
+                    </span>
+                  </div>
+                  <div className="desc">Cards completos com prazo, documentos exigidos e detalhes do escopo de cada serviço.</div>
                 </div>
+                <span className="check" />
               </label>
-            </RadioGroup>
-          </Card>
+            </div>
+          </section>
 
-          {/* SEÇÃO 1: Para quem é este orçamento? */}
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold mb-3">Para quem é este orçamento?</h3>
-            <RadioGroup
-              value={form.destinatario}
-              onValueChange={(v: OrcamentoDestinatario) => setForm(f => ({ ...f, destinatario: v }))}
-              className="space-y-3"
-            >
-              <label htmlFor="dest-contador" className={cn(
-                "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                form.destinatario === 'contador' ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
-              )}>
-                <RadioGroupItem value="contador" id="dest-contador" className="mt-0.5" />
-                <div>
-                  <div className="font-medium text-sm">📊 Trevo → Contador</div>
-                  <div className="text-xs text-muted-foreground">Painel interno com margens e precificação</div>
-                </div>
-              </label>
-              <label htmlFor="dest-cliente-via" className={cn(
-                "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                form.destinatario === 'cliente_via_contador' ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
-              )}>
-                <RadioGroupItem value="cliente_via_contador" id="dest-cliente-via" className="mt-0.5" />
-                <div>
-                  <div className="font-medium text-sm">📄 Contador → Cliente Final</div>
-                  <div className="text-xs text-muted-foreground">White-label com branding do escritório</div>
-                </div>
-              </label>
-              <label htmlFor="dest-direto" className={cn(
-                "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                form.destinatario === 'cliente_direto' ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
-              )}>
-                <RadioGroupItem value="cliente_direto" id="dest-direto" className="mt-0.5" />
-                <div>
-                  <div className="font-medium text-sm">🍀 Trevo → Cliente Final</div>
-                  <div className="text-xs text-muted-foreground">Atendimento direto com branding Trevo</div>
-                </div>
-              </label>
-            </RadioGroup>
-
-            {/* PRINT 02 #2: quando "Trevo → Cliente Final", oferece selector
-                de contador (caso o cliente final seja um contador se regularizando) */}
-            {form.destinatario === 'cliente_direto' && (
-              <div className="mt-4 pt-4 border-t border-border/60 space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!!form.cliente_id}
-                    onChange={(e) => {
-                      if (!e.target.checked) {
-                        setForm(f => ({ ...f, cliente_id: null, escritorio_nome: '', escritorio_cnpj: '', escritorio_email: '', escritorio_telefone: '' }));
-                      }
-                    }}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-xs font-medium">O cliente final é um contador cadastrado?</span>
+          {/* ② Para quem é este orçamento? */}
+          <section className="on-card">
+            <div className="on-card-head">
+              <div className="meta">
+                <div className="on-card-step"><span className="num">02</span> Destinatário</div>
+                <div className="on-card-title">Para quem é este orçamento?</div>
+                <div className="on-card-desc">Define o branding do PDF, os campos visíveis e o link público.</div>
+              </div>
+            </div>
+            <div className="on-seg on-seg-3">
+              {([
+                { id: 'contador' as const, ico: '📊', ttl: 'Trevo → Contador', desc: 'Painel interno com margens, custos e sugestão de precificação.' },
+                { id: 'cliente_via_contador' as const, ico: '📄', ttl: 'Contador → Cliente Final', desc: 'White-label com branding do escritório contábil.' },
+                { id: 'cliente_direto' as const, ico: '🍀', ttl: 'Trevo → Cliente Final', desc: 'Atendimento direto com branding Trevo Legaliza.' },
+              ]).map((opt) => (
+                <label key={opt.id} className={`on-seg-opt ${form.destinatario === opt.id ? 'active' : ''}`}>
+                  <input type="radio" name="dest" checked={form.destinatario === opt.id} onChange={() => setForm(f => ({ ...f, destinatario: opt.id }))} style={{ display: 'none' }} />
+                  <span className="ico">{opt.ico}</span>
+                  <div className="body">
+                    <div className="ttl">{opt.ttl}</div>
+                    <div className="desc">{opt.desc}</div>
+                  </div>
+                  <span className="check" />
                 </label>
-                {(form.cliente_id || true) && (
-                  <Select
-                    value={form.cliente_id || ''}
-                    onValueChange={(id) => handleSelectEscritorio(id)}
+              ))}
+            </div>
+
+            {/* Quando "Trevo → Cliente Final" → pergunta se contador é o cliente */}
+            {form.destinatario === 'cliente_direto' && (
+              <div className="on-reveal">
+                <div className="on-reveal-q">
+                  <i>O contador é o próprio cliente final?</i>
+                </div>
+                <div className="on-reveal-row">
+                  <button
+                    type="button"
+                    className={`on-chip ${form.cliente_id === null ? 'active' : ''}`}
+                    onClick={() => setForm(f => ({ ...f, cliente_id: null, escritorio_nome: '', escritorio_cnpj: '', escritorio_email: '', escritorio_telefone: '' }))}
                   >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Selecionar contador cadastrado..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(clientes || []).map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.apelido || c.nome} {c.cnpj ? `· ${c.cnpj}` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                    ✕ Não, é uma empresa diferente
+                  </button>
+                  <button
+                    type="button"
+                    className={`on-chip ${form.cliente_id ? 'active' : ''}`}
+                    onClick={() => { /* selector aparece abaixo */ }}
+                  >
+                    ✓ Sim, é o próprio contador
+                  </button>
+                  {form.cliente_id !== null && (
+                    <>
+                      <span style={{ color: 'var(--fg-4)', fontSize: 11.5 }}>→</span>
+                      <Select
+                        value={form.cliente_id || ''}
+                        onValueChange={(id) => handleSelectEscritorio(id)}
+                      >
+                        <SelectTrigger className="on-select" style={{ minWidth: 260 }}>
+                          <SelectValue placeholder="Selecionar contador cadastrado..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(clientes || []).map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.apelido || c.nome} {c.cnpj ? `· ${c.cnpj}` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
+                </div>
+                <div className="on-hint" style={{ marginTop: 10 }}>
+                  Quando o próprio contador é o cliente final, usamos os dados do escritório cadastrado em vez de pedir CNPJ/empresa de novo.
+                </div>
               </div>
             )}
-          </Card>
+          </section>
 
-          {/* SEÇÃO 2: Escritório Contábil (oculto se direto) */}
-          {form.destinatario !== 'cliente_direto' && (
-            <Card className="p-5">
-              <h3 className="text-sm font-semibold mb-3">Escritório Contábil</h3>
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs">Selecionar escritório cadastrado</Label>
-                  <Select onValueChange={handleSelectEscritorio} value={form.cliente_id || undefined}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Buscar escritório cadastrado..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clientes?.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.apelido || c.nome}{c.cnpj ? ` · ${c.cnpj}` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Nome do escritório *</Label>
-                    <Input value={form.escritorio_nome} onChange={e => setForm(f => ({ ...f, escritorio_nome: e.target.value }))} placeholder="Ex: AL Assessoria" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">CNPJ do escritório</Label>
-                    <Input value={form.escritorio_cnpj} onChange={e => setForm(f => ({ ...f, escritorio_cnpj: e.target.value }))} placeholder="00.000.000/0000-00" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Email do escritório</Label>
-                    <Input value={form.escritorio_email} onChange={e => setForm(f => ({ ...f, escritorio_email: e.target.value }))} placeholder="email@escritorio.com" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Telefone do escritório</Label>
-                    <Input value={form.escritorio_telefone} onChange={e => setForm(f => ({ ...f, escritorio_telefone: e.target.value }))} placeholder="(11) 99999-9999" />
+          {/* Escritório contábil (oculto pra cliente_direto sem contador) */}
+          {!(form.destinatario === 'cliente_direto' && !form.cliente_id) && form.destinatario !== 'cliente_direto' && (
+            <section className="on-card">
+              <div className="on-card-head">
+                <div className="meta">
+                  <div className="on-card-step">Escritório contábil</div>
+                  <div className="on-card-title">{showWhitelabel ? 'Escritório contábil (branding do PDF)' : 'Escritório contábil'}</div>
+                  <div className="on-card-desc">
+                    {showWhitelabel ? 'Nome, logo e contatos que aparecerão no cabeçalho do PDF white-label.' : 'Para registro interno e contato durante a tramitação.'}
                   </div>
                 </div>
               </div>
-            </Card>
+              <div style={{ marginBottom: 14 }}>
+                <label className="on-label">Selecionar escritório cadastrado</label>
+                <Select value={form.cliente_id || ''} onValueChange={handleSelectEscritorio}>
+                  <SelectTrigger className="on-select" style={{ width: '100%' }}>
+                    <SelectValue placeholder="Buscar escritório cadastrado..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(clientes || []).map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.apelido || c.nome} {c.cnpj ? `· ${c.cnpj}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="on-row">
+                <div>
+                  <label className="on-label">Nome do escritório *</label>
+                  <input className="on-input" value={form.escritorio_nome} onChange={(e) => setForm(f => ({ ...f, escritorio_nome: e.target.value }))} placeholder="Ex: AL Assessoria" />
+                </div>
+                <div>
+                  <label className="on-label">CNPJ</label>
+                  <input className="on-input" value={form.escritorio_cnpj} onChange={(e) => setForm(f => ({ ...f, escritorio_cnpj: e.target.value }))} placeholder="00.000.000/0000-00" />
+                </div>
+                <div>
+                  <label className="on-label">E-mail</label>
+                  <input className="on-input" value={form.escritorio_email} onChange={(e) => setForm(f => ({ ...f, escritorio_email: e.target.value }))} placeholder="contato@escritorio.com" />
+                </div>
+                <div>
+                  <label className="on-label">Telefone</label>
+                  <input className="on-input" value={form.escritorio_telefone} onChange={(e) => setForm(f => ({ ...f, escritorio_telefone: e.target.value }))} placeholder="(11) 99999-9999" />
+                </div>
+              </div>
+            </section>
           )}
 
-          {/* SEÇÃO 3: Empresa a ser regularizada */}
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold mb-1">Empresa a ser regularizada</h3>
-            <p className="text-xs text-muted-foreground mb-3">Esta é a empresa que receberá os serviços</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Razão social da empresa *</Label>
-                <Input value={form.prospect_nome} onChange={e => setForm(f => ({ ...f, prospect_nome: e.target.value }))} placeholder="Ex: Clínica Mater Senior Saúde e Longevidade Ltda" />
+          {/* Empresa a ser regularizada */}
+          {!(form.destinatario === 'cliente_direto' && form.cliente_id) && (
+            <section className="on-card">
+              <div className="on-card-head">
+                <div className="meta">
+                  <div className="on-card-step">Cliente final</div>
+                  <div className="on-card-title">Empresa a ser regularizada</div>
+                  <div className="on-card-desc">Esta é a empresa que receberá os serviços.</div>
+                </div>
               </div>
-              <div>
-                <Label className="text-xs">CNPJ</Label>
-                <Input value={form.prospect_cnpj} onChange={e => setForm(f => ({ ...f, prospect_cnpj: e.target.value }))} placeholder="00.000.000/0000-00" />
+              <div className="on-row">
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label className="on-label">Razão social *</label>
+                  <input className="on-input" value={form.prospect_nome} onChange={(e) => setForm(f => ({ ...f, prospect_nome: e.target.value }))} placeholder="Ex: Clínica Mater Senior Saúde e Longevidade Ltda" />
+                </div>
+                <div>
+                  <label className="on-label">CNPJ</label>
+                  <input className="on-input" value={form.prospect_cnpj} onChange={(e) => setForm(f => ({ ...f, prospect_cnpj: e.target.value }))} placeholder="00.000.000/0000-00" />
+                </div>
+                <div>
+                  <label className="on-label">Pessoa de contato</label>
+                  <input className="on-input" value={(form as any).prospect_contato || ''} onChange={(e) => setForm(f => ({ ...f, prospect_contato: e.target.value } as any))} placeholder="Ex: Dra. Marília Andrade" />
+                  <div className="on-hint">Usado nas mensagens de WhatsApp e e-mail.</div>
+                </div>
+                <div>
+                  <label className="on-label">E-mail de contato</label>
+                  <input className="on-input" value={form.prospect_email} onChange={(e) => setForm(f => ({ ...f, prospect_email: e.target.value }))} placeholder="contato@empresa.com" />
+                </div>
+                <div>
+                  <label className="on-label">Telefone / WhatsApp</label>
+                  <input className="on-input" value={form.prospect_telefone} onChange={(e) => setForm(f => ({ ...f, prospect_telefone: e.target.value }))} placeholder="(11) 99999-9999" />
+                </div>
               </div>
-              <div>
-                <Label className="text-xs">Email de contato</Label>
-                <Input value={form.prospect_email} onChange={e => setForm(f => ({ ...f, prospect_email: e.target.value }))} placeholder="email@empresa.com" />
+            </section>
+          )}
+
+          {/* Contexto e apresentação */}
+          <section className="on-card">
+            <div className="on-card-head">
+              <div className="meta">
+                <div className="on-card-step">Diagnóstico</div>
+                <div className="on-card-title">Contexto e apresentação</div>
+                <div className="on-card-desc">Descreva a situação atual do cliente. Aparece no topo do PDF e do link público.</div>
               </div>
-              <div>
-                <Label className="text-xs">Telefone</Label>
-                <Input value={form.prospect_telefone} onChange={e => setForm(f => ({ ...f, prospect_telefone: e.target.value }))} placeholder="(11) 99999-9999" />
+              <span className="on-info"><LinkIcon size={11} /> Vai no link público</span>
+            </div>
+            <div className="on-rt">
+              <RichTextEditor
+                value={form.contexto}
+                onChange={(html) => setForm(f => ({ ...f, contexto: html }))}
+                placeholder="Ex: Empresa sem Alvará Sanitário e sem CRM PJ. Atualmente em risco de interdição..."
+                minHeight="100px"
+              />
+            </div>
+          </section>
+
+          {/* Itens da proposta */}
+          <section className="on-card">
+            <div className="on-card-head">
+              <div className="meta">
+                <div className="on-card-step">Catálogo</div>
+                <div className="on-card-title">Itens da proposta</div>
+                <div className="on-card-desc">
+                  Cada item pode ser obrigatório (cliente não desmarca) ou opcional (cliente escolhe ao aprovar).
+                </div>
+              </div>
+              <div className="on-flex" style={{ gap: 6 }}>
+                <span className="on-chip">🔒 {form.itens.filter(i => !i.isOptional).length} obrigatórios</span>
+                <span className="on-chip">○ {form.itens.filter(i => i.isOptional).length} opcionais</span>
               </div>
             </div>
-          </Card>
 
-          {/* SEÇÃO 4: Contexto e Apresentação */}
-          <Card className="p-5">
-            <div className="flex items-baseline justify-between mb-1">
-              <h3 className="text-sm font-semibold">Contexto e Apresentação</h3>
-              <span className="text-[10px] text-muted-foreground">
-                💡 Aparece no link público + PDF
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              O cliente vai ver este texto antes da lista de serviços. Use pra explicar a situação atual e por que a regularização é importante.
-            </p>
-            <RichTextEditor
-              value={form.contexto}
-              onChange={(html) => setForm(f => ({ ...f, contexto: html }))}
-              placeholder="Ex: Empresa sem Alvará Sanitário e sem CRM PJ. Atualmente em risco de interdição..."
-              minHeight="100px"
-            />
-          </Card>
-
-          {/* SEÇÃO 5 (Cenários) removida em Sprint 2.A.1 — Thales nunca preencheu. */}
-
-          {/* SEÇÃO 6: Itens da Proposta */}
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold">Itens da Proposta</h3>
-              <Button variant="outline" size="sm" onClick={addItem}>
-                <Plus className="h-4 w-4 mr-1" /> Adicionar Item
-              </Button>
-            </div>
-
-            <div className="space-y-3">
+            <div className="on-items">
               {form.itens.map((item, idx) => (
-                <div
+                <ItemCardRedesign
                   key={item.id}
-                  id={`item-${item.id}`}
-                  className={cn(
-                    "space-y-2 rounded-lg transition-all duration-700",
-                    novoItemId === item.id && "ring-2 ring-primary/60 bg-primary/[0.04]"
-                  )}
-                >
-                  {isDetalhado ? (
-                    <ItemCardDetalhado
-                      item={item}
-                      idx={idx}
-                      secoes={form.secoes}
-                      modoContador={modoPDF === 'contador'}
-                      onChange={updateItem}
-                      onRemove={removeItem}
-                      onAddSecao={handleAddSecao}
-                    />
-                  ) : (
-                    <ItemCardSimples
-                      item={item}
-                      idx={idx}
-                      onChange={updateItem}
-                      onRemove={removeItem}
-                      labelValor={
-                        form.destinatario === 'cliente_direto' ? 'Valor R$'
-                        : 'Custo Trevo R$'
-                      }
-                    />
-                  )}
-
-                  {/* PRINT 02 #4c (14/05/2026): no modo "Trevo → Cliente Final" o
-                      campo "Valor R$" do ItemCardSimples JA representa o valor final
-                      cobrado do cliente. Eliminado campo duplicado "Valor de venda R$"
-                      que confundia (Thales nao entendia o que era cada um).
-                      Pra modos contador/cliente_via_contador, mantemos o campo extra
-                      pra precificacao avancada (custo Trevo vs venda). */}
-                  {form.destinatario !== 'cliente_direto' && form.destinatario !== 'contador' && (
-                    <div className="pl-2 space-y-1">
-                      <div className="flex items-center gap-3">
-                        <div className="w-44">
-                          <Label className="text-xs text-emerald-700 font-medium">Valor cobrado do cliente</Label>
-                          <Input
-                            type="number"
-                            value={item.valorVendaDireto ?? (item.valor_mercado || item.honorario_minimo_contador || item.honorario || '')}
-                            onChange={e => updateItem(idx, 'valorVendaDireto', parseFloat(e.target.value) || 0)}
-                            placeholder="0,00"
-                            className="text-right"
-                          />
-                        </div>
-                        {(item.valor_mercado || item.honorario_minimo_contador) ? (
-                          <p className="text-xs text-muted-foreground mt-5">
-                            Sugestão: {fmt(item.valor_mercado || item.honorario_minimo_contador || 0)} (mercado)
-                          </p>
-                        ) : null}
-                      </div>
-                      {item.honorario > 0 && (() => {
-                        const venda = item.valorVendaDireto ?? (item.valor_mercado || item.honorario_minimo_contador || item.honorario);
-                        const margem = venda - item.honorario;
-                        const pct = Math.round((margem / item.honorario) * 100);
-                        return (
-                          <p className="text-xs text-emerald-600 font-medium">
-                            Sua margem: {fmt(margem)} ({pct}%)
-                          </p>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  {/* Toggle Obrigatório/Opcional — PRINT 02 #4b (14/05/2026):
-                      Lógica visual INVERTIDA pra ser intuitiva:
-                      - MARCADO (amber) = obrigatório (default)
-                      - DESMARCADO (cinza) = opcional
-                      State interno (`isOptional`) continua igual; só viramos o switch. */}
-                  <div className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-md border",
-                    !item.isOptional ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "bg-muted/30 border-border"
-                  )}>
-                    <Switch
-                      checked={!item.isOptional}
-                      onCheckedChange={(checked) => updateItem(idx, 'isOptional', !checked)}
-                    />
-                    <div className="flex-1">
-                      <p className={cn("text-xs font-semibold", !item.isOptional ? "text-amber-700 dark:text-amber-500" : "text-foreground")}>
-                        {!item.isOptional ? '🔒 Obrigatório — cliente NÃO pode desmarcar' : '⚠️ Opcional — cliente pode desmarcar'}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {!item.isOptional
-                          ? 'Item sempre vai junto da proposta — sem opção pro cliente recusar.'
-                          : 'O cliente verá uma caixinha pra escolher se quer este item.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Cenário selector removido em Sprint 2.A.1 — cenários eliminados do form. */}
-                </div>
+                  item={item}
+                  idx={idx}
+                  isNew={novoItemId === item.id}
+                  showAdvancedPricingByDefault={showAdvancedPricingByDefault}
+                  hideAdvancedPricing={hideAdvancedPricing}
+                  onChange={updateItem}
+                  onRemove={removeItem}
+                />
               ))}
-
-              {form.itens.length === 0 && (
-                <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground">
-                  <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Adicione o primeiro item da proposta</p>
-                  <Button variant="outline" size="sm" className="mt-3" onClick={addItem}>
-                    <Plus className="h-4 w-4 mr-1" /> Adicionar Item
-                  </Button>
-                </div>
-              )}
             </div>
-          </Card>
 
-          {/* SEÇÃO 10: Pacotes (colapsável) */}
-          <Collapsible open={pacotesOpen} onOpenChange={setPacotesOpen}>
-            <Card className="p-5">
-              <CollapsibleTrigger className="flex items-center justify-between w-full">
-                <h3 className="text-sm font-semibold">Pacotes</h3>
-                <ChevronDown className={cn("h-4 w-4 transition-transform", pacotesOpen && "rotate-180")} />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
+            <div className="on-add-bar" style={{ marginTop: 14 }}>
+              <button type="button" className="on-add-btn" onClick={addItem}>
+                <Plus size={16} /> Adicionar item
+              </button>
+              <div style={{ fontSize: 11, color: 'var(--fg-4)' }}>
+                Novo item entra no topo da lista com destaque animado.
+              </div>
+            </div>
+
+            <div className="on-totals">
+              <div>
+                <div className="on-totals-lbl">Total da proposta</div>
+                <div className="on-totals-meta">
+                  Obrigatórios: <b style={{ color: 'var(--brand-trevo)' }}>{fmt(totalObrigatorio)}</b>
+                  {' · '}
+                  Opcionais: <b style={{ color: 'var(--warning, #f59e0b)' }}>{fmt(totalOpcional)}</b>
+                </div>
+              </div>
+              <div className="on-totals-val">{fmt(totalFinal)}</div>
+            </div>
+          </section>
+
+          {/* Pacotes (collapsible) */}
+          <section className="on-card">
+            <button
+              type="button"
+              className={`on-collapse-btn ${pacotesOpen ? 'open' : ''}`}
+              onClick={() => setPacotesOpen(v => !v)}
+            >
+              <div className="meta" style={{ textAlign: 'left' }}>
+                <div className="on-card-step">Opcional</div>
+                <div className="on-card-title">Pacotes pré-montados</div>
+                <div className="on-card-desc">Agrupe itens em um pacote com desconto.</div>
+              </div>
+              <ChevronDown size={16} style={{ color: 'var(--fg-3)' }} />
+            </button>
+            {pacotesOpen && (
+              <div className="on-collapse-body">
                 <PacotesEditor
                   pacotes={form.pacotes}
                   itens={form.itens}
-                  onChange={pacotes => setForm(f => ({ ...f, pacotes }))}
+                  onChange={(pacotes) => setForm(f => ({ ...f, pacotes }))}
                 />
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-
-          {/* SEÇÃO 11: Condições */}
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold mb-3">Condições</h3>
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs">Validade (dias)</Label>
-                  <Input type="number" value={form.validade_dias} onChange={e => setForm(f => ({ ...f, validade_dias: parseInt(e.target.value) || 15 }))} />
-                </div>
-                <div>
-                  <Label className="text-xs">Desconto geral (%)</Label>
-                  <Input type="number" value={form.desconto_pct || ''} onChange={e => setForm(f => ({ ...f, desconto_pct: parseFloat(e.target.value) || 0 }))} min={0} max={100} />
-                </div>
-                <div>
-                  <Label className="text-xs">Prazo de execução</Label>
-                  <Input value={form.prazo_execucao} onChange={e => setForm(f => ({ ...f, prazo_execucao: e.target.value }))} placeholder="Ex: 15 dias úteis" />
-                </div>
               </div>
-              {form.destinatario === 'contador' && (
-                <div>
-                  <Label className="text-xs">Senha do link (proteção para o contador)</Label>
-                  <Input 
-                    value={(form as any).senha_link || ''} 
-                    onChange={e => setForm(f => ({ ...f, senha_link: e.target.value }))} 
-                    placeholder="Ex: fato2026 (deixe vazio para link sem senha)"
-                  />
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    O contador precisará digitar esta senha para acessar a proposta pelo link.
-                  </p>
-                </div>
-              )}
+            )}
+          </section>
+
+          {/* Condições */}
+          <section className="on-card">
+            <div className="on-card-head">
+              <div className="meta">
+                <div className="on-card-step">Termos</div>
+                <div className="on-card-title">Condições</div>
+              </div>
+            </div>
+            <div className="on-row-3" style={{ marginBottom: 14 }}>
               <div>
-                <Label className="text-xs">Condições de pagamento</Label>
+                <label className="on-label">Validade (dias)</label>
+                <input className="on-input" type="number" value={form.validade_dias} onChange={(e) => setForm(f => ({ ...f, validade_dias: parseInt(e.target.value) || 15 }))} />
+              </div>
+              <div>
+                <label className="on-label">Desconto geral (%)</label>
+                <input className="on-input" type="number" value={form.desconto_pct || ''} onChange={(e) => setForm(f => ({ ...f, desconto_pct: parseFloat(e.target.value) || 0 }))} placeholder="0" />
+              </div>
+              <div>
+                <label className="on-label">Prazo de execução</label>
+                <input className="on-input" value={form.prazo_execucao} onChange={(e) => setForm(f => ({ ...f, prazo_execucao: e.target.value }))} placeholder="Até 15 dias úteis após retorno" />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label className="on-label">Senha do link (proteção pro contador)</label>
+              <input className="on-input" value={(form as any).senha_link || ''} onChange={(e) => setForm(f => ({ ...f, senha_link: e.target.value } as any))} placeholder="Ex: fato2026 (deixe vazio para link sem senha)" />
+              <div className="on-hint">O contador precisará digitar esta senha pra acessar a proposta pelo link público.</div>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label className="on-label">Condições de pagamento</label>
+              <div className="on-rt">
                 <RichTextEditor
                   value={form.pagamento}
                   onChange={(html) => setForm(f => ({ ...f, pagamento: html }))}
-                  placeholder="Ex: Pagamento à vista via PIX ou boleto bancário."
-                  minHeight="80px"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Observações</Label>
-                <RichTextEditor
-                  value={form.observacoes}
-                  onChange={(html) => setForm(f => ({ ...f, observacoes: html }))}
-                  placeholder="Taxas governamentais não inclusas, documentação necessária, etc."
-                  minHeight="80px"
+                  placeholder="Pagamento à vista via PIX ou boleto bancário."
+                  minHeight="60px"
                 />
               </div>
             </div>
-          </Card>
 
-          {/* SEÇÃO 8 (Formato de apresentação) movida pro TOPO em 14/05/2026.
-              Decisão Thales: deve ser a 1ª escolha (define todo layout abaixo). */}
+            <div>
+              <label className="on-label">Observações</label>
+              <textarea className="on-textarea" value={form.observacoes} onChange={(e) => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={3} placeholder="Taxas governamentais não inclusas, documentação necessária, etc." />
+            </div>
+          </section>
         </div>
 
-        {/* RIGHT: Preview (40%) */}
-        <div className="lg:col-span-2">
-          <div className="sticky top-20 space-y-4">
-            {/* Destinatário indicator */}
-            <div className="flex items-center gap-2">
-              <Badge variant={modoPDF === 'contador' ? 'default' : 'secondary'} className="text-xs">
-                {destinatarioLabels[form.destinatario].emoji} {destinatarioLabels[form.destinatario].label}
-              </Badge>
-              <span className="text-xs text-muted-foreground">·</span>
-              <span className="text-xs text-muted-foreground">{isDetalhado ? 'Detalhado' : 'Simples'}</span>
-            </div>
-
-            <Card className="overflow-hidden">
-              {isDetalhado ? (
-                <PreviewDetalhado
-                  prospect_nome={form.prospect_nome}
-                  prospect_cnpj={form.prospect_cnpj}
-                  itens={form.itens}
-                  pacotes={form.pacotes}
-                  secoes={form.secoes}
-                  modoContador={modoPDF === 'contador'}
-                  desconto_pct={form.desconto_pct}
-                  validade_dias={form.validade_dias}
-                  pagamento={form.pagamento}
-                />
-              ) : previewSimples}
-            </Card>
-
-            {/* Action Buttons */}
-            <div className="space-y-2">
-              <Button
-                onClick={handleGerarPDF}
-                disabled={gerando}
-                className={cn(
-                  "w-full gap-2",
-                  modoPDF === 'contador' ? 'bg-emerald-600 hover:bg-emerald-700' :
-                  modoPDF === 'direto' ? 'bg-emerald-600 hover:bg-emerald-700' :
-                  'bg-blue-600 hover:bg-blue-700'
-                )}
-                size="lg"
-              >
-                {gerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                {gerando ? 'Gerando...' : `Gerar PDF ${destinatarioLabels[form.destinatario].emoji} ${destinatarioLabels[form.destinatario].label}`}
-              </Button>
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => handleSave('rascunho')} disabled={saveMutation.isPending} className="gap-1">
-                  <Save className="h-4 w-4" /> Salvar
-                </Button>
-                <Button variant="outline" onClick={handleDuplicate} className="gap-1">
-                  <Copy className="h-4 w-4" /> Duplicar
-                </Button>
+        {/* ─── Aside: preview + ações ──────────────────── */}
+        <aside className="on-aside">
+          <div className="t-label-upper" style={{ marginBottom: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--fg-3)', textTransform: 'uppercase' }}>Pré-visualização</div>
+          <div className="on-prev">
+            <div className="on-prev-inner">
+              <div className="on-prev-brand">
+                <div className="on-prev-name">{showWhitelabel ? (form.escritorio_nome || 'Escritório') : 'Trevo Legaliza'}</div>
+                <div className="on-prev-tag">Proposta Comercial</div>
               </div>
-            </div>
-
-            {/* Quick edit hint */}
-            {pdfs && pdfs.some(p => p.modo === 'cliente' && p.status === 'ativo') && (
-              <div className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
-                <p className="text-xs text-blue-400 font-medium">
-                  💡 Para atualizar valores do cliente: edite os campos "Sugestão Mínima" nos itens acima e gere nova versão.
-                </p>
-              </div>
-            )}
-
-            {/* PDF History */}
-            {pdfs && pdfs.length > 0 && (
+              <div className="on-prev-divider" />
+              <div className="on-prev-totlbl">Total</div>
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Propostas Geradas
-                </h4>
-                <div className="space-y-2">
-                  {pdfs.map(pdf => (
-                    <div
-                      key={pdf.id}
-                      className={cn(
-                        'flex items-center justify-between p-3 rounded-lg border text-sm',
-                        pdf.status === 'cancelado' ? 'opacity-50 bg-muted/30' : 'bg-card'
-                      )}
-                    >
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant={pdf.modo === 'contador' ? 'default' : 'secondary'} className="text-[10px]">
-                          {pdf.modo === 'contador' ? '📊 Interno' : pdf.modo === 'direto' ? '🍀 Direto' : '📄 Cliente'}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          v{pdf.versao} · {new Date(pdf.gerado_em).toLocaleDateString('pt-BR')} {new Date(pdf.gerado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        {pdf.status === 'cancelado' && pdf.cancelado_em && (
-                          <Badge variant="destructive" className="text-[9px]">
-                            Cancelado em {new Date(pdf.cancelado_em).toLocaleDateString('pt-BR')}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={async () => {
-                          const { data, error } = await supabase.storage
-                            .from('documentos')
-                            .createSignedUrl(pdf.storage_path, 3600);
-                          if (error || !data?.signedUrl) {
-                            toast.error('Erro ao abrir PDF');
-                            return;
-                          }
-                          window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
-                        }}>
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={async () => {
-                          const { data, error } = await supabase.storage
-                            .from('documentos')
-                            .createSignedUrl(pdf.storage_path, 3600);
-                          if (error || !data?.signedUrl) {
-                            toast.error('Erro ao gerar link');
-                            return;
-                          }
-                          await navigator.clipboard.writeText(data.signedUrl);
-                          toast.success('Link copiado! (válido por 1h)');
-                        }}>
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <span className="on-prev-total">{fmt(totalFinal)}</span>
+                {totalObrigatorio !== totalFinal && totalObrigatorio > 0 && (
+                  <span className="on-prev-strike">{fmt(totalObrigatorio)} obrig.</span>
+                )}
               </div>
+              <div className="on-prev-items">
+                {form.itens.slice(0, 4).map((it) => (
+                  <div key={it.id} className={`on-prev-it ${!it.isOptional ? '' : 'opt'}`}>
+                    <span className="nm"><span className="dot" />{it.descricao || 'Item sem nome'}</span>
+                    <span className="va">{fmt(getItemValor(it) * (it.quantidade || 1))}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="on-prev-foot">
+                Validade: {form.validade_dias} dias · Formato: {form.modo === 'simples' ? 'Simples' : 'Detalhado'}
+              </div>
+            </div>
+          </div>
+
+          <div className="on-aside-cta">
+            <Button
+              size="sm"
+              disabled={gerando}
+              onClick={async () => {
+                setGerando(true);
+                try {
+                  const blob = await gerarOrcamentoPDF(buildPDFParams(modoPDF));
+                  downloadBlob(blob, buildFilename(modoPDF));
+                  if (orcamentoId) await salvarPDF(blob, modoPDF);
+                } catch (err: any) {
+                  toast.error('Erro ao gerar PDF: ' + (err.message || ''));
+                } finally {
+                  setGerando(false);
+                }
+              }}
+            >
+              <FileText className="h-4 w-4 mr-1" /> Gerar PDF — {showAdvancedPricingByDefault ? 'Interno' : 'Cliente final'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleSave('rascunho')}>
+              <Save className="h-4 w-4 mr-1" /> Salvar rascunho
+            </Button>
+            {shareToken && form.destinatario !== 'cliente_via_contador' && (
+              <Button variant="outline" size="sm" onClick={handleCopyLink}>
+                <LinkIcon className="h-4 w-4 mr-1" /> Copiar link público
+              </Button>
             )}
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );
