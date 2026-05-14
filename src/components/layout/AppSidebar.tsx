@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Users, DollarSign, Settings,
-  PlusCircle, ArrowUpCircle, LogOut, UsersRound, Receipt, X, CreditCard, TrendingUp,
+  PlusCircle, ArrowUpCircle, LogOut, UsersRound, Receipt, X, CreditCard, TrendingUp, Sun,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ const navItems = [
   // `processos` pra esconder a aba Processos (DECISION-001 F2) tirava
   // o Cadastro Rápido junto. Agora usa o módulo `cadastro_rapido`
   // dedicado (que já existe nos role_templates).
+  { path: '/hoje', label: 'Hoje', icon: Sun, modulo: 'dashboard' },
   { path: '/cadastro-rapido', label: 'Cadastro Rápido', icon: PlusCircle, modulo: 'cadastro_rapido' },
   { path: '/clientes', label: 'Clientes', icon: Users, modulo: 'clientes' },
   { path: '/orcamentos', label: 'Orçamentos', icon: Receipt, modulo: 'orcamentos' },

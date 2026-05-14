@@ -14,6 +14,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const MRRDashboard = lazy(() => import("./pages/MRRDashboard"));
+const Hoje = lazy(() => import("./pages/Hoje"));
 const ProcessosAtivosDetalhe = lazy(() => import("./pages/ProcessosAtivosDetalhe"));
 const FaturamentoDetalhe = lazy(() => import("./pages/FaturamentoDetalhe"));
 const Clientes = lazy(() => import("./pages/Clientes"));
@@ -118,6 +119,11 @@ const App = () => (
                   <Route path="/mrr" element={
                     <RequirePermission modulo="financeiro">
                       <MRRDashboard />
+                    </RequirePermission>
+                  } />
+                  <Route path="/hoje" element={
+                    <RequirePermission modulo="dashboard">
+                      <Hoje />
                     </RequirePermission>
                   } />
                   <Route path="/contas-receber" element={<Navigate to="/financeiro" replace />} />
