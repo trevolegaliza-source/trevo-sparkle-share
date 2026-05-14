@@ -32,8 +32,17 @@ export function useValoresAdicionais(processoId: string) {
 export function useAddValorAdicional() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (item: { processo_id: string; descricao: string; valor: number; anexo_url?: string }) => {
-      const { error } = await supabase.from('valores_adicionais').insert(item);
+    mutationFn: async (item: {
+      processo_id: string;
+      descricao: string;
+      valor: number;
+      anexo_url?: string;
+      // BUG 14/05/2026: categoria e reembolsavel ficavam NULL/default
+      // → pode_avancar_cobranca bloqueava TODOS clientes Regional.
+      categoria?: string | null;
+      reembolsavel?: boolean;
+    }) => {
+      const { error } = await supabase.from('valores_adicionais').insert(item as any);
       if (error) throw error;
     },
     onSuccess: (_, vars) => {

@@ -29,13 +29,21 @@ interface ValoresAdicionaisModalProps {
 interface TipoTaxa {
   label: string;
   valorPadrao: number;
+  // BUG FIX 14/05/2026: categoria do banco usada por pode_avancar_cobranca
+  // (regional precisa de taxa_balcao, metodo_trevo precisa de balcao + honorario_metodo_trevo).
+  // Antes o INSERT não setava categoria → bloqueava todos clientes Regional.
+  categoria: string;
+  // permitePagoPeloCliente: se true, exibe checkbox "Pago pelo cliente"
+  // que zera o valor e marca reembolsavel=false (Trevo não precisa pagar
+  // adiantado nem ter comprovante).
+  permitePagoPeloCliente: boolean;
 }
 
 const TIPOS_TAXA: TipoTaxa[] = [
-  { label: 'Taxa Junta Comercial', valorPadrao: 218.99 },
-  { label: 'Escritório Regional', valorPadrao: 239 },
-  { label: 'Motoboy', valorPadrao: 80 },
-  { label: 'MÉTODO TREVO', valorPadrao: 750 },
+  { label: 'Taxa Junta Comercial', valorPadrao: 218.99, categoria: 'taxa_junta_comercial', permitePagoPeloCliente: true },
+  { label: 'Escritório Regional', valorPadrao: 239, categoria: 'taxa_balcao', permitePagoPeloCliente: true },
+  { label: 'Motoboy', valorPadrao: 80, categoria: 'motoboy', permitePagoPeloCliente: true },
+  { label: 'MÉTODO TREVO', valorPadrao: 750, categoria: 'honorario_metodo_trevo', permitePagoPeloCliente: false },
 ];
 
 const OUTRO = 'Outros';
@@ -76,11 +84,14 @@ export default function ValoresAdicionaisModal({
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const isOutro = tipoSelecionado === OUTRO;
-  const isJuntaComercial = tipoSelecionado === 'Taxa Junta Comercial';
+  const tipoAtual = TIPOS_TAXA.find(t => t.label === tipoSelecionado);
+  const permitePagoCliente = tipoAtual?.permitePagoPeloCliente ?? false;
+  const categoriaAtual = isOutro ? null : (tipoAtual?.categoria ?? null);
+
   const descricaoFinal = isOutro
     ? descLivre.trim()
-    : (isJuntaComercial && pagoPeloCliente
-        ? 'Taxa Junta Comercial (pago pelo cliente)'
+    : (permitePagoCliente && pagoPeloCliente
+        ? `${tipoSelecionado} (pago pelo cliente)`
         : tipoSelecionado);
 
   const handleTipoChange = (novoTipo: string) => {
@@ -105,17 +116,28 @@ export default function ValoresAdicionaisModal({
 
   const handleAdd = () => {
     const valor = parseFloat(newValor.replace(',', '.')) || 0;
-    const isPagoCliente = isJuntaComercial && pagoPeloCliente;
+    const isPagoCliente = permitePagoCliente && pagoPeloCliente;
     if (!descricaoFinal || (valor <= 0 && !isPagoCliente)) {
       toast.error('Preencha descrição e valor');
       return;
     }
     addMut.mutate(
-      { processo_id: processoId, descricao: descricaoFinal, valor },
+      {
+        processo_id: processoId,
+        descricao: descricaoFinal,
+        valor,
+        // BUG FIX 14/05/2026: categoria + reembolsavel agora setados.
+        // Antes ficavam NULL/default → pode_avancar_cobranca bloqueava
+        // Regional/Trevo independente de ter taxa registrada.
+        categoria: categoriaAtual,
+        // reembolsavel=true: Trevo paga, cliente reembolsa depois (precisa comprovante)
+        // reembolsavel=false: Cliente paga direto (não precisa comprovante)
+        reembolsavel: !isPagoCliente,
+      },
       {
         onSuccess: () => {
           toast.success(isPagoCliente
-            ? 'Taxa registrada (pago pelo cliente)'
+            ? 'Taxa registrada (pago pelo cliente — sem necessidade de comprovante)'
             : 'Taxa adicionada — anexe o comprovante na coluna Comprov.');
           setDescLivre('');
           setPagoPeloCliente(false);
@@ -327,12 +349,12 @@ export default function ValoresAdicionaisModal({
                   onChange={(e) => setNewValor(e.target.value)}
                   placeholder="0,00"
                   className="h-8 text-xs"
-                  disabled={isJuntaComercial && pagoPeloCliente}
+                  disabled={permitePagoCliente && pagoPeloCliente}
                 />
               </div>
             </div>
 
-            {isJuntaComercial && (
+            {permitePagoCliente && (
               <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -340,7 +362,7 @@ export default function ValoresAdicionaisModal({
                   onChange={(e) => handlePagoPeloClienteChange(e.target.checked)}
                   className="h-3.5 w-3.5 accent-primary"
                 />
-                Pago pelo cliente (valor R$ 0,00)
+                Pago pelo cliente (sem comprovante)
               </label>
             )}
 
