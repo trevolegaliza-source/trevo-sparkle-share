@@ -25,6 +25,17 @@ export interface MRRClienteRisco {
   qtd_lancamentos: number;
 }
 
+export interface MRRMensalidadeProxima {
+  id: string;
+  nome: string;
+  apelido: string | null;
+  mensalidade: number;
+  dia_vencimento: number;
+  data_vencimento: string; // YYYY-MM-DD
+  dias_ate_vencimento: number;
+  ja_gerada_no_mes: boolean;
+}
+
 export interface MRRReceitaMes {
   mes: string;           // 'YYYY-MM'
   mes_label: string;     // 'jan/26'
@@ -47,6 +58,7 @@ export interface MRRData {
   // Listas
   top_mensalistas: MRRClienteTop[];
   clientes_risco: MRRClienteRisco[];
+  proximas_mensalidades: MRRMensalidadeProxima[];
 }
 
 export function useMRRData() {
@@ -180,6 +192,46 @@ export function useMRRData() {
           .slice(0, 5);
       }
 
+      // 6. Próximas mensalidades a gerar (recurring billing D-5)
+      const hojeDate = new Date();
+      const proximas_mensalidades: MRRMensalidadeProxima[] = [];
+      for (const c of lista) {
+        if (!c.dia_vencimento_mensal) continue;
+        // Calcula próxima data de vencimento (no mês atual, ou próximo se já passou)
+        let venc = new Date(hojeDate.getFullYear(), hojeDate.getMonth(), c.dia_vencimento_mensal);
+        if (venc < hojeDate) {
+          venc = new Date(hojeDate.getFullYear(), hojeDate.getMonth() + 1, c.dia_vencimento_mensal);
+        }
+        const diasAte = Math.ceil((venc.getTime() - hojeDate.getTime()) / 86400000);
+        // Só interessam os 30 dias seguintes (próximo ciclo)
+        if (diasAte > 30 || diasAte < 0) continue;
+
+        // Checa se já existe lancamento desse cliente nesse mês de competência
+        const mesVenc = venc.getMonth() + 1;
+        const anoVenc = venc.getFullYear();
+        const { data: lancsExist } = await supabase
+          .from('lancamentos')
+          .select('id')
+          .eq('cliente_id', c.id)
+          .eq('tipo', 'receber')
+          .eq('competencia_mes', mesVenc)
+          .eq('competencia_ano', anoVenc)
+          .ilike('descricao', 'Mensalidade%')
+          .limit(1);
+
+        proximas_mensalidades.push({
+          id: c.id,
+          nome: c.nome ?? '',
+          apelido: c.apelido,
+          mensalidade: Number(c.mensalidade || 0),
+          dia_vencimento: c.dia_vencimento_mensal,
+          data_vencimento: venc.toISOString().split('T')[0],
+          dias_ate_vencimento: diasAte,
+          ja_gerada_no_mes: (lancsExist?.length ?? 0) > 0,
+        });
+      }
+      proximas_mensalidades.sort((a, b) => a.dias_ate_vencimento - b.dias_ate_vencimento);
+
       return {
         mrr_atual,
         qtd_mensalistas,
@@ -193,6 +245,7 @@ export function useMRRData() {
         variacao_pct,
         top_mensalistas,
         clientes_risco,
+        proximas_mensalidades,
       };
     },
   });

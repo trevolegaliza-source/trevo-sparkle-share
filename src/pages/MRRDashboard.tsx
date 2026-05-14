@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { SkeletonKPIs, SkeletonList } from '@/components/ui/skeleton-patterns';
 import {
   DollarSign, TrendingUp, TrendingDown, Repeat, Target,
-  AlertTriangle, Users, Calendar, ArrowRight, Sparkles,
+  AlertTriangle, Users, Calendar, ArrowRight, Sparkles, CheckCircle2, Clock,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
@@ -184,6 +184,64 @@ export default function MRRDashboard() {
           </BarChart>
         </ResponsiveContainer>
       </Card>
+
+      {/* Próximas mensalidades (Recurring Billing D-5) */}
+      {data.proximas_mensalidades.length > 0 && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="heading-2 flex items-center gap-2">
+                <Repeat className="h-5 w-5 text-primary" />
+                Próximas mensalidades
+              </h3>
+              <p className="caption">Recurring billing — gera D-5 do vencimento automaticamente</p>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {data.proximas_mensalidades.map(m => {
+              const isD5 = m.dias_ate_vencimento === 5;
+              const proximoD5 = m.dias_ate_vencimento > 5;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => navigate(`/clientes/${m.id}`)}
+                  className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-md hover:bg-muted/50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={cn(
+                      "h-8 w-8 rounded-full flex items-center justify-center shrink-0",
+                      m.ja_gerada_no_mes ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                      : isD5 ? "bg-primary/15 text-primary"
+                      : "bg-muted text-muted-foreground"
+                    )}>
+                      {m.ja_gerada_no_mes ? <CheckCircle2 className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{m.apelido || m.nome}</div>
+                      <div className="caption">
+                        Vence dia {m.dia_vencimento}
+                        {' · '}
+                        {m.ja_gerada_no_mes ? 'Já gerada este mês' :
+                          isD5 ? 'Gera hoje' :
+                          proximoD5 ? `Gera em ${m.dias_ate_vencimento - 5}d` :
+                          `Em ${m.dias_ate_vencimento}d`}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-semibold tabular-nums text-primary">
+                      {fmt(m.mensalidade)}
+                    </div>
+                    {m.ja_gerada_no_mes && (
+                      <div className="caption text-emerald-600 dark:text-emerald-400 font-medium">✓ ok</div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Listas: Top mensalistas + Clientes em risco */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
