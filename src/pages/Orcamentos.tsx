@@ -151,6 +151,23 @@ export default function Orcamentos() {
     });
   }
 
+  async function handleVerCobranca(orc: Orcamento) {
+    if (!orc.lancamento_id) {
+      toast.error('Cobrança ainda não disponível para esse orçamento.');
+      return;
+    }
+    const { data } = await supabase
+      .from('cobrancas')
+      .select('share_token')
+      .contains('lancamento_ids', [orc.lancamento_id])
+      .maybeSingle();
+    if (data?.share_token) {
+      window.open(`/cobranca/${data.share_token}`, '_blank');
+    } else {
+      toast.error('Cobrança não encontrada.');
+    }
+  }
+
   async function verContrato(orcId: string) {
     const { data } = await supabase.from('contratos')
       .select('pdf_url, numero_contrato')
@@ -183,11 +200,24 @@ export default function Orcamentos() {
   async function handleDownloadPDF(orc: Orcamento) {
     try {
       const f = formFromOrcamento(orc);
-      const itens = f.itens.map(normalizeItem);
+      let itens = f.itens.map(normalizeItem);
+      const orcAny = orc as any;
+
+      // Quando orçamento foi aprovado/convertido, filtra pelos itens que o cliente
+      // marcou (itens_selecionados). Antes o PDF do convertido mostrava todos os
+      // itens originais com valor cheio, ignorando os que o cliente desmarcou.
+      const itensSelecionados = Array.isArray(orcAny.itens_selecionados) ? orcAny.itens_selecionados : null;
+      const filtraSelecionados =
+        itensSelecionados && itensSelecionados.length > 0 &&
+        ['aguardando_pagamento', 'convertido'].includes(orc.status);
+      if (filtraSelecionados) {
+        const idsAprovados = new Set<string>(itensSelecionados.map((i: any) => i.id));
+        itens = itens.filter((i: any) => idsAprovados.has(i.id));
+      }
+
       const sub = itens.reduce((s: number, i: any) => s + (Number(i.honorario) || Number(i.valor) || 0) * (Number(i.quantidade) || 1), 0);
       const desc = sub * (f.desconto_pct / 100);
       const hasDetailed = itens.some((i: any) => i.taxa_min > 0 || i.taxa_max > 0 || i.prazo || i.docs_necessarios);
-      const orcAny = orc as any;
 
       // Resolver dados do escritório
       let escritorioNome = orcAny.escritorio_nome || '';
@@ -273,10 +303,31 @@ export default function Orcamentos() {
       return;
     }
     const url = `https://app.trevolegaliza.com/proposta/${orc.share_token}`;
-    const valor = fmt(orc.valor_final);
-    const validade = orc.validade_dias ?? 15;
     const num = String(orc.numero).padStart(3, '0');
-    let msg = `Olá${orc.prospect_nome ? `, ${orc.prospect_nome}` : ''}! 🍀\n\nSegue sua proposta de honorários da *Trevo Legaliza*.\n\n📋 Proposta #${num}\n💰 Valor: *${valor}*\n⏱️ Válida por ${validade} dias\n\nAcesse e aprove online:\n${url}`;
+    const nome = orc.prospect_nome ? `, ${orc.prospect_nome}` : '';
+
+    // Calcula valor aprovado pelo cliente (subset de servicos via itens_selecionados)
+    const itensSelecionados = Array.isArray(orcAny.itens_selecionados) ? orcAny.itens_selecionados : null;
+    const valorAprovado = itensSelecionados && itensSelecionados.length > 0
+      ? itensSelecionados.reduce((s: number, i: any) => s + Number(i.valor_contador || 0), 0)
+      : orc.valor_final;
+
+    let msg: string;
+    if (orc.status === 'convertido') {
+      // Contrato ativo — cliente já aprovou e pagou
+      msg = `Olá${nome}! 🍀\n\nSeu contrato com a *Trevo Legaliza* está ativo.\n\n📋 Proposta #${num}\n💰 Valor: *${fmt(valorAprovado)}* (pago ✅)\n\nAcompanhe os detalhes:\n${url}`;
+    } else if (orc.status === 'aguardando_pagamento') {
+      // Cliente aprovou, falta pagar
+      msg = `Olá${nome}! 🍀\n\nSua proposta da *Trevo Legaliza* foi aprovada e está aguardando pagamento.\n\n📋 Proposta #${num}\n💰 Valor: *${fmt(valorAprovado)}*\n\nFinalize o pagamento:\n${url}`;
+    } else if (orc.status === 'recusado') {
+      // Recusada — convite pra rever
+      msg = `Olá${nome}! 🍀\n\nVocê recusou a proposta #${num} da *Trevo Legaliza*. Se mudou de ideia, ainda pode revisar:\n${url}`;
+    } else {
+      // Rascunho/enviado — proposta nova pra cliente avaliar
+      const validade = orc.validade_dias ?? 15;
+      msg = `Olá${nome}! 🍀\n\nSegue sua proposta de honorários da *Trevo Legaliza*.\n\n📋 Proposta #${num}\n💰 Valor: *${fmt(orc.valor_final)}*\n⏱️ Válida por ${validade} dias\n\nAcesse e aprove online:\n${url}`;
+    }
+
     if (orcAny.destinatario === 'contador' && orcAny.senha_link) {
       msg += `\n\n🔒 Senha de acesso: *${orcAny.senha_link}*`;
     }
@@ -324,15 +375,14 @@ export default function Orcamentos() {
           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Ações do orçamento"><MoreHorizontal className="h-4 w-4" /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {/* Edit */}
-          {status !== 'convertido' && (
-            <DropdownMenuItem onClick={() => {
-              if (status === 'aprovado') handleEditApproved(orc);
-              else navigate(`/orcamentos/novo?id=${orc.id}`);
-            }}>
-              <Pencil className="h-3.5 w-3.5 mr-2" />Editar
-            </DropdownMenuItem>
-          )}
+          {/* Edit — sempre disponível. Pra convertido, abre tela com painel
+              "Resposta do cliente" mostrando itens aprovados/recusados. */}
+          <DropdownMenuItem onClick={() => {
+            if (status === 'aprovado') handleEditApproved(orc);
+            else navigate(`/orcamentos/novo?id=${orc.id}`);
+          }}>
+            <Pencil className="h-3.5 w-3.5 mr-2" />{status === 'convertido' ? 'Ver detalhes' : 'Editar'}
+          </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => navigate(`/orcamentos/novo?duplicate=${orc.id}`)}>
             <Copy className="h-3.5 w-3.5 mr-2" />Duplicar
@@ -424,14 +474,23 @@ export default function Orcamentos() {
                   <DollarSign className="h-3.5 w-3.5 mr-2" />Criar processo no Financeiro
                 </DropdownMenuItem>
               )}
-              {orc.processo_id && orc.cliente_id && (
-                <DropdownMenuItem onClick={() => navigate(`/clientes/${orc.cliente_id}`)}>
-                  <DollarSign className="h-3.5 w-3.5 mr-2" />Ver no Financeiro
+              {orc.lancamento_id && (
+                <DropdownMenuItem onClick={() => handleVerCobranca(orc)}>
+                  <DollarSign className="h-3.5 w-3.5 mr-2" />Ver cobrança
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => verContrato(orc.id)}>
-                <Eye className="h-3.5 w-3.5 mr-2" />Ver contrato
-              </DropdownMenuItem>
+              {orc.processo_id && orc.cliente_id && (
+                <DropdownMenuItem onClick={() => navigate(`/clientes/${orc.cliente_id}`)}>
+                  <Eye className="h-3.5 w-3.5 mr-2" />Abrir cliente
+                </DropdownMenuItem>
+              )}
+              {/* Bug 6: "Ver contrato" só aparece se realmente houver contrato gerado.
+                  Fluxo Sprint 2.A.4 (link público → Asaas) não gera contrato. */}
+              {((orc as any).contrato_assinado_url || (orc as any).clicksign_document_key) && (
+                <DropdownMenuItem onClick={() => verContrato(orc.id)}>
+                  <Eye className="h-3.5 w-3.5 mr-2" />Ver contrato
+                </DropdownMenuItem>
+              )}
             </>
           )}
 
@@ -509,7 +568,7 @@ export default function Orcamentos() {
                 return (
                   <Card key={orc.id} className="p-4 hover:border-primary/30 transition-colors cursor-pointer" onClick={() => {
                     if (orc.status === 'aprovado') handleEditApproved(orc);
-                    else if (orc.status !== 'convertido') navigate(`/orcamentos/novo?id=${orc.id}`);
+                    else navigate(`/orcamentos/novo?id=${orc.id}`);
                   }}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
