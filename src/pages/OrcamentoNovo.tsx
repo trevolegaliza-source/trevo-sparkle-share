@@ -95,6 +95,8 @@ export default function OrcamentoNovo() {
   const [pacotesOpen, setPacotesOpen] = useState(false);
   // PRINT 02 #4a: id do item recém-adicionado pra dar highlight temporário
   const [novoItemId, setNovoItemId] = useState<string | null>(null);
+  // Trevo → Cliente Final: pergunta se contador é o cliente final (null=não respondeu)
+  const [contadorEhClienteFinal, setContadorEhClienteFinal] = useState<boolean | null>(null);
   const saveMutation = useSaveOrcamento();
   const { pdfs, salvarPDF } = useOrcamentoPDFs(orcamentoId);
   const [gerando, setGerando] = useState(false);
@@ -833,19 +835,23 @@ export default function OrcamentoNovo() {
                 <div className="on-reveal-row">
                   <button
                     type="button"
-                    className={`on-chip ${form.cliente_id === null ? 'active' : ''}`}
-                    onClick={() => setForm(f => ({ ...f, cliente_id: null, escritorio_nome: '', escritorio_cnpj: '', escritorio_email: '', escritorio_telefone: '' }))}
+                    className={`on-chip ${contadorEhClienteFinal === false ? 'active' : ''}`}
+                    onClick={() => {
+                      setContadorEhClienteFinal(false);
+                      // Limpa dados do escritório quando "Não"
+                      setForm(f => ({ ...f, cliente_id: null, escritorio_nome: '', escritorio_cnpj: '', escritorio_email: '', escritorio_telefone: '' }));
+                    }}
                   >
                     ✕ Não, é uma empresa diferente
                   </button>
                   <button
                     type="button"
-                    className={`on-chip ${form.cliente_id ? 'active' : ''}`}
-                    onClick={() => { /* selector aparece abaixo */ }}
+                    className={`on-chip ${contadorEhClienteFinal === true ? 'active' : ''}`}
+                    onClick={() => setContadorEhClienteFinal(true)}
                   >
                     ✓ Sim, é o próprio contador
                   </button>
-                  {form.cliente_id !== null && (
+                  {contadorEhClienteFinal === true && (
                     <>
                       <span style={{ color: 'var(--fg-4)', fontSize: 11.5 }}>→</span>
                       <Select
@@ -873,8 +879,10 @@ export default function OrcamentoNovo() {
             )}
           </section>
 
-          {/* Escritório contábil (oculto pra cliente_direto sem contador) */}
-          {!(form.destinatario === 'cliente_direto' && !form.cliente_id) && form.destinatario !== 'cliente_direto' && (
+          {/* Escritório contábil — oculto em cliente_direto (Trevo→Cliente Final),
+              independente de "contador eh cliente final": se for "Sim", os dados
+              vêm pelo selector; se "Não", não tem escritório no fluxo direto. */}
+          {form.destinatario !== 'cliente_direto' && (
             <section className="on-card">
               <div className="on-card-head">
                 <div className="meta">
@@ -921,8 +929,9 @@ export default function OrcamentoNovo() {
             </section>
           )}
 
-          {/* Empresa a ser regularizada */}
-          {!(form.destinatario === 'cliente_direto' && form.cliente_id) && (
+          {/* Empresa a ser regularizada — escondida quando cliente_direto +
+              contador é o próprio cliente (usa dados do contador selecionado) */}
+          {!(form.destinatario === 'cliente_direto' && contadorEhClienteFinal === true) && (
             <section className="on-card">
               <div className="on-card-head">
                 <div className="meta">
