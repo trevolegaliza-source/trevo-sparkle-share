@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card';
 import { GlassCard } from '@/components/ui/glass-card';
 import { KPICard } from '@/components/ui/kpi-card';
 import { AttentionCard } from '@/components/ui/attention-card';
+import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -335,35 +336,31 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="dashboard-section flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {getSaudacao()}, {getNomeUsuario(user?.email, profileName)} <span className="animate-trevo-wave">🍀</span>
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
-        </div>
-        {podeVer('financeiro') && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={gerandoPdf}
-            onClick={async () => {
-              setGerandoPdf(true);
-              try {
-                await gerarRelatorioMensal();
-              } finally {
-                setGerandoPdf(false);
-              }
-            }}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            {gerandoPdf ? 'Gerando...' : 'Relatório Mensal'}
-          </Button>
-        )}
-      </div>
+      {/* Header — saudação personalizada continua, mas com accent verde Trevo */}
+      <PageHeader
+        title={`${getSaudacao()}, ${getNomeUsuario(user?.email, profileName)} 🍀`}
+        subtitle={new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        actions={
+          podeVer('financeiro') ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={gerandoPdf}
+              onClick={async () => {
+                setGerandoPdf(true);
+                try {
+                  await gerarRelatorioMensal();
+                } finally {
+                  setGerandoPdf(false);
+                }
+              }}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {gerandoPdf ? 'Gerando...' : 'Relatório Mensal'}
+            </Button>
+          ) : null
+        }
+      />
 
       {/* SEÇÃO 1: KPIs — auditoria visual Q3 (14/05/2026): KPICard padronizado */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 dashboard-section">
@@ -410,7 +407,7 @@ export default function Dashboard() {
       {/* SEÇÃO 2: Ações Urgentes */}
       <div className="space-y-2 dashboard-section">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ações urgentes</h3>
+          <h3 className="label-uppercase">Ações urgentes</h3>
           {podeVer('contas_pagar') && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Alertar contas em</span>
@@ -438,17 +435,12 @@ export default function Dashboard() {
           const haAlertasMascarados = alertas.length > alertasFiltrados.length;
           if (alertasFiltrados.length === 0) {
             return (
-              <GlassCard variant="service" glowColor="rgba(34, 197, 94, 0.15)">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <Check className="h-4 w-4 text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-emerald-400">{haAlertasMascarados ? 'Sem alertas no seu escopo' : 'Tudo em dia!'}</p>
-                    <p className="text-xs text-muted-foreground">{haAlertasMascarados ? 'Existem alertas em módulos fora da sua permissão.' : 'Nenhuma ação urgente no momento.'}</p>
-                  </div>
-                </div>
-              </GlassCard>
+              <AttentionCard
+                tone="success"
+                icon={Check}
+                title={haAlertasMascarados ? 'Sem alertas no seu escopo' : 'Tudo em dia!'}
+                description={haAlertasMascarados ? 'Existem alertas em módulos fora da sua permissão.' : 'Nenhuma ação urgente no momento.'}
+              />
             );
           }
           const toneMap = {
@@ -489,8 +481,11 @@ export default function Dashboard() {
       {/* SEÇÃO 4: Gráfico de Receita - only for financeiro */}
       {podeVer('financeiro') && (
       <div className="space-y-3 dashboard-section">
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Receita mensal</h3>
-        <Card className="p-4">
+        <div className="flex items-baseline justify-between">
+          <h3 className="label-uppercase">Receita mensal</h3>
+          <span className="caption">últimos 6 meses</span>
+        </div>
+        <Card className="p-6">
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={dadosMensais}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -532,12 +527,15 @@ export default function Dashboard() {
       {podeVer('financeiro') && (
       <div className="grid gap-6 lg:grid-cols-2 dashboard-section">
         {/* Top Clientes */}
-        <Card className="p-4">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Top clientes do mês</h3>
+        <Card className="p-6">
+          <div className="flex items-baseline justify-between mb-4">
+            <h3 className="heading-2">Top clientes do mês</h3>
+            <span className="caption">por valor faturado</span>
+          </div>
           {topClientes.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhum lançamento neste mês</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhum lançamento neste mês</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-1">
               {topClientes.map((c, i) => {
                 const statusConfig = {
                   vencido: { bg: 'bg-destructive/10 text-destructive', dot: 'bg-destructive', label: 'Vencido' },
@@ -545,22 +543,28 @@ export default function Dashboard() {
                   sem_extrato: { bg: 'bg-amber-500/10 text-amber-500', dot: 'bg-amber-500', label: 'Sem extrato' },
                 }[c.status];
                 return (
-                  <div key={c.clienteId} className="flex items-center justify-between cursor-pointer hover:bg-muted/50 -mx-2 px-2 py-1.5 rounded-lg transition-colors" onClick={() => navigate(`/clientes/${c.clienteId}`)}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}.</span>
-                      <div>
-                        <p className="text-sm font-medium">{c.nome}</p>
-                        <p className="text-xs text-muted-foreground">{c.qtd} processos</p>
+                  <button
+                    key={c.clienteId}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-muted/50 transition-colors text-left"
+                    onClick={() => navigate(`/clientes/${c.clienteId}`)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{c.nome}</p>
+                        <p className="caption">{c.qtd} processo{c.qtd !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold">{fmt(c.total)}</p>
-                      <div className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded ${statusConfig.bg}`}>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold tabular-nums">{fmt(c.total)}</p>
+                      <div className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded mt-0.5 ${statusConfig.bg}`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
                         {statusConfig.label}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -568,38 +572,38 @@ export default function Dashboard() {
         </Card>
 
         {/* Próximos Vencimentos */}
-        <Card className="p-4">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Próximos vencimentos</h3>
+        <Card className="p-6">
+          <div className="flex items-baseline justify-between mb-4">
+            <h3 className="heading-2">Próximos vencimentos</h3>
+            <span className="caption">7 dias</span>
+          </div>
           {proximosVencimentos.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhum vencimento próximo</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhum vencimento próximo</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {proximosVencimentos.map(item => {
                 const diasAte = Math.ceil((new Date(item.data_vencimento + 'T00:00:00').getTime() - Date.now()) / 86400000);
-                const dotColor = diasAte < 0 ? 'bg-destructive' : diasAte <= 2 ? 'bg-amber-500' : 'bg-green-500';
-                // UX-061 (12/05/2026): cada item navega pra ficha do cliente (aba Faturas).
-                // Antes era display puro — usuário via vencimento e tinha que ir manual ao cliente.
+                const dotColor = diasAte < 0 ? 'bg-destructive' : diasAte <= 2 ? 'bg-amber-500' : 'bg-emerald-500';
                 const clienteId = (item as any).cliente_id;
                 return (
-                  <div
+                  <button
                     key={item.id}
-                    className={`flex items-center justify-between py-1.5 border-b border-border/50 last:border-0 -mx-2 px-2 rounded-md ${clienteId ? 'cursor-pointer hover:bg-muted/40 transition-colors' : ''}`}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-left ${clienteId ? 'cursor-pointer hover:bg-muted/50 transition-colors' : 'cursor-default'}`}
                     onClick={() => clienteId && navigate(`/clientes/${clienteId}`, { state: { tab: 'faturas' } })}
-                    role={clienteId ? 'button' : undefined}
-                    tabIndex={clienteId ? 0 : undefined}
+                    disabled={!clienteId}
                   >
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${dotColor}`} />
-                      <div>
-                        <p className="text-sm">{item.cliente_apelido || item.cliente_nome}</p>
-                        <p className="text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-2 h-2 rounded-full ${dotColor} shrink-0`} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{item.cliente_apelido || item.cliente_nome}</p>
+                        <p className="caption">
                           {new Date(item.data_vencimento + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                           {diasAte < 0 ? ` · Vencido há ${Math.abs(diasAte)}d` : diasAte === 0 ? ' · Hoje' : ` · Em ${diasAte}d`}
                         </p>
                       </div>
                     </div>
-                    <p className="text-sm font-medium">{fmt(Number(item.valor))}</p>
-                  </div>
+                    <p className="text-sm font-semibold tabular-nums shrink-0">{fmt(Number(item.valor))}</p>
+                  </button>
                 );
               })}
             </div>
