@@ -856,10 +856,12 @@ export default function PropostaPublica() {
               </div>
             )}
 
-            {/* CONTEXTO */}
+            {/* CONTEXTO E APRESENTAÇÃO — texto que o Thales escreve no form
+                vai aparecer aqui. Label padronizada (antes "Cenário e Oportunidade"
+                não batia com o nome no form "Contexto e Apresentação"). */}
             {orc?.contexto && (
               <div className="card">
-                <div className="card-hd"><div className="card-hd-icon">💡</div><div className="card-title">Cenário e Oportunidade</div></div>
+                <div className="card-hd"><div className="card-hd-icon">💡</div><div className="card-title">Contexto e Apresentação</div></div>
                 <div className="card-body">
                   {orc.headline_cenario && <p style={{ fontSize: 15, fontWeight: 600, color: '#1e293b', marginBottom: 10 }}>{orc.headline_cenario}</p>}
                   <div style={{ fontSize: 14, lineHeight: 1.7, color: '#374151' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(orc.contexto || '') }} />

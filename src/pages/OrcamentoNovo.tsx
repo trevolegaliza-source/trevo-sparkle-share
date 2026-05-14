@@ -101,6 +101,8 @@ export default function OrcamentoNovo() {
     cobranca_share_token: string | null;
   } | null>(null);
   const [pacotesOpen, setPacotesOpen] = useState(false);
+  // PRINT 02 #4a: id do item recém-adicionado pra dar highlight temporário
+  const [novoItemId, setNovoItemId] = useState<string | null>(null);
   const saveMutation = useSaveOrcamento();
   const { pdfs, salvarPDF } = useOrcamentoPDFs(orcamentoId);
   const [gerando, setGerando] = useState(false);
@@ -274,10 +276,27 @@ export default function OrcamentoNovo() {
   const totalFinal = subtotal - descontoValor;
 
   function addItem() {
+    // PRINT 02 #4a (14/05/2026): novo item entra no TOPO da lista + scroll suave
+    // pra ficar visível + animação fade-in via highlight temporário.
+    // Antes: item entrava no fim sem feedback algum.
+    const novoItem = createItem({ ordem: 0 });
     setForm(f => ({
       ...f,
-      itens: [...f.itens, createItem({ ordem: f.itens.length + 1 })],
+      itens: [novoItem, ...f.itens.map((it, i) => ({ ...it, ordem: i + 1 }))],
     }));
+    // Highlight visual: scroll suave pro topo da lista + flash sutil
+    setNovoItemId(novoItem.id);
+    setTimeout(() => {
+      const el = document.getElementById(`item-${novoItem.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Foca o primeiro input de descrição
+        const input = el.querySelector<HTMLInputElement>('input[type="text"], input:not([type])');
+        if (input) setTimeout(() => input.focus(), 400);
+      }
+    }, 50);
+    // Remove highlight depois de 1.5s
+    setTimeout(() => setNovoItemId(null), 1500);
   }
 
   function updateItem(idx: number, field: keyof OrcamentoItem, value: any) {
@@ -785,6 +804,38 @@ export default function OrcamentoNovo() {
         {/* LEFT: Form (60%) */}
         <div className="lg:col-span-3 space-y-5">
 
+          {/* SEÇÃO 0: Formato de apresentação — MOVIDA PRO TOPO (14/05/2026)
+              Antes ficava no fim. Decide o layout do PDF logo de cara. */}
+          <Card className="p-5">
+            <h3 className="text-sm font-semibold mb-3">Formato de apresentação</h3>
+            <RadioGroup
+              value={form.modo}
+              onValueChange={(v: OrcamentoModo) => setForm(f => ({ ...f, modo: v }))}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+            >
+              <label htmlFor="modo-simples" className={cn(
+                "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                form.modo === 'simples' ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
+              )}>
+                <RadioGroupItem value="simples" id="modo-simples" className="mt-0.5" />
+                <div>
+                  <div className="font-medium text-sm">Simples</div>
+                  <div className="text-xs text-muted-foreground">Lista de serviços + total. Direto ao ponto.</div>
+                </div>
+              </label>
+              <label htmlFor="modo-detalhado" className={cn(
+                "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                form.modo === 'detalhado' ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
+              )}>
+                <RadioGroupItem value="detalhado" id="modo-detalhado" className="mt-0.5" />
+                <div>
+                  <div className="font-medium text-sm">Detalhado</div>
+                  <div className="text-xs text-muted-foreground">Cards completos com prazo, documentos e contexto.</div>
+                </div>
+              </label>
+            </RadioGroup>
+          </Card>
+
           {/* SEÇÃO 1: Para quem é este orçamento? */}
           <Card className="p-5">
             <h3 className="text-sm font-semibold mb-3">Para quem é este orçamento?</h3>
@@ -824,6 +875,43 @@ export default function OrcamentoNovo() {
                 </div>
               </label>
             </RadioGroup>
+
+            {/* PRINT 02 #2: quando "Trevo → Cliente Final", oferece selector
+                de contador (caso o cliente final seja um contador se regularizando) */}
+            {form.destinatario === 'cliente_direto' && (
+              <div className="mt-4 pt-4 border-t border-border/60 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!form.cliente_id}
+                    onChange={(e) => {
+                      if (!e.target.checked) {
+                        setForm(f => ({ ...f, cliente_id: null, escritorio_nome: '', escritorio_cnpj: '', escritorio_email: '', escritorio_telefone: '' }));
+                      }
+                    }}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-xs font-medium">O cliente final é um contador cadastrado?</span>
+                </label>
+                {(form.cliente_id || true) && (
+                  <Select
+                    value={form.cliente_id || ''}
+                    onValueChange={(id) => handleSelectEscritorio(id)}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Selecionar contador cadastrado..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(clientes || []).map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.apelido || c.nome} {c.cnpj ? `· ${c.cnpj}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
           </Card>
 
           {/* SEÇÃO 2: Escritório Contábil (oculto se direto) */}
@@ -894,16 +982,21 @@ export default function OrcamentoNovo() {
 
           {/* SEÇÃO 4: Contexto e Apresentação */}
           <Card className="p-5">
-            <h3 className="text-sm font-semibold mb-3">Contexto e Apresentação</h3>
-            <div>
-              <Label className="text-xs">Descreva a situação atual</Label>
-              <RichTextEditor
-                value={form.contexto}
-                onChange={(html) => setForm(f => ({ ...f, contexto: html }))}
-                placeholder="Ex: Empresa sem Alvará Sanitário e sem CRM PJ. Atualmente em risco de interdição..."
-                minHeight="100px"
-              />
+            <div className="flex items-baseline justify-between mb-1">
+              <h3 className="text-sm font-semibold">Contexto e Apresentação</h3>
+              <span className="text-[10px] text-muted-foreground">
+                💡 Aparece no link público + PDF
+              </span>
             </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              O cliente vai ver este texto antes da lista de serviços. Use pra explicar a situação atual e por que a regularização é importante.
+            </p>
+            <RichTextEditor
+              value={form.contexto}
+              onChange={(html) => setForm(f => ({ ...f, contexto: html }))}
+              placeholder="Ex: Empresa sem Alvará Sanitário e sem CRM PJ. Atualmente em risco de interdição..."
+              minHeight="100px"
+            />
           </Card>
 
           {/* SEÇÃO 5 (Cenários) removida em Sprint 2.A.1 — Thales nunca preencheu. */}
@@ -919,7 +1012,14 @@ export default function OrcamentoNovo() {
 
             <div className="space-y-3">
               {form.itens.map((item, idx) => (
-                <div key={item.id} className="space-y-2">
+                <div
+                  key={item.id}
+                  id={`item-${item.id}`}
+                  className={cn(
+                    "space-y-2 rounded-lg transition-all duration-700",
+                    novoItemId === item.id && "ring-2 ring-primary/60 bg-primary/[0.04]"
+                  )}
+                >
                   {isDetalhado ? (
                     <ItemCardDetalhado
                       item={item}
@@ -936,15 +1036,24 @@ export default function OrcamentoNovo() {
                       idx={idx}
                       onChange={updateItem}
                       onRemove={removeItem}
+                      labelValor={
+                        form.destinatario === 'cliente_direto' ? 'Valor R$'
+                        : 'Custo Trevo R$'
+                      }
                     />
                   )}
 
-                  {/* Valor de venda editável — modo direto */}
-                  {form.destinatario === 'cliente_direto' && (
+                  {/* PRINT 02 #4c (14/05/2026): no modo "Trevo → Cliente Final" o
+                      campo "Valor R$" do ItemCardSimples JA representa o valor final
+                      cobrado do cliente. Eliminado campo duplicado "Valor de venda R$"
+                      que confundia (Thales nao entendia o que era cada um).
+                      Pra modos contador/cliente_via_contador, mantemos o campo extra
+                      pra precificacao avancada (custo Trevo vs venda). */}
+                  {form.destinatario !== 'cliente_direto' && form.destinatario !== 'contador' && (
                     <div className="pl-2 space-y-1">
                       <div className="flex items-center gap-3">
                         <div className="w-44">
-                          <Label className="text-xs text-emerald-700 font-medium">Valor de venda R$</Label>
+                          <Label className="text-xs text-emerald-700 font-medium">Valor cobrado do cliente</Label>
                           <Input
                             type="number"
                             value={item.valorVendaDireto ?? (item.valor_mercado || item.honorario_minimo_contador || item.honorario || '')}
@@ -972,25 +1081,27 @@ export default function OrcamentoNovo() {
                     </div>
                   )}
 
-                  {/* Toggle Obrigatório/Opcional — Fix 2 (13/05/2026 noite):
-                      mais visível + tooltip explicando. Antes era um toggle pequeno
-                      sem contexto, Thales não sabia o que significava. */}
+                  {/* Toggle Obrigatório/Opcional — PRINT 02 #4b (14/05/2026):
+                      Lógica visual INVERTIDA pra ser intuitiva:
+                      - MARCADO (amber) = obrigatório (default)
+                      - DESMARCADO (cinza) = opcional
+                      State interno (`isOptional`) continua igual; só viramos o switch. */}
                   <div className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded-md border",
-                    item.isOptional ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "bg-muted/30 border-border"
+                    !item.isOptional ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "bg-muted/30 border-border"
                   )}>
                     <Switch
-                      checked={item.isOptional || false}
-                      onCheckedChange={(checked) => updateItem(idx, 'isOptional', checked)}
+                      checked={!item.isOptional}
+                      onCheckedChange={(checked) => updateItem(idx, 'isOptional', !checked)}
                     />
                     <div className="flex-1">
-                      <p className={cn("text-xs font-semibold", item.isOptional ? "text-amber-700 dark:text-amber-500" : "text-foreground")}>
-                        {item.isOptional ? '⚠️ Opcional — cliente pode desmarcar' : '🔒 Obrigatório — cliente NÃO pode desmarcar'}
+                      <p className={cn("text-xs font-semibold", !item.isOptional ? "text-amber-700 dark:text-amber-500" : "text-foreground")}>
+                        {!item.isOptional ? '🔒 Obrigatório — cliente NÃO pode desmarcar' : '⚠️ Opcional — cliente pode desmarcar'}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        {item.isOptional
-                          ? 'O cliente verá uma caixinha pra escolher se quer este item.'
-                          : 'Item sempre vai junto da proposta — sem opção pro cliente recusar.'}
+                        {!item.isOptional
+                          ? 'Item sempre vai junto da proposta — sem opção pro cliente recusar.'
+                          : 'O cliente verá uma caixinha pra escolher se quer este item.'}
                       </p>
                     </div>
                   </div>
@@ -1080,28 +1191,8 @@ export default function OrcamentoNovo() {
             </div>
           </Card>
 
-          {/* SEÇÃO 8: Formato do PDF */}
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold mb-3">Formato de apresentação</h3>
-            <RadioGroup
-              value={form.modo}
-              onValueChange={(v: OrcamentoModo) => setForm(f => ({ ...f, modo: v }))}
-              className="flex gap-4"
-            >
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="simples" id="modo-simples" />
-                <Label htmlFor="modo-simples" className="text-sm cursor-pointer">
-                  Simples <span className="text-xs text-muted-foreground">— Lista de serviços com total</span>
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="detalhado" id="modo-detalhado" />
-                <Label htmlFor="modo-detalhado" className="text-sm cursor-pointer">
-                  Detalhado <span className="text-xs text-muted-foreground">— Cards completos com prazo, documentos e detalhes</span>
-                </Label>
-              </div>
-            </RadioGroup>
-          </Card>
+          {/* SEÇÃO 8 (Formato de apresentação) movida pro TOPO em 14/05/2026.
+              Decisão Thales: deve ser a 1ª escolha (define todo layout abaixo). */}
         </div>
 
         {/* RIGHT: Preview (40%) */}

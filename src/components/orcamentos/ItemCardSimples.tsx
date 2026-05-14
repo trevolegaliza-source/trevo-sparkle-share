@@ -11,9 +11,16 @@ interface Props {
   idx: number;
   onChange: (idx: number, field: keyof OrcamentoItem, value: any) => void;
   onRemove: (idx: number) => void;
+  /**
+   * PRINT 02 #4c (14/05/2026): label do campo de valor varia por modo:
+   * - "Trevo → Cliente Final": "Valor R$" (valor final cobrado)
+   * - "Trevo → Contador": "Custo Trevo R$" (custo interno, contador adiciona margem depois)
+   * - "Contador → Cliente Final": "Custo Trevo R$" (idem, contador define preço)
+   */
+  labelValor?: string;
 }
 
-export function ItemCardSimples({ item, idx, onChange, onRemove }: Props) {
+export function ItemCardSimples({ item, idx, onChange, onRemove, labelValor }: Props) {
   return (
     <div className="p-4 rounded-lg border bg-card space-y-2">
       <div className="flex gap-3">
@@ -25,13 +32,14 @@ export function ItemCardSimples({ item, idx, onChange, onRemove }: Props) {
             className="font-medium"
           />
         </div>
-        <div className="w-28">
+        <div className="w-32">
           <Input
             type="number"
             value={item.honorario || ''}
             onChange={e => onChange(idx, 'honorario', parseFloat(e.target.value) || 0)}
-            placeholder="Valor R$"
+            placeholder={labelValor || 'Valor R$'}
             className="text-right"
+            aria-label={labelValor || 'Valor R$'}
           />
         </div>
         <div className="w-16">
