@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useClientes, useCreateProcesso } from '@/hooks/useFinanceiro';
@@ -107,21 +107,54 @@ export default function CadastroRapido() {
     },
   });
 
-  // Count processes this month
-  const { data: processosNoMes = 0 } = useQuery({
-    queryKey: ['processos_mes_count', clienteId],
+  // BUG FIX 14/05/2026 (desconto progressivo cross-mês):
+  // Antes: contava apenas processos do MES CORRENTE (new Date()) — ignorava
+  // a `dataEntrada` do processo sendo cadastrado. Com isso, processo de abril
+  // (data_entrada=07/04) + processo de maio (data_entrada=04/05) atravessavam
+  // competências e desconto progressivo virava cumulativo.
+  //
+  // Agora: query carrega processos dos últimos 3 + próximos 3 meses agrupados
+  // por competência (YYYY-MM). Helper getProcessosNoMes(dataEntrada) retorna
+  // count daquela competência específica.
+  const { data: processosPorMes = {} } = useQuery({
+    queryKey: ['processos_por_mes_count', clienteId],
     enabled: !!clienteId,
     queryFn: async () => {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { count } = await supabase
+      const hoje = new Date();
+      const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 3, 1).toISOString();
+      const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 3, 1).toISOString();
+      const { data } = await supabase
         .from('processos')
-        .select('id', { count: 'exact', head: true })
+        .select('created_at')
         .eq('cliente_id', clienteId!)
-        .gte('created_at', startOfMonth);
-      return count ?? 0;
+        .gte('created_at', inicio)
+        .lt('created_at', fim);
+      const counts: Record<string, number> = {};
+      for (const p of (data || [])) {
+        const d = new Date(p.created_at);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+      return counts;
     },
   });
+
+  // Helper: pega competência (YYYY-MM) de uma dataEntrada (YYYY-MM-DD)
+  const competenciaDe = (data: string): string => data.slice(0, 7);
+
+  // Helper: quantos processos JA salvos no banco daquela competência
+  const getProcessosDoMes = (dataEntrada: string): number =>
+    processosPorMes[competenciaDe(dataEntrada)] ?? 0;
+
+  // Para compat com código legado que usa `processosNoMes` global,
+  // calcula baseado na dataEntrada atual do form.
+  const processosNoMes = getProcessosDoMes(processoForm.dataEntrada);
+
+  // Quantos itens da fila pertencem à MESMA competência do form atual.
+  const filaMesmaCompetencia = useMemo(
+    () => fila.filter(item => competenciaDe(item.dataEntrada) === competenciaDe(processoForm.dataEntrada)),
+    [fila, processoForm.dataEntrada]
+  );
 
   const checkFirstProcess = useCallback(async (cliente: ClienteDB | null) => {
     if (!cliente?.id) {
@@ -160,14 +193,15 @@ export default function CadastroRapido() {
   const clienteTipo = selectedCliente?.tipo || 'AVULSO_4D';
   const saldoPrepago = Number((selectedCliente as any)?.saldo_prepago ?? 0);
   const franquiaProcessos = Number((selectedCliente as any)?.franquia_processos ?? 0);
-  const nextSlot = processosNoMes + fila.length + 1;
+  // Preview considera SO os itens da fila com mesma competência da dataEntrada atual
+  const nextSlot = processosNoMes + filaMesmaCompetencia.length + 1;
 
   // Preview calculation
   const preview = selectedCliente
     ? calcPreview({
         cliente: selectedCliente,
         processosNoMes,
-        filaLength: fila.length,
+        filaLength: filaMesmaCompetencia.length, // BUG FIX 14/05: era fila.length (todos meses misturados)
         prioridade: processoForm.prioridade,
         metodoPreco: valorForm.metodoPreco,
         valorManual: valorForm.valorManual,
@@ -246,13 +280,26 @@ export default function CadastroRapido() {
     toast.success('Adicionado à fila!');
   };
 
-  const recalcFila = (items: ProcessoNaFila[], cliente: ClienteDB, mesCount: number): ProcessoNaFila[] => {
-    let slotOffset = mesCount;
+  const recalcFila = (items: ProcessoNaFila[], cliente: ClienteDB, _mesCount: number): ProcessoNaFila[] => {
+    // BUG FIX 14/05/2026: cada item da fila tem competência própria (dataEntrada).
+    // Slot offset agora é POR COMPETÊNCIA — nao global. Antes itens de meses
+    // diferentes acumulavam slots no mesmo contador → desconto progressivo
+    // cross-mês.
+    const slotOffsetPorMes: Record<string, number> = {};
+    // Inicializa cada competência com count do banco
+    for (const item of items) {
+      const comp = competenciaDe(item.dataEntrada);
+      if (slotOffsetPorMes[comp] === undefined) {
+        slotOffsetPorMes[comp] = getProcessosDoMes(item.dataEntrada);
+      }
+    }
     return items.map(item => {
+      const comp = competenciaDe(item.dataEntrada);
+      const slotOffset = slotOffsetPorMes[comp];
       const isItemAvulso = item.tipo === 'avulso';
       if (isItemAvulso || item.metodoPreco === 'manual' || item.metodoPreco === 'servico_preacordado') {
         const slot = slotOffset + 1;
-        slotOffset += item.mudancaUF ? 2 : 1;
+        slotOffsetPorMes[comp] = slotOffset + (item.mudancaUF ? 2 : 1);
         return { ...item, slotNumero: slot, valorFinal: Number(item.valorManual) || 0, descontoAplicado: 0 };
       }
       const p = calcPreview({
@@ -267,7 +314,7 @@ export default function CadastroRapido() {
         mudancaUF: item.mudancaUF,
         isAvulso: false,
       });
-      slotOffset += item.mudancaUF ? 2 : 1;
+      slotOffsetPorMes[comp] = slotOffset + (item.mudancaUF ? 2 : 1);
       return { ...item, valorFinal: p.valorFinal, slotNumero: p.slotNumero, descontoAplicado: p.descontoAplicado };
     });
   };
