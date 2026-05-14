@@ -6,6 +6,7 @@ import { ptBR } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { GlassCard } from '@/components/ui/glass-card';
 import { KPICard } from '@/components/ui/kpi-card';
+import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
@@ -353,36 +354,35 @@ export default function Financeiro() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Financeiro</h1>
-          <p className="text-sm text-muted-foreground">Centro de cobranças e recebimentos</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Select value={periodo} onValueChange={(v) => setPeriodo(v as PeriodoPreset)}>
-            <SelectTrigger className="w-40">
-              <SelectValue>{periodoLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="este_mes">Este Mês</SelectItem>
-              <SelectItem value="mes_anterior">Mês Anterior</SelectItem>
-              <SelectItem value="ultimos_3">Últimos 3 Meses</SelectItem>
-              <SelectItem value="custom">Personalizado</SelectItem>
-            </SelectContent>
-          </Select>
-          {periodo === 'custom' && (
-            <div className="flex items-center gap-1">
-              <Input type="date" value={customInicio} onChange={e => setCustomInicio(e.target.value)} className="w-36 h-9" />
-              <span className="text-xs text-muted-foreground">a</span>
-              <Input type="date" value={customFim} onChange={e => setCustomFim(e.target.value)} className="w-36 h-9" />
-            </div>
-          )}
-          <Button variant="outline" size="sm" className="text-muted-foreground hover:text-foreground" onClick={handleExportCSV}>
-            <Download className="h-3.5 w-3.5 mr-1" /> Exportar CSV
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Financeiro"
+        subtitle="Centro de cobranças e recebimentos"
+        actions={
+          <>
+            <Select value={periodo} onValueChange={(v) => setPeriodo(v as PeriodoPreset)}>
+              <SelectTrigger className="w-40">
+                <SelectValue>{periodoLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="este_mes">Este Mês</SelectItem>
+                <SelectItem value="mes_anterior">Mês Anterior</SelectItem>
+                <SelectItem value="ultimos_3">Últimos 3 Meses</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+            {periodo === 'custom' && (
+              <div className="flex items-center gap-1">
+                <Input type="date" value={customInicio} onChange={e => setCustomInicio(e.target.value)} className="w-36 h-9" />
+                <span className="text-xs text-muted-foreground">a</span>
+                <Input type="date" value={customFim} onChange={e => setCustomFim(e.target.value)} className="w-36 h-9" />
+              </div>
+            )}
+            <Button variant="outline" size="sm" onClick={handleExportCSV}>
+              <Download className="h-3.5 w-3.5 mr-1" /> Exportar CSV
+            </Button>
+          </>
+        }
+      />
 
       {isLoading ? (
         <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">Carregando...</div>

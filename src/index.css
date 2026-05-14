@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
 
 #lovable-badge {
   display: none !important;
@@ -111,7 +111,20 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    /* Plus Jakarta Sans gosta de um leve tracking negativo nos tamanhos grandes */
+    letter-spacing: -0.01em;
+  }
+
+  /* Numeros financeiros sempre tabular pra alinhar colunas */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Tipografia mais rigorosa pros headings */
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.02em;
   }
 
   .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
@@ -165,23 +178,45 @@
    gradualmente nas telas — co-existem com as classes Tailwind legadas.
    =========================================================================== */
 @layer components {
-  /* Números hero (KPI principal do dashboard) */
-  .display-1 { @apply text-5xl font-extrabold tracking-tight leading-none; }
-  /* Valores KPI normais */
-  .display-2 { @apply text-3xl font-bold tracking-tight leading-tight; }
+  /* Números hero (KPI principal — Linear-like, bem grande) */
+  .display-1 {
+    @apply text-[3.5rem] font-extrabold leading-[1] tabular-nums;
+    letter-spacing: -0.03em;
+  }
+  /* Valores KPI normais — destaque forte mas não hero */
+  .display-2 {
+    @apply text-[2rem] font-bold leading-[1.1] tabular-nums;
+    letter-spacing: -0.025em;
+  }
   /* Título da tela (h1) */
-  .heading-1 { @apply text-2xl font-bold tracking-tight; }
+  .heading-1 {
+    @apply text-2xl font-bold;
+    letter-spacing: -0.025em;
+  }
   /* Título de card / section (h2) */
-  .heading-2 { @apply text-lg font-semibold tracking-tight; }
+  .heading-2 {
+    @apply text-base font-semibold;
+    letter-spacing: -0.015em;
+  }
   /* Subtítulo / lead */
-  .heading-3 { @apply text-base font-semibold; }
+  .heading-3 { @apply text-sm font-semibold; }
   /* Texto comum */
   .body { @apply text-sm; }
   /* Caption / metadata */
   .caption { @apply text-xs text-muted-foreground; }
-  /* Label uppercase pra cards e KPIs */
+  /* Label uppercase pra cards e KPIs — Linear usa um tracking forte */
   .label-uppercase {
-    @apply text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground;
+    @apply text-[10px] font-semibold uppercase text-muted-foreground;
+    letter-spacing: 0.1em;
+  }
+}
+
+/* Subtle glow no focus ring com verde Trevo */
+@layer base {
+  *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary) / 0.5);
+    border-radius: var(--radius);
   }
 }
 

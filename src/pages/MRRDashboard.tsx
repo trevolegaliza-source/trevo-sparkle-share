@@ -4,6 +4,7 @@ import { KPICard } from '@/components/ui/kpi-card';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
 import { SkeletonKPIs, SkeletonList } from '@/components/ui/skeleton-patterns';
 import {
   DollarSign, TrendingUp, TrendingDown, Repeat, Target,
@@ -51,21 +52,20 @@ export default function MRRDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="heading-1 flex items-center gap-2">
-            MRR Dashboard
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wide">
-              Beta
-            </span>
-          </h1>
-          <p className="caption mt-1">Receita recorrente, pipeline e crescimento — atualizado em tempo real</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => navigate('/financeiro')}>
-          Ver Financeiro <ArrowRight className="h-4 w-4 ml-1" />
-        </Button>
-      </div>
+      <PageHeader
+        title="MRR Dashboard"
+        subtitle="Receita recorrente, pipeline e crescimento — atualizado em tempo real"
+        badge={
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wide">
+            Beta
+          </span>
+        }
+        actions={
+          <Button variant="outline" size="sm" onClick={() => navigate('/financeiro')}>
+            Ver Financeiro <ArrowRight className="h-4 w-4 ml-1" />
+          </Button>
+        }
+      />
 
       {/* KPIs principais */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

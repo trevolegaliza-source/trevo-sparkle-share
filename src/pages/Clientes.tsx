@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -239,18 +240,18 @@ export default function Clientes() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Clientes</h1>
-          <p className="text-sm text-muted-foreground">{totalClientes} contabilidades cadastradas</p>
-        </div>
-        <Button size="sm" className="h-9" asChild>
-          <Link to="/cadastro-rapido">
-            <Plus className="h-4 w-4 mr-1" />
-            Novo Cliente
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Clientes"
+        subtitle={`${totalClientes} contabilidades cadastradas`}
+        actions={
+          <Button size="sm" className="h-9" asChild>
+            <Link to="/cadastro-rapido">
+              <Plus className="h-4 w-4 mr-1" />
+              Novo Cliente
+            </Link>
+          </Button>
+        }
+      />
 
       {/* Stats — UX-085 (12/05/2026): cobre 4 tipos. Pré-pago e Preço/tipo
           aparecem só se houver pelo menos 1 (evita poluir card vazio). */}

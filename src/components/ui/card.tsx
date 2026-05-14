@@ -2,8 +2,17 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+// Card base — Linear-like: borda sutil, shadow leve, hover state implícito (controlado via className)
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
+  <div
+    ref={ref}
+    className={cn(
+      "rounded-lg border bg-card text-card-foreground shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]",
+      "transition-[border-color,box-shadow] duration-200",
+      className,
+    )}
+    {...props}
+  />
 ));
 Card.displayName = "Card";
 

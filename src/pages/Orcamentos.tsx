@@ -3,6 +3,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useNavigate } from 'react-router-dom';
 import { useOrcamentos, useOrcamentoKPIs, useDeleteOrcamento, useConverterOrcamentoEmProcesso, type Orcamento } from '@/hooks/useOrcamentos';
 import { gerarOrcamentoPDF } from '@/lib/orcamento-pdf';
+import { PageHeader } from '@/components/ui/page-header';
 import { normalizeItem, DEFAULT_SECOES } from '@/components/orcamentos/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -506,17 +507,17 @@ export default function Orcamentos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Orçamentos</h1>
-          <p className="text-sm text-muted-foreground">Propostas comerciais personalizadas</p>
-        </div>
-        {podeCriar('orcamentos') && (
-          <Button onClick={() => navigate('/orcamentos/novo')} className="gap-2">
-            <Plus className="h-4 w-4" /> Novo Orçamento
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Orçamentos"
+        subtitle="Propostas comerciais personalizadas"
+        actions={
+          podeCriar('orcamentos') ? (
+            <Button onClick={() => navigate('/orcamentos/novo')} className="gap-2">
+              <Plus className="h-4 w-4" /> Novo Orçamento
+            </Button>
+          ) : null
+        }
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
