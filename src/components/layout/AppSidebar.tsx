@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Users, DollarSign, Settings,
-  PlusCircle, ArrowUpCircle, LogOut, UsersRound, Receipt, X, CreditCard,
+  PlusCircle, ArrowUpCircle, LogOut, UsersRound, Receipt, X, CreditCard, TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ const navItems = [
   { path: '/clientes', label: 'Clientes', icon: Users, modulo: 'clientes' },
   { path: '/orcamentos', label: 'Orçamentos', icon: Receipt, modulo: 'orcamentos' },
   { path: '/financeiro', label: 'Financeiro', icon: DollarSign, modulo: 'financeiro' },
+  { path: '/mrr', label: 'MRR', icon: TrendingUp, modulo: 'financeiro' },
   { path: '/contas-pagar', label: 'Contas a Pagar', icon: ArrowUpCircle, modulo: 'contas_pagar' },
   { path: '/cartao', label: 'Cartão', icon: CreditCard, modulo: 'contas_pagar' },
   { path: '/colaboradores', label: 'Colaboradores', icon: UsersRound, modulo: 'colaboradores' },
