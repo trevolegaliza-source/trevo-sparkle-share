@@ -241,6 +241,9 @@ export default function PropostaPublica() {
   const [motivoRecusa, setMotivoRecusa] = useState('');
   const [processando, setProcessando] = useState(false);
   const [statusFinal, setStatusFinal] = useState<'aprovado' | 'recusado' | null>(null);
+  // Cobrança vinculada — buscada via lancamento_id após aprovação.
+  // Usada na tela "Proposta Aprovada" pra dar o link de pagamento/recibo.
+  const [cobrancaShareToken, setCobrancaShareToken] = useState<string | null>(null);
 
   // Save silencioso (debounce)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -282,7 +285,16 @@ export default function PropostaPublica() {
           if (new Date() > expira) { setError('Esta proposta expirou. Entre em contato para solicitar uma nova.'); setLoading(false); return; }
         }
 
-        if (['aguardando_pagamento', 'convertido'].includes(orcData.status)) setStatusFinal('aprovado');
+        if (['aguardando_pagamento', 'convertido'].includes(orcData.status)) {
+          setStatusFinal('aprovado');
+          // Busca share_token da cobrança pra dar botão "Ver pagamento" na tela final
+          fetch(`${SUPABASE_URL}/rest/v1/rpc/get_cobranca_token_by_proposta`, {
+            method: 'POST', headers: anonHeaders,
+            body: JSON.stringify({ p_proposta_token: token }),
+          }).then(r => r.ok ? r.json() : null)
+            .then(tok => { if (tok && typeof tok === 'string') setCobrancaShareToken(tok); })
+            .catch(() => { /* silencioso: botão simplesmente não aparece */ });
+        }
         else if (orcData.status === 'recusado') setStatusFinal('recusado');
 
         if (orcData.destinatario === 'contador' && orcData.has_password) setSenhaRequerida(true);
@@ -684,32 +696,85 @@ export default function PropostaPublica() {
     </>
   );
 
-  if (statusFinal) return (
-    <>
-      <style>{fonts}</style>
-      <style>{buildStyles(accent, accentDark)}</style>
-      <div className="center-page">
-        <div className="center-card">
-          {statusFinal === 'aprovado' ? (
-            <>
-              <CheckCircle style={{ height: 52, width: 52, color: '#22c55e', margin: '0 auto' }} />
-              <div className="center-title" style={{ color: '#15803d' }}>Proposta Aprovada!</div>
-              <div className="center-desc">Obrigado! Nossa equipe entrará em contato para os próximos passos.</div>
-            </>
-          ) : (
-            <>
-              <XCircle style={{ height: 52, width: 52, color: '#ef4444', margin: '0 auto' }} />
-              <div className="center-title" style={{ color: '#dc2626' }}>Proposta Recusada</div>
-              <div className="center-desc">Recebemos sua resposta. Caso mude de ideia, este link ainda estará disponível.</div>
-              {orc?.status === 'recusado' && (
-                <button className="btn-review" onClick={() => setStatusFinal(null)}>Revisar proposta novamente</button>
-              )}
-            </>
-          )}
+  if (statusFinal) {
+    // Resumo dos itens aprovados — só mostra se cliente realmente selecionou
+    // subset (caso contrário fica redundante com a info da página principal).
+    const itensAprovados = Array.isArray(orc?.itens_selecionados) ? orc.itens_selecionados : [];
+    const totalAprovado = itensAprovados.reduce((s: number, i: any) => s + Number(i.valor_contador || 0), 0);
+    const pago = orc?.status === 'convertido';
+    return (
+      <>
+        <style>{fonts}</style>
+        <style>{buildStyles(accent, accentDark)}</style>
+        <div className="center-page">
+          <div className="center-card">
+            {statusFinal === 'aprovado' ? (
+              <>
+                <CheckCircle style={{ height: 52, width: 52, color: '#22c55e', margin: '0 auto' }} />
+                <div className="center-title" style={{ color: '#15803d' }}>
+                  {pago ? 'Pagamento Confirmado!' : 'Proposta Aprovada!'}
+                </div>
+                <div className="center-desc">
+                  {pago
+                    ? 'Recebemos seu pagamento. Nossa equipe iniciará a execução em breve.'
+                    : 'Obrigado! Finalize o pagamento para iniciarmos a execução.'}
+                </div>
+
+                {/* Resumo dos itens aprovados */}
+                {itensAprovados.length > 0 && (
+                  <div style={{
+                    marginTop: 24, padding: 16, background: '#f8fafc',
+                    borderRadius: 12, border: '1px solid #e2e8f0', textAlign: 'left',
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+                      Itens aprovados ({itensAprovados.length})
+                    </div>
+                    {itensAprovados.map((i: any) => (
+                      <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: 14, color: '#1e293b' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 12 }}>
+                          {i.descricao}
+                        </span>
+                        <span style={{ fontWeight: 600, color: '#15803d', whiteSpace: 'nowrap' }}>
+                          {Number(i.valor_contador).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                      </div>
+                    ))}
+                    <div style={{
+                      marginTop: 10, paddingTop: 10, borderTop: '1px solid #e2e8f0',
+                      display: 'flex', justifyContent: 'space-between',
+                      fontSize: 15, fontWeight: 700, color: '#0f172a',
+                    }}>
+                      <span>Total {pago ? 'pago' : 'a pagar'}</span>
+                      <span>{totalAprovado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    </div>
+                  </div>
+                )}
+
+                {cobrancaShareToken && (
+                  <button
+                    className="btn-confirm"
+                    style={{ marginTop: 20 }}
+                    onClick={() => navigate(`/cobranca/${cobrancaShareToken}`)}
+                  >
+                    {pago ? 'Ver comprovante' : 'Ir para pagamento'}
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <XCircle style={{ height: 52, width: 52, color: '#ef4444', margin: '0 auto' }} />
+                <div className="center-title" style={{ color: '#dc2626' }}>Proposta Recusada</div>
+                <div className="center-desc">Recebemos sua resposta. Caso mude de ideia, este link ainda estará disponível.</div>
+                {orc?.status === 'recusado' && (
+                  <button className="btn-review" onClick={() => setStatusFinal(null)}>Revisar proposta novamente</button>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </>
-  );
+      </>
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // PROPOSTA PRINCIPAL

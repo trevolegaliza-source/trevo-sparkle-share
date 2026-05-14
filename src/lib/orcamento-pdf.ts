@@ -44,6 +44,10 @@ export interface OrcamentoPDFData {
   beneficios_capa?: BeneficioCapa[];
   headline_cenario?: string;
   cenarios?: CenarioOrcamento[];
+  // Quando true, é PDF de orçamento convertido (já aprovado e pago). Suprime
+  // textos de "Válido por X dias" / "Esta proposta é válida..." que ficam
+  // sem sentido pós-conversão.
+  is_convertido?: boolean;
 }
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -412,7 +416,9 @@ function buildSimplesHTML(d: OrcamentoPDFData, logo: string | null): string {
         <div style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Preparada para</div>
         <div style="font-size: 18px; font-weight: 800; color: #1a1a2e;">${esc(d.prospect_nome)}</div>
         ${d.prospect_cnpj ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">CNPJ: ${esc(d.prospect_cnpj)}</div>` : ''}
-        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Válida por ${d.validade_dias} dias</div>
+        ${d.is_convertido
+          ? `<div style="font-size: 11px; color: #15803d; margin-top: 2px; font-weight: 600;">✓ Contrato ativo</div>`
+          : `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">Válida por ${d.validade_dias} dias</div>`}
       </div>
       <div style="padding: 24px 40px;">
         <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Escopo dos Serviços</div>
@@ -667,7 +673,7 @@ async function buildDetalhadoPages(d: OrcamentoPDFData, logo: string | null): Pr
         <div style="padding: 0 40px 20px; flex-shrink: 0; margin-top: 24px;">
           <div style="border-top: 1px solid #e0e0e0; padding-top: 12px; text-align: center;">
             <div style="font-size: 10px; color: #888;">
-              📋 ${itemCount} serviços incluídos &nbsp;·&nbsp; Válido por ${d.validade_dias} dias &nbsp;·&nbsp; Emissão: ${d.data_emissao}
+              📋 ${itemCount} serviços incluídos &nbsp;·&nbsp; ${d.is_convertido ? 'Contrato ativo' : `Válido por ${d.validade_dias} dias`} &nbsp;·&nbsp; Emissão: ${d.data_emissao}
             </div>
             <div style="font-size: 9px; color: #aaa; font-style: italic; margin-top: 6px;">
               Desde 2018 · Referência nacional em regularização empresarial · Atuação em 27 estados
@@ -726,8 +732,8 @@ async function buildDetalhadoPages(d: OrcamentoPDFData, logo: string | null): Pr
         <div style="font-size: 11px; color: #555;">
           📋 ${itemCount} serviços incluídos
         </div>
-        <div style="font-size: 10px; color: #888; margin-top: 6px; word-wrap: break-word; overflow-wrap: break-word;">
-          Válido por ${d.validade_dias} dias
+        <div style="font-size: 10px; ${d.is_convertido ? 'color: #15803d; font-weight: 600;' : 'color: #888;'} margin-top: 6px; word-wrap: break-word; overflow-wrap: break-word;">
+          ${d.is_convertido ? '✓ Contrato ativo' : `Válido por ${d.validade_dias} dias`}
         </div>
         <div style="font-size: 10px; color: #888; margin-top: 4px; word-wrap: break-word; overflow-wrap: break-word;">
           ${sanitizeRichHtml(d.pagamento || 'Pagamento à vista via PIX/boleto bancário ou parcelamento')}
@@ -1225,8 +1231,8 @@ async function buildDetalhadoPages(d: OrcamentoPDFData, logo: string | null): Pr
       if (ctaEmail) contactLines.push(`<div style="font-size: 11px; color: #ffffff; margin-top: 4px;">✉️ ${esc(ctaEmail)}</div>`);
       return `
         <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 24px; text-align: center;">
-          <div style="font-size: 11px; font-weight: 700; color: #93c5fd; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Próximo Passo</div>
-          <div style="font-size: 10px; color: rgba(255,255,255,0.7); margin-bottom: 12px;">Esta proposta é válida por ${d.validade_dias} dias. Para avançar ou esclarecer dúvidas, entre em contato — estamos prontos para começar.</div>
+          <div style="font-size: 11px; font-weight: 700; color: ${d.is_convertido ? '#86efac' : '#93c5fd'}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">${d.is_convertido ? 'Contrato Ativo' : 'Próximo Passo'}</div>
+          <div style="font-size: 10px; color: rgba(255,255,255,0.7); margin-bottom: 12px;">${d.is_convertido ? 'Pagamento confirmado. Nossa equipe iniciará a execução em breve.' : `Esta proposta é válida por ${d.validade_dias} dias. Para avançar ou esclarecer dúvidas, entre em contato — estamos prontos para começar.`}</div>
           <div style="font-size: 14px; font-weight: 700; color: #ffffff; margin-top: 8px;">${esc(ctaNome)}</div>
           ${contactLines.join('')}
         </div>
@@ -1234,8 +1240,8 @@ async function buildDetalhadoPages(d: OrcamentoPDFData, logo: string | null): Pr
     }
     return `
       <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 24px; text-align: center;">
-        <div style="font-size: 11px; font-weight: 700; color: #93c5fd; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Próximo Passo</div>
-        <div style="font-size: 10px; color: rgba(255,255,255,0.7);">Esta proposta é válida por ${d.validade_dias} dias. Para avançar ou esclarecer dúvidas, entre em contato com o escritório responsável.</div>
+        <div style="font-size: 11px; font-weight: 700; color: ${d.is_convertido ? '#86efac' : '#93c5fd'}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">${d.is_convertido ? 'Contrato Ativo' : 'Próximo Passo'}</div>
+        <div style="font-size: 10px; color: rgba(255,255,255,0.7);">${d.is_convertido ? 'Pagamento confirmado. Aguarde contato do escritório para os próximos passos.' : `Esta proposta é válida por ${d.validade_dias} dias. Para avançar ou esclarecer dúvidas, entre em contato com o escritório responsável.`}</div>
       </div>
     `;
   })();
@@ -1412,9 +1418,9 @@ async function buildDetalhadoPages(d: OrcamentoPDFData, logo: string | null): Pr
   await addBlock(`
     <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Condições</div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-        <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Validade</div>
-        <div style="font-size: 12px; font-weight: 600; color: #1e293b; margin-top: 4px;">${d.validade_dias} dias</div>
+      <div style="background: ${d.is_convertido ? '#f0fdf4' : '#f8fafc'}; border: 1px solid ${d.is_convertido ? '#bbf7d0' : '#e2e8f0'}; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">${d.is_convertido ? 'Status' : 'Validade'}</div>
+        <div style="font-size: 12px; font-weight: 600; color: ${d.is_convertido ? '#15803d' : '#1e293b'}; margin-top: 4px;">${d.is_convertido ? '✓ Contrato ativo' : `${d.validade_dias} dias`}</div>
       </div>
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
         <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Pagamento</div>

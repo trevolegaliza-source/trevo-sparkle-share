@@ -412,7 +412,23 @@ export default function OrcamentoNovo() {
   }
 
   function buildPDFParams(modo?: OrcamentoPDFMode) {
-    const itensValidos = form.itens.filter(i => i.descricao.trim());
+    let itensValidos = form.itens.filter(i => i.descricao.trim());
+    // Quando orçamento foi aprovado/pago, filtra pelos itens marcados pelo cliente
+    // pra não emitir PDF com valor cheio depois que cliente desmarcou opcionais.
+    const idsAprovados = respostaCliente?.itens_selecionados
+      ? new Set(respostaCliente.itens_selecionados.map(i => i.id))
+      : null;
+    const filtraSelecionados = idsAprovados && ['aguardando_pagamento', 'convertido'].includes(orcamentoStatus);
+    if (filtraSelecionados) {
+      itensValidos = itensValidos.filter(i => idsAprovados!.has(i.id));
+    }
+    // Recalcula totals com itens filtrados pra refletir o valor aprovado real
+    const subForPDF = filtraSelecionados
+      ? itensValidos.reduce((s, i) => s + getItemValor(i) * i.quantidade, 0)
+      : subtotal;
+    const totalForPDF = filtraSelecionados
+      ? subForPDF - subForPDF * (form.desconto_pct / 100)
+      : totalFinal;
     return {
       modo: form.modo,
       modoPDF: modo || modoPDF,
@@ -433,8 +449,8 @@ export default function OrcamentoNovo() {
       secoes: form.secoes,
       contexto: form.contexto,
       desconto_pct: form.desconto_pct,
-      subtotal,
-      total: totalFinal,
+      subtotal: subForPDF,
+      total: totalForPDF,
       validade_dias: form.validade_dias,
       prazo_execucao: form.prazo_execucao,
       pagamento: form.pagamento,
@@ -446,6 +462,7 @@ export default function OrcamentoNovo() {
       beneficios_capa: form.beneficios_capa,
       headline_cenario: form.headline_cenario,
       cenarios: form.cenarios,
+      is_convertido: orcamentoStatus === 'convertido',
     };
   }
 
@@ -725,7 +742,7 @@ export default function OrcamentoNovo() {
                         : <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
                       }
                       <span className={cn("truncate", !aprovou && "line-through")}>
-                        {item.servico || '(sem nome)'}
+                        {item.descricao || '(sem nome)'}
                       </span>
                     </div>
                     <span className={cn(

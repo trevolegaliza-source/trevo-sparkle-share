@@ -279,6 +279,7 @@ export default function Orcamentos() {
         beneficios_capa: Array.isArray(orcAny.beneficios_capa) ? orcAny.beneficios_capa : [],
         headline_cenario: orcAny.headline_cenario || '',
         cenarios: Array.isArray(orcAny.cenarios) ? orcAny.cenarios : [],
+        is_convertido: orc.status === 'convertido',
       });
 
       const sufixos: Record<string, string> = {
