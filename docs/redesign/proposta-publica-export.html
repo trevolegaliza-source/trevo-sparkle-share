@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PropostaPublica — Export HTML pra redesign</title>
+<!--
+  EXPORT da pagina /proposta/:token (src/pages/PropostaPublica.tsx) em HTML
+  estatico. Gerado 14/05/2026 pra Thales iterar visual via Claude Design.
+
+  Como usar:
+  1. Cola este HTML inteiro no Claude Design
+  2. Iterar visual livremente (cores, layout, tipografia)
+  3. Devolver HTML final pra implementacao em React
+  4. Claude (eu) implementa de volta em PropostaPublica.tsx mantendo a logica
+     (toggleItem, handleAprovar, handleRecusar, integracao Asaas)
+
+  Esta versao mostra o fluxo CLIENTE FINAL (modo padrao). Tambem existe um
+  modo CONTADOR (white-label) com uma tabela diferente de marcar/desmarcar +
+  campo de valor cobrado — comentei no fim mas nao incluí markup completo.
+
+  Funcionalidades-chave do fluxo cliente:
+  - Itens OBRIGATORIOS (icone 🔒, sem checkbox, opacity 100%)
+  - Itens OPCIONAIS (checkbox marcavel, opacity 50% quando desmarcado)
+  - Total atualiza em tempo real quando marca/desmarca
+  - Botoes "Aprovar" e "Recusar" com modais
+  - Apos aprovar: redirect pra /cobranca/{share_token} (cobranca Asaas)
+
+  Tokens de cor atuais:
+  - accent verde Trevo: #16a34a
+  - hero dark: #0f172a (slate-900)
+  - texto principal: #1e293b (slate-800)
+  - muted: #94a3b8 (slate-400)
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  h1, h2, h3 { letter-spacing: -0.02em; }
+  body { background: #f8fafc; color: #1e293b; margin: 0; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .hero-name { letter-spacing: -0.025em; }
+  .hero-price { letter-spacing: -0.025em; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .card-hd { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; }
+  .card-hd-icon { width: 26px; height: 26px; border-radius: 7px; background: #16a34a14; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .card-title { font-size: 14px; font-weight: 700; color: #1e293b; }
+  .card-body { padding: 16px 18px; }
+  .btn-confirm { padding: 12px 22px; border: none; border-radius: 10px; background: #16a34a; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-confirm.red { background: #dc2626; }
+  .btn-confirm.outline { background: white; color: #1e293b; border: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- HEADER — logo + numero da proposta -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <header style="background: white; border-bottom: 1px solid #e2e8f0; padding: 14px 24px;">
+    <div style="max-width: 880px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <!-- Logo Trevo (folha + texto) -->
+        <div style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">
+          <span style="color: #16a34a;">🍀 Trevo</span><span style="font-weight: 500; color: #1e293b;"> Legaliza</span>
+        </div>
+        <div style="font-size: 11px; color: #94a3b8;">Assessoria Empresarial</div>
+      </div>
+      <div style="background: #f0fdf4; color: #16a34a; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;">
+        Proposta #032
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- HERO — dark, nome do cliente + valor em destaque -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section style="background: #0f172a; padding: 44px 24px 36px;">
+    <div style="max-width: 880px; margin: 0 auto;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #16a34a; margin-bottom: 10px;">
+        Proposta Comercial · 14/05/2026
+      </div>
+      <h1 class="hero-name" style="font-size: 34px; font-weight: 900; color: #f8fafc; line-height: 1.1; margin: 0 0 6px;">
+        TESTE C LTDA
+      </h1>
+      <div style="font-size: 13px; color: #475569; margin-bottom: 28px;">
+        CNPJ: 64.150.498/0001-51
+      </div>
+
+      <!-- Caixa de valor (dinamica conforme marca/desmarca) -->
+      <div style="display: inline-block; background: rgba(22, 163, 74, 0.09); border: 1px solid rgba(22, 163, 74, 0.27); border-radius: 14px; padding: 20px 28px;">
+        <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #16a34a; margin-bottom: 6px;">
+          Investimento Estimado
+        </div>
+        <div class="hero-price tabular-nums" style="font-size: 38px; font-weight: 900; color: #16a34a; line-height: 1;">
+          R$ 1.020,00
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 20px; margin-top: 20px;">
+        <span style="font-size: 12px; color: #475569; display: flex; align-items: center; gap: 5px;">
+          <span style="width: 3px; height: 3px; border-radius: 50%; background: #16a34a;"></span>
+          📋 4 serviços
+        </span>
+        <span style="font-size: 12px; color: #475569; display: flex; align-items: center; gap: 5px;">
+          <span style="width: 3px; height: 3px; border-radius: 50%; background: #16a34a;"></span>
+          ⏱️ Válido por 15 dias
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- CONTEUDO PRINCIPAL -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <main style="max-width: 880px; margin: 0 auto; padding: 24px;">
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <!-- CONTEXTO E APRESENTAÇÃO (renderizado se orc.contexto existe) -->
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-hd-icon">💡</div>
+        <div class="card-title">Contexto e Apresentação</div>
+      </div>
+      <div class="card-body">
+        <p style="font-size: 14px; line-height: 1.7; color: #374151; margin: 0;">
+          Empresa em fase de regularização sanitária. Atualmente sem Alvará Sanitário e
+          sem CRM PJ, em risco de interdição. Esta proposta cobre todos os documentos
+          necessários pra operação 100% legal.
+        </p>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <!-- RISCOS SEM REGULARIZAÇÃO (renderizado se orc.riscos existe) -->
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <div class="card" style="border-color: #fecaca;">
+      <div class="card-hd" style="background: #fff5f5; border-bottom-color: #fecaca;">
+        <div class="card-hd-icon" style="background: #fee2e2;">⛔</div>
+        <div class="card-title">Riscos Sem Regularização</div>
+      </div>
+      <div class="card-body">
+        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+          <li style="font-size: 14px; color: #b91c1c; padding-left: 14px; position: relative;">
+            <span style="position: absolute; left: 0;">•</span>
+            Multa diária: até R$ 5.000/dia em caso de fiscalização sem alvará
+          </li>
+          <li style="font-size: 14px; color: #b91c1c; padding-left: 14px; position: relative;">
+            <span style="position: absolute; left: 0;">•</span>
+            Interdição imediata pelos órgãos competentes
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <!-- ETAPAS DO FLUXO (renderizado se orc.etapas_fluxo existe) -->
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-hd-icon">📋</div>
+        <div class="card-title">Fluxo de Execução</div>
+      </div>
+      <div class="card-body" style="display: flex; gap: 16px; overflow-x: auto;">
+        <div style="flex: 1; min-width: 120px; text-align: center;">
+          <div style="width: 32px; height: 32px; background: #f0fdf4; border: 2px solid #16a34a; color: #16a34a; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; margin-bottom: 6px;">1</div>
+          <div style="font-size: 12px; font-weight: 600;">Análise documental</div>
+          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">2 dias</div>
+        </div>
+        <div style="align-self: center; color: #cbd5e1;">→</div>
+        <div style="flex: 1; min-width: 120px; text-align: center;">
+          <div style="width: 32px; height: 32px; background: #f8fafc; border: 2px solid #cbd5e1; color: #64748b; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; margin-bottom: 6px;">2</div>
+          <div style="font-size: 12px; font-weight: 600;">Protocolo nos órgãos</div>
+          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">5 dias</div>
+        </div>
+        <div style="align-self: center; color: #cbd5e1;">→</div>
+        <div style="flex: 1; min-width: 120px; text-align: center;">
+          <div style="width: 32px; height: 32px; background: #f8fafc; border: 2px solid #cbd5e1; color: #64748b; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; margin-bottom: 6px;">3</div>
+          <div style="font-size: 12px; font-weight: 600;">Deferimento</div>
+          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">15 dias úteis</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <!-- SERVIÇOS — CORE da tela, cliente marca/desmarca opcionais -->
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-hd-icon">📋</div>
+        <div class="card-title">Serviços</div>
+      </div>
+      <div class="card-body">
+
+        <!-- ITEM 1 — OBRIGATORIO (icone 🔒, sem checkbox, opacity 100%) -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <span style="font-size: 14px;">🔒</span>
+            <span style="width: 24px; height: 24px; background: #f0fdf4; color: #16a34a; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">1</span>
+            <span style="font-size: 14px; font-weight: 600; color: #1e293b; flex: 1;">Alvará Sanitário Municipal</span>
+            <span class="tabular-nums" style="font-size: 15px; font-weight: 700; color: #16a34a;">R$ 5,00</span>
+          </div>
+          <div style="font-size: 12px; color: #64748b; padding-left: 50px;">
+            Inclui: análise documental, protocolo na vigilância sanitária, acompanhamento.
+          </div>
+          <div style="padding-left: 50px; margin-top: 6px; display: flex; gap: 12px;">
+            <span style="font-size: 11px; color: #94a3b8;">Prazo: 15-45 dias</span>
+            <span style="font-size: 11px; color: #f59e0b;">Taxas: R$ 80 a R$ 220</span>
+          </div>
+        </div>
+
+        <!-- ITEM 2 — OPCIONAL DESMARCADO (checkbox vazio, opacity 50%) -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 10px; opacity: 0.5;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <input type="checkbox" style="width: 18px; height: 18px; accent-color: #16a34a; cursor: pointer; flex-shrink: 0;">
+            <span style="width: 24px; height: 24px; background: #f0fdf4; color: #16a34a; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">2</span>
+            <span style="font-size: 14px; font-weight: 600; color: #1e293b; flex: 1;">CRM Pessoa Jurídica</span>
+            <span class="tabular-nums" style="font-size: 15px; font-weight: 700; color: #16a34a;">R$ 5,00</span>
+          </div>
+          <div style="font-size: 12px; color: #64748b; padding-left: 50px;">
+            Inscrição da empresa no Conselho Regional de Medicina.
+          </div>
+        </div>
+
+        <!-- ITEM 3 — OPCIONAL DESMARCADO -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 10px; opacity: 0.5;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <input type="checkbox" style="width: 18px; height: 18px; accent-color: #16a34a; cursor: pointer; flex-shrink: 0;">
+            <span style="width: 24px; height: 24px; background: #f0fdf4; color: #16a34a; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">3</span>
+            <span style="font-size: 14px; font-weight: 600; color: #1e293b; flex: 1;">Pesquisa de Mercado</span>
+            <span class="tabular-nums" style="font-size: 15px; font-weight: 700; color: #16a34a;">R$ 1.000,00</span>
+          </div>
+          <div style="font-size: 12px; color: #64748b; padding-left: 50px;">
+            Análise completa do mercado regional pra suporte estratégico.
+          </div>
+        </div>
+
+        <!-- ITEM 4 — OBRIGATORIO -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <span style="font-size: 14px;">🔒</span>
+            <span style="width: 24px; height: 24px; background: #f0fdf4; color: #16a34a; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">4</span>
+            <span style="font-size: 14px; font-weight: 600; color: #1e293b; flex: 1;">Inscrição Estadual</span>
+            <span class="tabular-nums" style="font-size: 15px; font-weight: 700; color: #16a34a;">R$ 10,00</span>
+          </div>
+          <div style="font-size: 12px; color: #64748b; padding-left: 50px;">
+            Cadastro no Sefaz pra emissão de notas fiscais.
+          </div>
+        </div>
+
+        <!-- LEGENDA -->
+        <div style="margin-top: 14px; padding: 10px 12px; background: #f8fafc; border-radius: 8px; font-size: 11px; color: #64748b; display: flex; gap: 16px;">
+          <span>🔒 Item obrigatório — sempre incluído</span>
+          <span>☐ Item opcional — você escolhe</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <!-- RESUMO + AÇÃO (sticky footer no mobile?) -->
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <div class="card" style="border-color: #bbf7d0; background: linear-gradient(135deg, #f0fdf4 0%, white 100%);">
+      <div class="card-body">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px;">
+          <span style="font-size: 13px; color: #64748b;">Total selecionado (2 de 4 itens)</span>
+          <span class="hero-price tabular-nums" style="font-size: 28px; font-weight: 900; color: #16a34a;">
+            R$ 15,00
+          </span>
+        </div>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button class="btn-confirm" style="flex: 1; min-width: 200px; justify-content: center; display: flex;">
+            ✓ Aprovar e fechar negócio
+          </button>
+          <button class="btn-confirm outline">
+            ❌ Recusar
+          </button>
+        </div>
+
+        <p style="font-size: 11px; color: #94a3b8; margin: 16px 0 0; text-align: center;">
+          Após aprovar, você será redirecionado pra tela de pagamento (PIX/boleto Asaas).
+        </p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- FOOTER -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <footer style="border-top: 1px solid #e2e8f0; padding: 20px 24px; background: white; margin-top: 24px;">
+    <div style="max-width: 880px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8;">
+      <span>Trevo Legaliza · CNPJ 39.969.412/0001-70</span>
+      <span>(11) 93492-7001 · trevolegaliza.com.br</span>
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- TELA DE APROVADO (mostrada APOS clicar "Aprovar") -->
+  <!-- Renderiza SOZINHA — substitui toda a tela acima quando statusFinal='aprovado' -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!--
+  <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px;">
+    <div style="max-width: 480px; width: 100%; background: white; border-radius: 16px; padding: 40px 32px; text-align: center; border: 1px solid #e2e8f0;">
+      <div style="display: inline-block; padding: 16px; background: #f0fdf4; border-radius: 50%; margin-bottom: 16px;">
+        <span style="font-size: 32px;">✓</span>
+      </div>
+      <h2 style="font-size: 22px; font-weight: 800; color: #15803d; margin: 0 0 8px;">Pagamento Confirmado!</h2>
+      <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0 0 24px;">
+        Recebemos seu pagamento. Nossa equipe iniciará a execução em breve.
+      </p>
+
+      <div style="margin-top: 24px; padding: 16px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left;">
+        <div style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">
+          Itens aprovados (2)
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px;">
+          <span>Alvará Sanitário Municipal</span>
+          <span style="font-weight: 600; color: #15803d;">R$ 5,00</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px;">
+          <span>Inscrição Estadual</span>
+          <span style="font-weight: 600; color: #15803d;">R$ 10,00</span>
+        </div>
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 15px; font-weight: 700;">
+          <span>Total pago</span>
+          <span>R$ 15,00</span>
+        </div>
+      </div>
+
+      <button class="btn-confirm" style="margin-top: 20px;">
+        Ver comprovante
+      </button>
+    </div>
+  </div>
+  -->
+
+</body>
+</html>
