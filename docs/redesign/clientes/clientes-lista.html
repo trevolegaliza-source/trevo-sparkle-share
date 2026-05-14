@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Clientes — Lista — Trevo Legaliza</title>
+<!--
+  Tela: /clientes (lista de todos os clientes)
+  Source: src/pages/Clientes.tsx
+
+  Estrutura:
+  - Header "Clientes" + total + botão "Novo Cliente"
+  - 3 ou 4 stats cards (Total / Mensalistas / Avulsos / Pré-pago se houver)
+  - Filtros: busca por nome + select tipo cliente
+  - Lista (cards) com nome + apelido + CNPJ + tipo + valor base
+  - Cada card clicável → /clientes/:id
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+  .accent-bar { width: 3px; align-self: stretch; background: #16a34a; border-radius: 2px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <div class="flex items-start justify-between">
+    <div class="flex items-start gap-3">
+      <div class="accent-bar"></div>
+      <div>
+        <h1 class="heading-1">Clientes</h1>
+        <p class="caption mt-1">48 contabilidades cadastradas</p>
+      </div>
+    </div>
+    <button class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold">+ Novo Cliente</button>
+  </div>
+
+  <div class="grid sm:grid-cols-3 gap-4">
+    <div class="card flex items-center gap-3">
+      <div class="rounded-lg bg-emerald-100 p-2.5 text-emerald-600">👥</div>
+      <div><div class="text-2xl font-bold tabular-nums">48</div><div class="caption">Total de Clientes</div></div>
+    </div>
+    <div class="card flex items-center gap-3">
+      <div class="rounded-lg bg-blue-100 p-2.5 text-blue-600">↻</div>
+      <div><div class="text-2xl font-bold tabular-nums">2</div><div class="caption">Mensalistas</div></div>
+    </div>
+    <div class="card flex items-center gap-3">
+      <div class="rounded-lg bg-amber-100 p-2.5 text-amber-600">💼</div>
+      <div><div class="text-2xl font-bold tabular-nums">46</div><div class="caption">Avulsos</div></div>
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <input class="flex-1 h-10 px-3 border border-slate-200 rounded-lg text-sm" placeholder="🔍 Buscar cliente..."/>
+    <select class="h-10 px-3 border border-slate-200 rounded-lg text-sm">
+      <option>Todos os tipos</option>
+      <option>Mensalista</option>
+      <option>Avulso 4D</option>
+      <option>Pré-pago</option>
+      <option>Preço por tipo</option>
+    </select>
+  </div>
+
+  <div class="space-y-2">
+    <button class="w-full card hover:border-emerald-300 transition-colors text-left">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4 min-w-0 flex-1">
+          <div class="h-12 w-12 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">CG</div>
+          <div class="min-w-0">
+            <div class="text-sm font-semibold truncate">CAROLINA GUIRADO TESTE LTDA</div>
+            <div class="caption">CNPJ: 64.150.498/0001-51 · Apelido: <span class="font-medium text-slate-600">CG TESTE</span></div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold uppercase">Avulso</span>
+              <span class="text-[11px] text-slate-500">Por processo — D+4</span>
+            </div>
+          </div>
+        </div>
+        <div class="text-right shrink-0 ml-4">
+          <div class="caption">Valor Base</div>
+          <div class="text-sm font-bold tabular-nums">R$ 580,00</div>
+        </div>
+      </div>
+    </button>
+
+    <button class="w-full card hover:border-emerald-300 transition-colors text-left">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4 min-w-0 flex-1">
+          <div class="h-12 w-12 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">LJ</div>
+          <div class="min-w-0">
+            <div class="text-sm font-semibold truncate">CONTABILIDADE LJ</div>
+            <div class="caption">CNPJ: 32.123.456/0001-78 · Apelido: <span class="font-medium text-slate-600">LJ</span></div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-bold uppercase">Mensalista</span>
+              <span class="text-[11px] text-slate-500">Mensal — Vence dia 10</span>
+            </div>
+          </div>
+        </div>
+        <div class="text-right shrink-0 ml-4">
+          <div class="caption">Mensalidade</div>
+          <div class="text-sm font-bold tabular-nums">R$ 3.000,00</div>
+        </div>
+      </div>
+    </button>
+  </div>
+
+</div>
+</body>
+</html>

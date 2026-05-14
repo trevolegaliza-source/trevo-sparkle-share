@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard — Trevo Legaliza</title>
+<!--
+  Tela: / (Dashboard principal — primeira tela após login)
+  Source: src/pages/Dashboard.tsx
+  Hook: src/hooks/useDashboardData.ts
+
+  Estrutura atual:
+  - Header com saudação + data + botão "Relatório Mensal"
+  - 4 KPIs (Receita / A receber / Recebido / Processos ativos) — KPICard
+  - Seção "Ações urgentes" — cards de alertas (AttentionCard)
+  - Seção "Receita mensal" — gráfico de barras (recharts)
+  - Seção "Top clientes do mês" + "Próximos vencimentos" lado a lado
+
+  Notas pra redesign:
+  - Tela mais usada do sistema — primeira impressão
+  - Saudação personalizada ("Bom dia, Thales 🍀")
+  - Alertas precisam ser actionable (clicar leva pra resolver)
+  - Gráfico Receita Mensal pode evoluir pra algo mais sofisticado
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .heading-1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .label-uppercase { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .accent-bar { width: 3px; align-self: stretch; background: #16a34a; border-radius: 2px; }
+  .display-2 { font-size: 2rem; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+  .kpi-card { position: relative; overflow: hidden; }
+  .kpi-card .strip { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <!-- HEADER -->
+  <div class="flex items-start justify-between gap-4">
+    <div class="flex items-start gap-3">
+      <div class="accent-bar"></div>
+      <div>
+        <h1 class="heading-1">Boa tarde, Thales 🍀</h1>
+        <p class="caption mt-1">quinta-feira, 14 de maio de 2026</p>
+      </div>
+    </div>
+    <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold flex items-center gap-2 hover:border-emerald-500">
+      📥 Relatório Mensal
+    </button>
+  </div>
+
+  <!-- 4 KPIs -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- HERO: Receita do mês -->
+    <div class="card kpi-card border-emerald-500/30 bg-gradient-to-br from-emerald-50/60 to-transparent cursor-pointer">
+      <div class="strip bg-emerald-500"></div>
+      <div class="flex items-start justify-between mb-3">
+        <span class="label-uppercase">Receita do mês</span>
+        <div class="h-9 w-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">$</div>
+      </div>
+      <div class="display-2 text-slate-900 tabular-nums">R$ 79.772,83</div>
+      <div class="mt-3 flex items-center gap-2">
+        <span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">↑ 12.3%</span>
+        <span class="text-xs text-slate-500">vs mês anterior</span>
+      </div>
+    </div>
+
+    <!-- WARNING: A receber -->
+    <div class="card kpi-card border-amber-500/30 bg-amber-50/40 cursor-pointer">
+      <div class="strip bg-amber-500"></div>
+      <div class="flex items-start justify-between mb-3">
+        <span class="label-uppercase">A receber</span>
+        <div class="h-9 w-9 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">⏱</div>
+      </div>
+      <div class="display-2 text-amber-700 tabular-nums">R$ 49.183,13</div>
+      <div class="mt-3 caption">pendente de confirmação</div>
+    </div>
+
+    <!-- SUCCESS: Recebido -->
+    <div class="card kpi-card border-emerald-500/20 cursor-pointer">
+      <div class="strip bg-emerald-500"></div>
+      <div class="flex items-start justify-between mb-3">
+        <span class="label-uppercase">Recebido</span>
+        <div class="h-9 w-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">✓</div>
+      </div>
+      <div class="display-2 text-emerald-700 tabular-nums">R$ 32.465,77</div>
+      <div class="mt-3 caption">41% do faturado</div>
+    </div>
+
+    <!-- DEFAULT: Processos ativos -->
+    <div class="card kpi-card cursor-pointer">
+      <div class="flex items-start justify-between mb-3">
+        <span class="label-uppercase">Processos ativos</span>
+        <div class="h-9 w-9 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center">⚙</div>
+      </div>
+      <div class="display-2 text-slate-900 tabular-nums">107</div>
+      <div class="mt-3 caption">12 novos esta semana</div>
+    </div>
+  </div>
+
+  <!-- AÇÕES URGENTES -->
+  <div class="space-y-3">
+    <div class="flex items-baseline justify-between">
+      <h3 class="label-uppercase">Ações urgentes</h3>
+      <div class="flex items-center gap-2 text-xs text-slate-500">
+        <span>Alertar contas em</span>
+        <input class="w-12 h-7 border border-slate-200 rounded text-center text-xs" value="3"/>
+        <span>dias</span>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <!-- Card RED -->
+      <div class="card border-red-500/30 bg-red-50/40 flex items-start gap-3 cursor-pointer">
+        <div class="h-9 w-9 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5">⚠</div>
+        <div class="flex-1">
+          <div class="text-sm font-semibold text-slate-900">3 contas a pagar vencidas</div>
+          <div class="text-xs text-slate-500 mt-1">R$ 4.250,00 em atraso</div>
+        </div>
+        <span class="text-slate-400">→</span>
+      </div>
+      <!-- Card AMBER -->
+      <div class="card border-amber-500/30 bg-amber-50/40 flex items-start gap-3 cursor-pointer">
+        <div class="h-9 w-9 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">!</div>
+        <div class="flex-1">
+          <div class="text-sm font-semibold text-slate-900">12 lançamentos pendentes de auditoria</div>
+          <div class="text-xs text-slate-500 mt-1">Confirme ou ajuste antes de cobrar</div>
+        </div>
+        <span class="text-slate-400">→</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRÁFICO RECEITA MENSAL -->
+  <div class="space-y-3">
+    <div class="flex items-baseline justify-between">
+      <h3 class="label-uppercase">Receita mensal</h3>
+      <span class="caption">últimos 6 meses</span>
+    </div>
+    <div class="card">
+      <div class="h-72 bg-gradient-to-t from-emerald-50 via-white to-white rounded-lg flex items-end justify-around p-6 gap-2">
+        <!-- Mock barras -->
+        <div class="flex flex-col items-center gap-2 flex-1">
+          <div class="w-full max-w-12 bg-emerald-500 rounded-t" style="height: 30%"></div>
+          <div class="text-xs text-slate-500">jan/26</div>
+        </div>
+        <div class="flex flex-col items-center gap-2 flex-1">
+          <div class="w-full max-w-12 bg-emerald-500 rounded-t" style="height: 28%"></div>
+          <div class="text-xs text-slate-500">fev/26</div>
+        </div>
+        <div class="flex flex-col items-center gap-2 flex-1">
+          <div class="w-full max-w-12 bg-emerald-500 rounded-t" style="height: 50%"></div>
+          <div class="text-xs text-slate-500">mar/26</div>
+        </div>
+        <div class="flex flex-col items-center gap-2 flex-1">
+          <div class="w-full max-w-12 bg-emerald-500 rounded-t" style="height: 80%"></div>
+          <div class="text-xs text-slate-500">abr/26</div>
+        </div>
+        <div class="flex flex-col items-center gap-2 flex-1">
+          <div class="w-full max-w-12 bg-emerald-500 rounded-t" style="height: 95%"></div>
+          <div class="text-xs text-slate-500 font-bold">mai/26</div>
+        </div>
+      </div>
+      <div class="mt-3 flex items-center justify-center gap-5 text-xs text-slate-500">
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-sm bg-emerald-500"></span>Recebido</span>
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-sm bg-amber-500"></span>Pendente</span>
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-sm bg-red-500"></span>Vencido</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP CLIENTES + PRÓXIMOS VENCIMENTOS -->
+  <div class="grid lg:grid-cols-2 gap-4">
+    <div class="card">
+      <div class="flex items-baseline justify-between mb-4">
+        <h3 class="heading-2">Top clientes do mês</h3>
+        <span class="caption">por valor faturado</span>
+      </div>
+      <div class="space-y-1">
+        <button class="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-slate-50">
+          <div class="flex items-center gap-3">
+            <span class="h-7 w-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">1</span>
+            <div class="text-left">
+              <p class="text-sm font-medium">CAROLINA GUIRADO</p>
+              <p class="caption">8 processos</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="text-sm font-semibold tabular-nums">R$ 12.480,00</p>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">Pendente</span>
+          </div>
+        </button>
+        <button class="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-slate-50">
+          <div class="flex items-center gap-3">
+            <span class="h-7 w-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">2</span>
+            <div class="text-left">
+              <p class="text-sm font-medium">CBS CONTABILIDADE</p>
+              <p class="caption">5 processos</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="text-sm font-semibold tabular-nums">R$ 8.900,00</p>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-700">Vencido</span>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex items-baseline justify-between mb-4">
+        <h3 class="heading-2">Próximos vencimentos</h3>
+        <span class="caption">7 dias</span>
+      </div>
+      <div class="space-y-1">
+        <button class="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-slate-50">
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+            <div class="text-left">
+              <p class="text-sm font-medium">MIL CONTAS</p>
+              <p class="caption">16/05 · Em 2d</p>
+            </div>
+          </div>
+          <p class="text-sm font-semibold tabular-nums">R$ 700,00</p>
+        </button>
+        <button class="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-slate-50">
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+            <div class="text-left">
+              <p class="text-sm font-medium">MYCAELLE - WISAR</p>
+              <p class="caption">14/05 · Hoje</p>
+            </div>
+          </div>
+          <p class="text-sm font-semibold tabular-nums">R$ 1.750,00</p>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

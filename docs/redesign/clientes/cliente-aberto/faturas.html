@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cliente Aberto - Aba Faturas — Trevo Legaliza</title>
+<!--
+  Tela: /clientes/:id (aba "Faturas")
+  Source: src/pages/ClienteDetalhe.tsx + ClienteAccordionFinanceiro.tsx (2300 linhas)
+
+  CORE da gestao financeira do cliente:
+  - Botao "Gerar Extrato" (consolida lancamentos -> 1 cobranca)
+  - Botao "Gerar Asaas" (gera PIX/boleto pra cobranca)
+  - Lista accordions:
+    * Sem extrato (lancamentos solicitacao_criada / aguardando_deferimento)
+    * Aguardando pagamento (cobrancas geradas/enviadas)
+    * Pagas (historico)
+    * Contestadas (se houver)
+  - Cada lancamento: descricao, valor, vencimento, status, etiqueta Metodo Trevo,
+    botoes ⚙ Auditoria, 🛒 Adicionar a extrato, 🗑 Excluir
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .tab-trigger { padding: 10px 20px; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab-trigger.active { color: #0f172a; border-bottom-color: #16a34a; background: white; }
+  .accordion-head { padding: 14px 16px; background: #f8fafc; border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-4">
+
+  <!-- HEADER + KPIs compartilhados -->
+
+  <div class="border-b border-slate-200 mb-4">
+    <div class="flex items-center -mb-px">
+      <button class="tab-trigger">⚙ Financeiro</button>
+      <button class="tab-trigger">≡ Serviços</button>
+      <button class="tab-trigger">📋 Processos</button>
+      <button class="tab-trigger active">$ Faturas</button>
+      <button class="tab-trigger">📄 Contratos</button>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="card flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <div class="font-semibold">2 lançamentos · R$ 1.170,00 disponíveis</div>
+      <div class="caption mt-1">Selecione lançamentos abaixo e gere um extrato consolidado pra cobrar de uma vez.</div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold flex items-center gap-2">📄 Histórico de Extratos (3)</button>
+      <button class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2">⚡ Gerar Extrato (2)</button>
+    </div>
+  </div>
+
+  <!-- ACCORDION: Sem extrato -->
+  <div class="card p-0 overflow-hidden">
+    <div class="accordion-head">
+      <div>
+        <span class="text-amber-600 mr-2">📌</span>
+        <span class="font-semibold">Sem extrato</span>
+        <span class="caption ml-2">2 lançamentos · R$ 1.170,00</span>
+      </div>
+      <button>▼</button>
+    </div>
+    <div class="divide-y divide-slate-100">
+      <div class="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer">
+        <div class="flex items-center gap-3 min-w-0">
+          <input type="checkbox" checked class="h-4 w-4 accent-emerald-600"/>
+          <div class="min-w-0">
+            <div class="text-sm font-semibold">Transformação - INSTITUTO SADALA LTDA</div>
+            <div class="caption mt-1">
+              Vence 08/05/2026 · Solicitação criada · Etapa: <strong class="text-amber-700">Aguardando deferimento</strong>
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold">SEM EXTRATO</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">VIA REGIONAL</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-right">
+            <div class="caption">Valor</div>
+            <div class="text-base font-bold tabular-nums">R$ 580,00</div>
+          </div>
+          <button class="text-slate-400 hover:text-slate-700 px-2 py-1">⚙ Auditar</button>
+          <button class="text-slate-400 hover:text-slate-700">⋯</button>
+        </div>
+      </div>
+
+      <div class="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer">
+        <div class="flex items-center gap-3 min-w-0">
+          <input type="checkbox" checked class="h-4 w-4 accent-emerald-600"/>
+          <div class="min-w-0">
+            <div class="text-sm font-semibold">Transformação - BMWEB SHOP COMERCIO LTDA</div>
+            <div class="caption mt-1">Vence 11/04/2026 · Cadastrado 07/04/2026</div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold">SEM EXTRATO</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-right">
+            <div class="caption">Valor</div>
+            <div class="text-base font-bold tabular-nums">R$ 590,00</div>
+          </div>
+          <button class="text-slate-400 hover:text-slate-700 px-2 py-1">⚙ Auditar</button>
+          <button class="text-slate-400 hover:text-slate-700">⋯</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACCORDION: Aguardando pagamento (vazio nesse exemplo) -->
+  <div class="card p-0 overflow-hidden">
+    <div class="accordion-head">
+      <div>
+        <span class="text-blue-600 mr-2">📤</span>
+        <span class="font-semibold">Aguardando Pagamento</span>
+        <span class="caption ml-2">0</span>
+      </div>
+      <button>▶</button>
+    </div>
+  </div>
+
+  <!-- ACCORDION: Pagas -->
+  <div class="card p-0 overflow-hidden">
+    <div class="accordion-head">
+      <div>
+        <span class="text-emerald-600 mr-2">✓</span>
+        <span class="font-semibold">Pagas</span>
+        <span class="caption ml-2">3 · R$ 1.490,00</span>
+      </div>
+      <button>▶</button>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

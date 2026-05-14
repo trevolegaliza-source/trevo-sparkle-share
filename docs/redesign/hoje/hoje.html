@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Hoje — Trevo Legaliza</title>
+<!--
+  Tela: /hoje
+  Source: src/pages/Hoje.tsx
+  Hook: src/hooks/useHojeData.ts
+
+  4 cards de "o que importa hoje":
+  - PRECISA AGIR HOJE (vencimentos do dia, mensalidades D-5 a gerar)
+  - EM RISCO (clientes inadimplentes, contestações)
+  - OPORTUNIDADES (orçamentos parados >5d, mensalistas sem fatura)
+  - CELEBRAR (pagamentos hoje, deferimentos hoje, novos clientes da semana)
+
+  Cada item é clicável → leva pra tela apropriada.
+  Header com data por extenso. Resumo do dia (3 KPIs) só se houver valores.
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .label-uppercase { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .display-2 { font-size: 1.75rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.025em; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; position: relative; overflow: hidden; }
+  .accent-bar { width: 3px; align-self: stretch; background: #16a34a; border-radius: 2px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <!-- HEADER -->
+  <div class="flex items-start justify-between gap-4">
+    <div class="flex items-start gap-3">
+      <div class="accent-bar"></div>
+      <div>
+        <h1 class="heading-1 flex items-center gap-2">
+          Hoje
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold uppercase tracking-wider">Beta</span>
+        </h1>
+        <p class="caption mt-1">quinta-feira, 14 de maio de 2026</p>
+      </div>
+    </div>
+    <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold flex items-center gap-2 hover:border-emerald-500">
+      ☀ Dashboard completo
+    </button>
+  </div>
+
+  <!-- RESUMO DO DIA (so aparece se houver valores) -->
+  <div class="card border-emerald-500/30 bg-gradient-to-br from-emerald-50/40 to-transparent">
+    <div class="grid grid-cols-3 gap-6">
+      <div>
+        <div class="label-uppercase">Recebido hoje</div>
+        <div class="display-2 text-emerald-700 mt-1 tabular-nums">R$ 12.500</div>
+      </div>
+      <div>
+        <div class="label-uppercase">Vencendo hoje</div>
+        <div class="display-2 text-amber-600 mt-1 tabular-nums">R$ 1.750</div>
+      </div>
+      <div>
+        <div class="label-uppercase">Inadimplente</div>
+        <div class="display-2 text-red-600 mt-1 tabular-nums">R$ 8.900</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 CARDS PRINCIPAIS (grid 2x2) -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+    <!-- PRECISA AGIR HOJE (amber) -->
+    <div class="card border-amber-500/30">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500"></div>
+      <div class="flex items-start gap-3 mb-4">
+        <div class="h-10 w-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">🔥</div>
+        <div class="flex-1">
+          <div class="flex items-baseline gap-2">
+            <h3 class="heading-2">Precisa agir hoje</h3>
+            <span class="text-xs font-semibold text-slate-400 tabular-nums">3</span>
+          </div>
+          <p class="caption">Vencimentos, ações urgentes</p>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <button class="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 text-left">
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-medium">MYCAELLE - WISAR</div>
+            <div class="caption">Cobrança · vence hoje</div>
+          </div>
+          <div class="text-sm font-semibold tabular-nums text-amber-700 shrink-0">R$ 1.750,00</div>
+        </button>
+        <button class="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 text-left">
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-medium">CONTABILIDADE LJ</div>
+            <div class="caption">Gerar mensalidade hoje (D-5 do venc. dia 10)</div>
+          </div>
+          <div class="text-sm font-semibold tabular-nums text-amber-700 shrink-0">R$ 3.000,00</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- EM RISCO (red) -->
+    <div class="card border-red-500/30">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-red-500"></div>
+      <div class="flex items-start gap-3 mb-4">
+        <div class="h-10 w-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">⚠</div>
+        <div class="flex-1">
+          <div class="flex items-baseline gap-2">
+            <h3 class="heading-2">Em risco</h3>
+            <span class="text-xs font-semibold text-slate-400 tabular-nums">2</span>
+          </div>
+          <p class="caption">Atrasados, contestações</p>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <button class="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-md hover:bg-red-50 text-left">
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-medium">CBS CONTABILIDADE</div>
+            <div class="caption">5 pendências · atraso máx 45d</div>
+          </div>
+          <div class="text-sm font-semibold tabular-nums text-red-600 shrink-0">R$ 8.900,00</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- OPORTUNIDADES (blue) -->
+    <div class="card border-blue-500/30">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-500"></div>
+      <div class="flex items-start gap-3 mb-4">
+        <div class="h-10 w-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">✨</div>
+        <div class="flex-1">
+          <div class="flex items-baseline gap-2">
+            <h3 class="heading-2">Oportunidades</h3>
+            <span class="text-xs font-semibold text-slate-400 tabular-nums">4</span>
+          </div>
+          <p class="caption">Propostas paradas, follow-ups</p>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <button class="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-md hover:bg-slate-50 text-left">
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-medium">XYZ CONSULTORIA LTDA</div>
+            <div class="caption">Orçamento #028 · parado há 8d</div>
+          </div>
+          <div class="text-sm font-semibold tabular-nums text-blue-700 shrink-0">R$ 2.500,00</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- CELEBRAR (emerald) -->
+    <div class="card border-emerald-500/30">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500"></div>
+      <div class="flex items-start gap-3 mb-4">
+        <div class="h-10 w-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">🎉</div>
+        <div class="flex-1">
+          <div class="flex items-baseline gap-2">
+            <h3 class="heading-2">Celebrar</h3>
+            <span class="text-xs font-semibold text-slate-400 tabular-nums">3</span>
+          </div>
+          <p class="caption">Pagamentos, deferimentos, novos clientes</p>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <button class="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-md hover:bg-emerald-50 text-left">
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-medium">LETICIA TONELLI</div>
+            <div class="caption">Pagou TESTE C LTDA hoje</div>
+          </div>
+          <div class="text-sm font-semibold tabular-nums text-emerald-600 shrink-0">R$ 15,00</div>
+        </button>
+        <button class="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-md hover:bg-emerald-50 text-left">
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-medium">SADALA CLINICA</div>
+            <div class="caption">Processo deferido hoje 🎉</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="text-center pt-4">
+    <button class="text-sm text-slate-500 hover:text-slate-900">Ver tudo no Financeiro →</button>
+  </div>
+
+</div>
+</body>
+</html>

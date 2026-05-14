@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cadastro Rápido — Trevo Legaliza</title>
+<!--
+  Tela: /cadastro-rapido
+  Source: src/pages/CadastroRapido.tsx
+
+  Wizard 4 steps pra cadastrar processo rapidamente:
+  - Step 1: Selecionar cliente (busca/select)
+  - Step 2: Dados do processo (razão social, tipo, prioridade, data entrada,
+            mudança UF, etiquetas)
+  - Step 3: Valor (automático/manual/serviço pré-acordado, urgência, boas-vindas)
+  - Step 4: Revisão + adicionar à fila / salvar
+
+  Right side: Preview financeiro com slot, valor, desconto progressivo,
+              progressão dos próximos slots.
+  Bottom: Fila de processos a salvar em batch.
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+  .accent-bar { width: 3px; align-self: stretch; background: #16a34a; border-radius: 2px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .input { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; }
+  .step-circle { width: 32px; height: 32px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <!-- HEADER -->
+  <div class="flex items-start gap-3">
+    <div class="accent-bar"></div>
+    <div>
+      <h1 class="heading-1">Cadastro Rápido</h1>
+      <p class="caption mt-1">Cadastre processos sem precisar abrir cada cliente</p>
+    </div>
+  </div>
+
+  <!-- WIZARD STEPS -->
+  <div class="card flex items-center justify-between gap-4 flex-wrap">
+    <div class="flex items-center gap-3">
+      <div class="step-circle bg-emerald-100 text-emerald-700">✓</div>
+      <div>
+        <div class="text-xs font-bold uppercase text-emerald-700">Passo 1</div>
+        <div class="text-sm font-semibold">Cliente</div>
+      </div>
+    </div>
+    <div class="h-px flex-1 bg-emerald-200 max-w-12"></div>
+    <div class="flex items-center gap-3">
+      <div class="step-circle bg-emerald-100 text-emerald-700">✓</div>
+      <div>
+        <div class="text-xs font-bold uppercase text-emerald-700">Passo 2</div>
+        <div class="text-sm font-semibold">Processo</div>
+      </div>
+    </div>
+    <div class="h-px flex-1 bg-emerald-500 max-w-12"></div>
+    <div class="flex items-center gap-3">
+      <div class="step-circle bg-emerald-600 text-white ring-4 ring-emerald-100">3</div>
+      <div>
+        <div class="text-xs font-bold uppercase text-emerald-700">Passo 3 — atual</div>
+        <div class="text-sm font-semibold">Valor</div>
+      </div>
+    </div>
+    <div class="h-px flex-1 bg-slate-200 max-w-12"></div>
+    <div class="flex items-center gap-3">
+      <div class="step-circle bg-slate-100 text-slate-400">4</div>
+      <div>
+        <div class="caption uppercase">Passo 4</div>
+        <div class="text-sm text-slate-500">Revisão</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPLIT: Form + Preview -->
+  <div class="grid lg:grid-cols-3 gap-6">
+
+    <!-- LEFT: Form (2 cols) -->
+    <div class="lg:col-span-2 space-y-4">
+
+      <!-- CLIENTE selecionado (badge) -->
+      <div class="card flex items-center justify-between bg-emerald-50/40 border-emerald-200">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">CG</div>
+          <div>
+            <div class="text-sm font-semibold">CAROLINA GUIRADO TESTE LTDA</div>
+            <div class="caption">Avulso 4D · Valor base R$ 580 · Desconto progressivo 5%</div>
+          </div>
+        </div>
+        <button class="text-xs text-emerald-700 underline">Trocar</button>
+      </div>
+
+      <!-- Step 3: Valor -->
+      <div class="card space-y-4">
+        <h3 class="heading-2">Valor</h3>
+
+        <div>
+          <div class="caption mb-2">Método de preço</div>
+          <div class="flex gap-2">
+            <label class="flex-1 cursor-pointer p-3 border border-emerald-300 bg-emerald-50/40 rounded-lg flex items-start gap-2">
+              <input type="radio" name="metodo" checked class="mt-0.5"/>
+              <div>
+                <div class="text-sm font-semibold">Automático</div>
+                <div class="caption">Aplica Valor Base + descontos do cliente</div>
+              </div>
+            </label>
+            <label class="flex-1 cursor-pointer p-3 border border-slate-200 rounded-lg flex items-start gap-2">
+              <input type="radio" name="metodo" class="mt-0.5"/>
+              <div>
+                <div class="text-sm font-semibold">Manual</div>
+                <div class="caption">Você define o valor</div>
+              </div>
+            </label>
+            <label class="flex-1 cursor-pointer p-3 border border-slate-200 rounded-lg flex items-start gap-2">
+              <input type="radio" name="metodo" class="mt-0.5"/>
+              <div>
+                <div class="text-sm font-semibold">Serviço pré-acordado</div>
+                <div class="caption">Usa preço negociado pra esse tipo</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="caption">Já pago</label>
+          <div class="mt-1 flex items-center gap-2">
+            <button class="w-10 h-5 bg-slate-300 rounded-full relative"><span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full"></span></button>
+            <span class="text-sm">Marcar como já pago (não gera lançamento de cobrança)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm">← Voltar</button>
+        <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm">+ Adicionar à fila</button>
+        <button class="ml-auto px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold">Próximo → Revisão</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Preview Financeiro (sticky) -->
+    <aside class="space-y-4">
+      <div class="card border-emerald-300 bg-emerald-50/40 sticky top-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-emerald-600">💰</span>
+          <h3 class="heading-2">Preview Financeiro</h3>
+        </div>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between caption"><span>Valor Base</span><span class="tabular-nums">R$ 580,00</span></div>
+          <div class="flex justify-between caption"><span>Slot nº</span><span class="font-bold text-emerald-700">2º</span></div>
+          <div class="flex justify-between caption text-blue-700"><span>Desconto progressivo</span><span class="tabular-nums">- R$ 29,00</span></div>
+          <div class="border-t border-slate-200 pt-2 mt-2 flex justify-between font-bold">
+            <span>VALOR FINAL</span>
+            <span class="text-emerald-700 tabular-nums text-lg">R$ 551,00</span>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-200">
+          <div class="caption mb-1">Progressão (próximos slots):</div>
+          <div class="flex gap-1 flex-wrap">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100">1º R$ 580</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">2º R$ 551</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100">3º R$ 522</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100">4º R$ 493</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- FILA -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="heading-2">Fila de processos a salvar</h3>
+        <p class="caption">2 processos pendentes — clique "Salvar todos" pra criar em batch.</p>
+      </div>
+      <button class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold">⚡ Salvar todos (2)</button>
+    </div>
+    <div class="space-y-2">
+      <div class="border border-slate-200 rounded-lg p-3 flex items-center justify-between">
+        <div class="text-sm">
+          <strong>BMWEB SHOP COMERCIO LTDA</strong> — Transformação · Slot 1 · R$ 580,00 · Data entrada: 07/04/2026
+        </div>
+        <button class="text-red-500 text-sm">🗑</button>
+      </div>
+      <div class="border border-slate-200 rounded-lg p-3 flex items-center justify-between">
+        <div class="text-sm">
+          <strong>INSTITUTO SADALA LTDA</strong> — Transformação · Slot 1 · R$ 580,00 · Data entrada: 04/05/2026
+        </div>
+        <button class="text-red-500 text-sm">🗑</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

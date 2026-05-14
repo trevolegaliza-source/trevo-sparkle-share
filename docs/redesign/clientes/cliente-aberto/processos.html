@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cliente Aberto - Aba Processos — Trevo Legaliza</title>
+<!--
+  Tela: /clientes/:id (aba "Processos")
+  Source: src/pages/ClienteDetalhe.tsx
+
+  Lista TODOS os processos do cliente (ativos + finalizados):
+  - Filtro: Ativos / Finalizados / Todos
+  - Busca por razão social ou número de processo
+  - Cada card mostra: razão social + tipo + número + data entrada + valor +
+    etapa (ativo/finalizado) + ações
+  - Botão "Novo Processo" (atalho pro cadastro rápido)
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .tab-trigger { padding: 10px 20px; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab-trigger.active { color: #0f172a; border-bottom-color: #16a34a; background: white; }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-4">
+
+  <!-- HEADER + KPIs compartilhados (vide financeiro.html) -->
+
+  <div class="border-b border-slate-200 mb-4">
+    <div class="flex items-center -mb-px">
+      <button class="tab-trigger">⚙ Financeiro</button>
+      <button class="tab-trigger">≡ Serviços</button>
+      <button class="tab-trigger active">📋 Processos</button>
+      <button class="tab-trigger">$ Faturas</button>
+      <button class="tab-trigger">📄 Contratos</button>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="flex gap-3 items-center flex-wrap">
+    <input class="flex-1 min-w-64 h-10 px-3 border border-slate-200 rounded-lg text-sm" placeholder="🔍 Buscar processo, razão social..."/>
+    <div class="inline-flex gap-1 p-1 bg-slate-100 rounded-lg">
+      <button class="px-3 py-1.5 rounded text-sm font-semibold bg-white shadow-sm">Ativos · 2</button>
+      <button class="px-3 py-1.5 rounded text-sm font-semibold text-slate-500">Finalizados · 0</button>
+      <button class="px-3 py-1.5 rounded text-sm font-semibold text-slate-500">Todos</button>
+    </div>
+    <button class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold">+ Novo Processo</button>
+  </div>
+
+  <!-- LISTA -->
+  <div class="space-y-2">
+
+    <div class="card hover:border-emerald-300 cursor-pointer">
+      <div class="flex items-center justify-between gap-4">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold uppercase">Ativo</span>
+            <span class="caption">Cadastrado em 04/05/2026</span>
+          </div>
+          <div class="text-sm font-semibold">INSTITUTO SADALA LTDA</div>
+          <div class="caption mt-1">Tipo: <strong class="text-slate-700">Transformação</strong> · Processo nº 198.169</div>
+          <div class="caption mt-1 flex items-center gap-3">
+            <span>Via análise: <strong class="text-amber-600">Regional</strong></span>
+            <span>📋 Etiquetas: <span class="text-[11px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">URGENTE</span></span>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="caption">Valor cobrado</div>
+          <div class="text-lg font-bold tabular-nums text-slate-900">R$ 580,00</div>
+          <div class="caption mt-1">5d para deferimento</div>
+        </div>
+        <button class="text-slate-400 hover:text-slate-700">⋯</button>
+      </div>
+    </div>
+
+    <div class="card hover:border-emerald-300 cursor-pointer">
+      <div class="flex items-center justify-between gap-4">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold uppercase">Ativo</span>
+          </div>
+          <div class="text-sm font-semibold">BMWEB SHOP COMERCIO LTDA</div>
+          <div class="caption mt-1">Tipo: Transformação · Processo nº 198.170 · Data entrada: 07/04/2026</div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="caption">Valor cobrado</div>
+          <div class="text-lg font-bold tabular-nums text-slate-900">R$ 580,00</div>
+        </div>
+        <button class="text-slate-400 hover:text-slate-700">⋯</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

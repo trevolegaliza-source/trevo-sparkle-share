@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Financeiro — Trevo Legaliza</title>
+<!--
+  Tela: /financeiro
+  Source: src/pages/Financeiro.tsx
+  Hook: src/hooks/useFinanceiroClientes.ts
+
+  Estrutura:
+  - Header "Financeiro" + Período (Este Mês/Anterior/3M/Custom) + Exportar CSV
+  - 5 KPIs: Faturado / Cobrado / Recebido / Inadimplente / Resultado
+  - Card "Resumo de Maio 2026" com falta cobrar/falta receber
+  - Card "Projeção próximos 30 dias"
+  - Tabs: A Fazer (com sub-accordions Sem Extrato + Aguardando Auditoria)
+         Em Andamento (com Aguardando Pagamento + Contestados)
+         Histórico (Pagos)
+
+  Cada item da lista mostra:
+  - Cliente apelido + número processo
+  - Valor + Status (Enviado/Vence em Xd/Vencido há Xd)
+  - Etiqueta "Método Trevo"/"Sem extrato" quando aplicável
+  - Menu "..." com ações (Ver, Editar, Marcar Pago, etc)
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .label-uppercase { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .display-2 { font-size: 1.75rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.025em; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; position: relative; overflow: hidden; }
+  .accent-bar { width: 3px; align-self: stretch; background: #16a34a; border-radius: 2px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .tab-trigger { padding: 8px 16px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; border-radius: 6px; }
+  .tab-trigger.active { background: white; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div class="flex items-start gap-3">
+      <div class="accent-bar"></div>
+      <div>
+        <h1 class="heading-1">Financeiro</h1>
+        <p class="caption mt-1">Centro de cobranças e recebimentos</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <select class="h-9 px-3 border border-slate-200 rounded-lg text-sm">
+        <option>Este Mês</option>
+        <option>Mês Anterior</option>
+        <option>Últimos 3 Meses</option>
+        <option>Personalizado</option>
+      </select>
+      <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold flex items-center gap-2">📥 Exportar CSV</button>
+    </div>
+  </div>
+
+  <!-- 5 KPIs -->
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="card border-emerald-500/30 bg-gradient-to-br from-emerald-50/60 to-transparent">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500"></div>
+      <div class="flex items-start justify-between mb-3">
+        <span class="label-uppercase">Faturado</span>
+        <div class="h-9 w-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">$</div>
+      </div>
+      <div class="display-2 text-slate-900 tabular-nums">R$ 79.772</div>
+      <div class="mt-3 caption">107 processos</div>
+    </div>
+    <div class="card cursor-pointer">
+      <div class="flex items-start justify-between mb-3">
+        <span class="label-uppercase">Cobrado</span>
+        <div class="h-9 w-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">📤</div>
+      </div>
+      <div class="display-2 text-slate-900 tabular-nums">R$ 49.183</div>
+      <div class="mt-3 caption">20 clientes</div>
+    </div>
+    <div class="card border-emerald-500/20 cursor-pointer">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500"></div>
+      <div class="flex items-start justify-between mb-3">
+        <span class="label-uppercase">Recebido</span>
+        <div class="h-9 w-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">✓</div>
+      </div>
+      <div class="display-2 text-emerald-700 tabular-nums">R$ 32.465</div>
+      <div class="mt-3 caption">41% do faturado</div>
+    </div>
+    <div class="card border-red-500/30 cursor-pointer">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-red-500"></div>
+      <div class="flex items-start justify-between mb-3">
+        <span class="label-uppercase">Inadimplente</span>
+        <div class="h-9 w-9 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">⚠</div>
+      </div>
+      <div class="display-2 text-red-600 tabular-nums">R$ 8.900</div>
+      <div class="mt-3 caption">3 clientes</div>
+    </div>
+    <div class="card border-emerald-500/20">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500"></div>
+      <div class="flex items-start justify-between mb-3">
+        <span class="label-uppercase">Resultado</span>
+        <div class="h-9 w-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">↗</div>
+      </div>
+      <div class="display-2 text-emerald-700 tabular-nums">R$ 20.895</div>
+      <div class="mt-3 caption">Receita - Despesas</div>
+    </div>
+  </div>
+
+  <!-- Resumo do mês -->
+  <div class="card">
+    <div class="flex justify-between items-center flex-wrap gap-3">
+      <div>
+        <div class="font-semibold">Resumo de Maio 2026</div>
+        <div class="caption mt-1">32 clientes · 107 processos · <span class="text-amber-600">48 sem extrato</span> · ⏱ <span class="text-amber-600">47 aguardando auditoria</span></div>
+      </div>
+      <div class="flex gap-6 text-right">
+        <div>
+          <div class="caption">Falta cobrar</div>
+          <div class="text-amber-700 font-bold tabular-nums">R$ 30.589,70</div>
+        </div>
+        <div>
+          <div class="caption">Falta receber</div>
+          <div class="text-amber-700 font-bold tabular-nums">R$ 16.717,36</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Projeção -->
+  <div class="card border-blue-500/20 bg-blue-50/30">
+    <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-500"></div>
+    <div class="flex justify-between items-start gap-3">
+      <div>
+        <div class="font-semibold flex items-center gap-2">↗ Projeção · próximos 30 dias</div>
+        <div class="caption mt-1">27 lançamentos pendentes · 11 clientes · top: CAROLINA GUIRADO (R$ 3.445,00), CBS CONTABILIDADE (R$ 2.320,00)</div>
+      </div>
+      <div class="text-right">
+        <div class="caption">Total previsto</div>
+        <div class="text-2xl font-bold text-blue-700 tabular-nums">R$ 12.890,00</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="space-y-4">
+    <div class="bg-slate-100 inline-flex p-1 rounded-lg gap-1">
+      <button class="tab-trigger active">A Fazer <span class="ml-2 text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded-full">48</span></button>
+      <button class="tab-trigger">Em Andamento <span class="ml-2 text-[10px] bg-blue-200 text-blue-900 px-1.5 py-0.5 rounded-full">9</span></button>
+      <button class="tab-trigger">Histórico <span class="ml-2 text-[10px] bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded-full">14</span></button>
+    </div>
+
+    <input class="w-full h-10 px-3 border border-slate-200 rounded-lg text-sm" placeholder="🔍 Buscar cliente ou processo..."/>
+
+    <!-- Accordion: Aguardando Pagamento (em andamento) -->
+    <div class="card">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-blue-600">📤</span>
+        <h3 class="heading-2">Aguardando Pagamento</h3>
+        <span class="ml-auto text-xs text-slate-400">9</span>
+      </div>
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between py-2.5 px-3 rounded-md hover:bg-slate-50 cursor-pointer border border-slate-100">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="text-sm">
+              <div class="font-semibold">MIL CONTAS</div>
+              <div class="caption">Processo 344.856 · R$ 700,00 · Enviado · Vence 16/05/2026</div>
+              <span class="badge-amber inline-block mt-1 text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">2d p/ vencer</span>
+            </div>
+          </div>
+          <button class="text-slate-400 hover:text-slate-700">⋯</button>
+        </div>
+        <div class="flex items-center justify-between py-2.5 px-3 rounded-md hover:bg-slate-50 cursor-pointer border border-red-100 bg-red-50/30">
+          <div class="text-sm">
+            <div class="font-semibold">ADVANCE BPM</div>
+            <div class="caption">220352 · R$ 1.542,48 · + R$ 219,90 taxas · Vence 10/05/2026</div>
+            <span class="inline-block mt-1 text-[10px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded">Vencido há 4d</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-700">⋯</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

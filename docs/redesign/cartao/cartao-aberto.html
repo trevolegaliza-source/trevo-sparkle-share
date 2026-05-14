@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cartão Detalhe — Trevo Legaliza</title>
+<!--
+  Tela: /cartao/:id
+  Source: src/pages/CartaoDetalhe.tsx
+
+  Detalhe do cartão + faturas:
+  - Header com cartão visual em destaque + botões editar/excluir
+  - Dados: nome, banco, bandeira, titular, limite usado/total, fechamento
+  - Tabs: Fatura atual / Histórico / Configurações
+  - Lista lançamentos da fatura atual (data, descrição, valor, parcela, fornecedor)
+  - Total da fatura no footer + botão "Pagar fatura" (cria lancamento em ContasPagar)
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .credit-card { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white; border-radius: 12px; padding: 24px; min-height: 200px; display: flex; flex-direction: column; justify-content: space-between; }
+  .tab-trigger { padding: 8px 14px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; border-radius: 6px; }
+  .tab-trigger.active { background: white; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <div class="flex items-start gap-3">
+    <button class="text-slate-400 mt-2">←</button>
+    <div>
+      <h1 class="heading-1">Cartão Itaú Black ····4521</h1>
+      <p class="caption mt-1">Titular: THALES BURGER · Vencimento dia 12 · Fechamento dia 5</p>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-6">
+
+    <!-- Card visual + dados -->
+    <div class="space-y-4">
+      <div class="credit-card">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="text-xs uppercase tracking-wider opacity-60">Itaú · Black</div>
+            <div class="text-2xl font-mono mt-3">•••• •••• •••• 4521</div>
+          </div>
+          <div class="text-3xl">💳</div>
+        </div>
+        <div class="flex justify-between items-end">
+          <div>
+            <div class="text-[10px] uppercase opacity-60">Titular</div>
+            <div class="text-base font-semibold">THALES BURGER</div>
+          </div>
+          <div class="text-right">
+            <div class="text-[10px] uppercase opacity-60">Limite</div>
+            <div class="text-base font-bold tabular-nums">R$ 30.000</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="caption">Limite usado</div>
+        <div class="flex items-baseline justify-between mt-1">
+          <div class="text-xl font-bold tabular-nums">R$ 8.260</div>
+          <div class="text-xs text-slate-500">de R$ 30.000</div>
+        </div>
+        <div class="mt-3 h-2 rounded-full bg-slate-100 overflow-hidden">
+          <div class="h-full bg-gradient-to-r from-emerald-500 to-amber-500" style="width: 27%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conteúdo -->
+    <div class="lg:col-span-2 space-y-4">
+
+      <div class="bg-slate-100 inline-flex p-1 rounded-lg gap-1">
+        <button class="tab-trigger active">Fatura atual</button>
+        <button class="tab-trigger">Histórico</button>
+        <button class="tab-trigger">Configurações</button>
+      </div>
+
+      <!-- Fatura atual -->
+      <div class="card border-emerald-300 bg-emerald-50/30">
+        <div class="flex justify-between items-baseline">
+          <div>
+            <h3 class="heading-2">Fatura aberta — Junho/2026</h3>
+            <p class="caption mt-1">Fechamento: 05/06 · Vencimento: 12/06</p>
+          </div>
+          <div class="text-right">
+            <div class="caption">Total parcial</div>
+            <div class="text-3xl font-extrabold tabular-nums text-emerald-700">R$ 2.480,00</div>
+          </div>
+        </div>
+        <button class="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold w-full">⚡ Lançar fatura em Contas a Pagar</button>
+      </div>
+
+      <div class="card p-0 overflow-hidden">
+        <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex justify-between text-xs font-semibold text-slate-600 uppercase tracking-wider">
+          <span>Lançamentos · 8 itens</span>
+        </div>
+        <div class="divide-y divide-slate-100">
+          <div class="p-3 flex items-center justify-between hover:bg-slate-50">
+            <div>
+              <div class="text-sm font-semibold">Notion (Plus Plan)</div>
+              <div class="caption">Software · Recorrente · 14/05/2026</div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-bold tabular-nums">R$ 95,00</div>
+              <div class="caption">Parcela 1/1</div>
+            </div>
+          </div>
+          <div class="p-3 flex items-center justify-between hover:bg-slate-50">
+            <div>
+              <div class="text-sm font-semibold">Mac Mini M4</div>
+              <div class="caption">Hardware · Parcelado · 06/05/2026</div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-bold tabular-nums">R$ 1.200,00</div>
+              <div class="caption">Parcela 3/12</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>

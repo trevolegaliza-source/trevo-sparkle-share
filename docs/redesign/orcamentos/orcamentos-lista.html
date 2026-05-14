@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Orçamentos — Lista — Trevo Legaliza</title>
+<!--
+  Tela: /orcamentos
+  Source: src/pages/Orcamentos.tsx
+
+  Lista todos orçamentos com:
+  - Header "Orçamentos" + botão "Novo Orçamento"
+  - 5 KPIs: Total / Enviados / Aguardando Pgto / Convertidos / Recusados
+  - Tabs: Rascunhos / Enviados / Aguardando Pgto / Convertidos / Recusados / Todos
+  - Cada card: # numero + prospect_nome + N itens + data + valor + status badge + menu ⋯
+  - Click no card abre /orcamentos/novo?id=X (já redesenhado)
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+  .accent-bar { width: 3px; align-self: stretch; background: #16a34a; border-radius: 2px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .tab-trigger { padding: 8px 14px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; border-radius: 6px; }
+  .tab-trigger.active { background: white; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <div class="flex items-start justify-between">
+    <div class="flex items-start gap-3">
+      <div class="accent-bar"></div>
+      <div>
+        <h1 class="heading-1">Orçamentos</h1>
+        <p class="caption mt-1">Propostas comerciais personalizadas</p>
+      </div>
+    </div>
+    <button class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold">+ Novo Orçamento</button>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="card"><div class="caption">Total</div><div class="text-3xl font-extrabold tabular-nums mt-1">34</div></div>
+    <div class="card"><div class="caption">Enviados</div><div class="text-3xl font-extrabold tabular-nums mt-1 text-blue-600">13</div></div>
+    <div class="card"><div class="caption">Aguardando Pgto</div><div class="text-3xl font-extrabold tabular-nums mt-1 text-amber-600">1</div></div>
+    <div class="card"><div class="caption">Convertidos</div><div class="text-3xl font-extrabold tabular-nums mt-1 text-emerald-600">4</div></div>
+    <div class="card"><div class="caption">Recusados</div><div class="text-3xl font-extrabold tabular-nums mt-1 text-red-600">2</div></div>
+  </div>
+
+  <div class="bg-slate-100 inline-flex p-1 rounded-lg gap-1 flex-wrap">
+    <button class="tab-trigger">Rascunhos (13)</button>
+    <button class="tab-trigger">Enviados</button>
+    <button class="tab-trigger">Aguardando Pgto (1)</button>
+    <button class="tab-trigger active">Convertidos (4)</button>
+    <button class="tab-trigger">Recusados</button>
+    <button class="tab-trigger">Todos</button>
+  </div>
+
+  <div class="space-y-2">
+    <button class="w-full card hover:border-emerald-300 text-left">
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4 min-w-0">
+          <span class="text-xs font-mono text-slate-400 w-12">#032</span>
+          <div class="min-w-0">
+            <div class="text-sm font-semibold">TESTE C LTDA</div>
+            <div class="caption">4 itens · 14/05/2026 · Pago via Asaas</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-sm font-bold tabular-nums">R$ 15,00</div>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold uppercase">Convertido</span>
+          <button class="text-slate-400 hover:text-slate-700">⋯</button>
+        </div>
+      </div>
+    </button>
+
+    <button class="w-full card hover:border-emerald-300 text-left">
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4 min-w-0">
+          <span class="text-xs font-mono text-slate-400 w-12">#031</span>
+          <div class="min-w-0">
+            <div class="text-sm font-semibold">SMOKE TESTE 01 LTDA</div>
+            <div class="caption">2 itens · 13/05/2026 · Pago em 13/05/2026</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-sm font-bold tabular-nums">R$ 5,00</div>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold uppercase">Convertido</span>
+          <button class="text-slate-400 hover:text-slate-700">⋯</button>
+        </div>
+      </div>
+    </button>
+  </div>
+
+</div>
+</body>
+</html>

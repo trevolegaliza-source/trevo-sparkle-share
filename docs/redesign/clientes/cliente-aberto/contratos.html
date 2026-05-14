@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cliente Aberto - Aba Contratos — Trevo Legaliza</title>
+<!--
+  Tela: /clientes/:id (aba "Contratos")
+  Source: src/pages/ClienteDetalhe.tsx
+
+  Lista contratos gerados a partir de orcamentos aprovados:
+  - Tabela contratos (PDF generated por orçamentos convertidos)
+  - Botao "Gerar contrato manual" (caso especial)
+  - Cada contrato tem: nome, data emissao, status (assinado/pendente),
+    PDF link, ClickSign document key
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .tab-trigger { padding: 10px 20px; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab-trigger.active { color: #0f172a; border-bottom-color: #16a34a; background: white; }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-4">
+
+  <!-- HEADER + KPIs compartilhados -->
+
+  <div class="border-b border-slate-200 mb-4">
+    <div class="flex items-center -mb-px">
+      <button class="tab-trigger">⚙ Financeiro</button>
+      <button class="tab-trigger">≡ Serviços</button>
+      <button class="tab-trigger">📋 Processos</button>
+      <button class="tab-trigger">$ Faturas</button>
+      <button class="tab-trigger active">📄 Contratos</button>
+    </div>
+  </div>
+
+  <!-- HEADER da aba -->
+  <div class="card flex items-center justify-between">
+    <div>
+      <h2 class="heading-2">Contratos</h2>
+      <p class="caption mt-1">Contratos gerados a partir de orçamentos aprovados (assinatura via ClickSign)</p>
+    </div>
+    <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold flex items-center gap-2">📄 Gerar contrato manual</button>
+  </div>
+
+  <!-- LISTA -->
+  <div class="space-y-2">
+    <div class="card hover:border-emerald-300 cursor-pointer flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold uppercase">Assinado</span>
+          <span class="caption">Assinado em 12/05/2026 · ClickSign abc123</span>
+        </div>
+        <div class="text-sm font-semibold">Contrato #C-2026-0481 — Regularização Sanitária</div>
+        <div class="caption mt-1">Originado do Orçamento #032 · Valor: R$ 1.020,00</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="px-3 py-2 border border-slate-200 rounded-lg text-sm flex items-center gap-2">📥 Baixar PDF</button>
+        <button class="px-3 py-2 border border-slate-200 rounded-lg text-sm flex items-center gap-2">🔗 Copiar link</button>
+        <button class="text-slate-400 hover:text-slate-700">⋯</button>
+      </div>
+    </div>
+
+    <div class="card hover:border-emerald-300 cursor-pointer flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold uppercase">Aguardando assinatura</span>
+        </div>
+        <div class="text-sm font-semibold">Contrato #C-2026-0482 — Encerramento</div>
+        <div class="caption mt-1">Enviado pra ClickSign em 14/05/2026 · 1 de 2 assinaturas concluídas</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="px-3 py-2 border border-amber-200 text-amber-700 rounded-lg text-sm flex items-center gap-2">⏱ Cobrar assinatura</button>
+        <button class="text-slate-400 hover:text-slate-700">⋯</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMPTY STATE EXEMPLO (quando vazio) -->
+  <!-- Comentado pra mostrar o caso normal:
+  <div class="card text-center py-16 border-dashed">
+    <div class="text-4xl mb-3">📄</div>
+    <h3 class="heading-2">Nenhum contrato gerado</h3>
+    <p class="caption mt-2 max-w-sm mx-auto">Contratos aparecem aqui quando um orçamento é aprovado pelo cliente e convertido. Você pode gerar manual também.</p>
+    <button class="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold">+ Gerar contrato manual</button>
+  </div>
+  -->
+
+</div>
+</body>
+</html>

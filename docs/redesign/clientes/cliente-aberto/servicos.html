@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cliente Aberto - Aba Serviços — Trevo Legaliza</title>
+<!--
+  Tela: /clientes/:id (aba "Serviços")
+  Source: src/pages/ClienteDetalhe.tsx (renderiza aba Serviços)
+
+  Mostra os serviços contratados pelo cliente:
+  - Lista de "Tipos de Processo" que o cliente costuma cadastrar
+  - Preços negociados por tipo (se aplicável — só pra "Preço por Tipo")
+  - Histórico de serviços executados
+  - Configurações de processos recorrentes (futuro)
+
+  Pra Avulso 4D: mostra valor base e tipos negociados (negotiated_services table)
+  Pra Mensalista: mostra franquia mensal + valor por excedente
+  Pra Pré-pago: mostra saldo + histórico de recargas
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-1 { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.025em; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .tab-trigger { padding: 10px 20px; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab-trigger.active { color: #0f172a; border-bottom-color: #16a34a; background: white; }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-4">
+
+  <!-- HEADER + KPIs + TABS — copiados da aba financeiro.html (header compartilhado) -->
+  <!-- [...] mesmo header, KPIs e tabs do arquivo financeiro.html [...] -->
+
+  <div class="border-b border-slate-200 mb-4">
+    <div class="flex items-center -mb-px">
+      <button class="tab-trigger">⚙ Financeiro</button>
+      <button class="tab-trigger active">≡ Serviços</button>
+      <button class="tab-trigger">📋 Processos</button>
+      <button class="tab-trigger">$ Faturas</button>
+      <button class="tab-trigger">📄 Contratos</button>
+    </div>
+  </div>
+
+  <!-- CONTEÚDO ABA: SERVIÇOS -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="heading-2">Tipos de processo negociados</h2>
+        <p class="caption mt-1">Preços específicos para este cliente — sobrescrevem o Valor Base padrão.</p>
+      </div>
+      <button class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold">+ Novo tipo negociado</button>
+    </div>
+
+    <div class="space-y-2">
+      <div class="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-emerald-300">
+        <div>
+          <div class="text-sm font-semibold">Abertura de Empresa</div>
+          <div class="caption mt-1">Negociado em 15/03/2026 · Observação: cliente recebeu 10% off por ser indicação</div>
+        </div>
+        <div class="flex items-center gap-6">
+          <div class="text-right">
+            <div class="caption">Preço negociado</div>
+            <div class="text-base font-bold tabular-nums text-emerald-700">R$ 520,00</div>
+          </div>
+          <div class="text-right">
+            <div class="caption">Valor base</div>
+            <div class="text-sm text-slate-400 tabular-nums line-through">R$ 580,00</div>
+          </div>
+          <button class="text-slate-400 hover:text-slate-700">⋯</button>
+        </div>
+      </div>
+      <div class="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-emerald-300">
+        <div>
+          <div class="text-sm font-semibold">Encerramento de Empresa</div>
+          <div class="caption mt-1">Negociado em 20/04/2026</div>
+        </div>
+        <div class="flex items-center gap-6">
+          <div class="text-right">
+            <div class="caption">Preço negociado</div>
+            <div class="text-base font-bold tabular-nums text-emerald-700">R$ 850,00</div>
+          </div>
+          <button class="text-slate-400 hover:text-slate-700">⋯</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 p-4 bg-slate-50 rounded-lg flex items-start gap-3">
+      <div class="text-slate-400">💡</div>
+      <div class="caption">
+        <strong class="text-slate-700">Como funciona:</strong> Quando este cliente cadastrar um processo do tipo
+        listado acima, o sistema usa o preço negociado em vez do Valor Base padrão.
+        Tipos não listados aqui usam o Valor Base.
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Contas a Pagar — Trevo Legaliza</title>
+<!--
+  Tela: /contas-pagar
+  Source: src/pages/ContasPagar.tsx
+
+  Estrutura:
+  - Header + filtro periodo + botoes: Nova despesa / Importar OFX
+  - 4 KPIs: Total a pagar / Vencidas / A vencer / Pagas
+  - 3 abas: Lista (filtros) / Folha colaboradores / Configurações recorrentes
+  - Lista: card por despesa com fornecedor, valor, vencimento, categoria,
+    centro de custo, comprovante, ações (Marcar pago, Editar, Excluir)
+  - Bulk actions: marcar várias como pagas
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  body { background: #f8fafc; color: #0f172a; margin: 0; }
+  .heading-1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
+  .heading-2 { font-size: 1rem; font-weight: 600; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .display-2 { font-size: 1.75rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.025em; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; position: relative; overflow: hidden; }
+  .accent-bar { width: 3px; align-self: stretch; background: #16a34a; border-radius: 2px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .tab-trigger { padding: 8px 14px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; border-radius: 6px; }
+  .tab-trigger.active { background: white; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-7xl mx-auto space-y-6">
+
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div class="flex items-start gap-3">
+      <div class="accent-bar"></div>
+      <div>
+        <h1 class="heading-1">Contas a Pagar</h1>
+        <p class="caption mt-1">Despesas, fornecedores e folha de colaboradores</p>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold">📥 Importar OFX</button>
+      <button class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold">+ Nova despesa</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="card">
+      <span class="caption">Total a pagar (mês)</span>
+      <div class="display-2 mt-2 tabular-nums">R$ 18.450</div>
+    </div>
+    <div class="card border-red-500/30 bg-red-50/30">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-red-500"></div>
+      <span class="caption">Vencidas</span>
+      <div class="display-2 text-red-700 mt-2 tabular-nums">R$ 4.250</div>
+      <div class="caption mt-1">3 contas</div>
+    </div>
+    <div class="card border-amber-500/30 bg-amber-50/30">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500"></div>
+      <span class="caption">A vencer 7d</span>
+      <div class="display-2 text-amber-700 mt-2 tabular-nums">R$ 5.800</div>
+    </div>
+    <div class="card border-emerald-500/30 bg-emerald-50/30">
+      <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500"></div>
+      <span class="caption">Pagas</span>
+      <div class="display-2 text-emerald-700 mt-2 tabular-nums">R$ 8.400</div>
+    </div>
+  </div>
+
+  <div class="bg-slate-100 inline-flex p-1 rounded-lg gap-1">
+    <button class="tab-trigger active">Lista</button>
+    <button class="tab-trigger">Folha de colaboradores</button>
+    <button class="tab-trigger">Recorrentes</button>
+  </div>
+
+  <div class="flex gap-3">
+    <input class="flex-1 h-10 px-3 border border-slate-200 rounded-lg text-sm" placeholder="🔍 Buscar despesa..."/>
+    <select class="h-10 px-3 border border-slate-200 rounded-lg text-sm">
+      <option>Todas categorias</option>
+      <option>Aluguel</option>
+      <option>Folha</option>
+      <option>Software</option>
+    </select>
+    <select class="h-10 px-3 border border-slate-200 rounded-lg text-sm">
+      <option>Todos status</option>
+      <option>Vencidas</option>
+      <option>A vencer</option>
+      <option>Pagas</option>
+    </select>
+  </div>
+
+  <div class="card p-0 overflow-hidden">
+    <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex justify-between text-xs font-semibold text-slate-600 uppercase tracking-wider">
+      <span>Despesa</span>
+      <span>Valor · Vencimento</span>
+    </div>
+    <div class="divide-y divide-slate-100">
+      <div class="p-4 hover:bg-slate-50 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <input type="checkbox" class="h-4 w-4 accent-emerald-600"/>
+          <div>
+            <div class="text-sm font-semibold">Aluguel escritório SBC</div>
+            <div class="caption">Categoria: Aluguel · Centro custo: Operacional · Notas: Boleto SindCorretores</div>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-bold mt-1 inline-block">Vencido há 3d</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-right">
+            <div class="text-base font-bold tabular-nums">R$ 3.200,00</div>
+            <div class="caption">Vence 11/05/2026</div>
+          </div>
+          <button class="px-3 py-2 border border-emerald-300 text-emerald-700 rounded-lg text-sm font-semibold">✓ Marcar Pago</button>
+          <button class="text-slate-400 hover:text-slate-700">⋯</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
