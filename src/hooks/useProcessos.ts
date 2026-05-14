@@ -48,12 +48,30 @@ export function useDeleteProcesso() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      // Delete related lancamentos first to avoid FK constraint
+      // Delete related lancamentos first (FK cobrancas_lancamentos.lancamento_id
+      // tem CASCADE — junction sai junto; cobranca propria fica preservada).
       const { error: lancError } = await supabase
         .from('lancamentos')
         .delete()
         .eq('processo_id', id);
       if (lancError) throw lancError;
+
+      // Bloqueia se houver documentos ou valores_adicionais (FK RESTRICT).
+      // Mostra mensagem clara em vez de erro tecnico de FK.
+      const { count: docsCount } = await supabase
+        .from('documentos')
+        .select('id', { count: 'exact', head: true })
+        .eq('processo_id', id);
+      if ((docsCount ?? 0) > 0) {
+        throw new Error(`Processo tem ${docsCount} documento(s) anexado(s). Remova os documentos antes de excluir.`);
+      }
+      const { count: vaCount } = await supabase
+        .from('valores_adicionais')
+        .select('id', { count: 'exact', head: true })
+        .eq('processo_id', id);
+      if ((vaCount ?? 0) > 0) {
+        throw new Error(`Processo tem ${vaCount} valor(es) adicional(is). Remova antes de excluir.`);
+      }
 
       const { error } = await supabase
         .from('processos')
@@ -62,8 +80,19 @@ export function useDeleteProcesso() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalida tudo que pode estar mostrando o processo/lancamento deletados
+      // BUG 14/05/2026: antes invalidava só processos_db e dashboard_stats.
+      // Financeiro/Clientes ficavam stale → processo "fantasma" na tela.
       qc.invalidateQueries({ queryKey: ['processos_db'] });
       qc.invalidateQueries({ queryKey: ['dashboard_stats'] });
+      qc.invalidateQueries({ queryKey: ['financeiro_clientes'] });
+      qc.invalidateQueries({ queryKey: ['cliente_processos'] });
+      qc.invalidateQueries({ queryKey: ['cliente_lancamentos'] });
+      qc.invalidateQueries({ queryKey: ['cliente_financeiro'] });
+      qc.invalidateQueries({ queryKey: ['lancamentos'] });
+      qc.invalidateQueries({ queryKey: ['cobrancas'] });
+      qc.invalidateQueries({ queryKey: ['hoje-data'] });
+      qc.invalidateQueries({ queryKey: ['mrr-data'] });
       toast.success('Processo excluído com sucesso');
     },
     onError: (e: Error) => toast.error('Erro ao excluir: ' + e.message),
