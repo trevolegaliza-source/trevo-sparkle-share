@@ -5,6 +5,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { GlassCard } from '@/components/ui/glass-card';
+import { KPICard } from '@/components/ui/kpi-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
@@ -387,69 +388,47 @@ export default function Financeiro() {
         <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">Carregando...</div>
       ) : (
         <>
-          {/* 5 KPIs — grid 2x2+1 on mobile, 5 cols on lg */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-5">
-            {/* Faturado */}
-            <GlassCard variant="service" glowColor="rgba(34, 197, 94, 0.12)">
-              <div className="rounded-lg bg-foreground/5 p-1.5 sm:p-2 w-fit">
-                <DollarSign className="h-4 w-4 text-foreground" />
-              </div>
-              <p className="text-xl sm:text-2xl font-bold mt-2 sm:mt-3 text-foreground">{formatBRL(metricas.totalFaturado)}</p>
-              <p className="text-xs text-muted-foreground">{metricas.totalProcessos} processos</p>
-              <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mt-1">Faturado</p>
-            </GlassCard>
-
-            {/* Cobrado — now goes to aguardando */}
-            <GlassCard variant="service" glowColor="rgba(59, 130, 246, 0.12)" onClick={() => setActiveTab('em_andamento')} className="cursor-pointer">
-              <div className="rounded-lg bg-blue-500/10 p-1.5 sm:p-2 w-fit">
-                <Send className="h-4 w-4 text-blue-400" />
-              </div>
-              <p className="text-xl sm:text-2xl font-bold mt-2 sm:mt-3 text-blue-400">{formatBRL(metricas.totalCobrado)}</p>
-              <p className="text-xs text-muted-foreground">{metricas.clientesCobrados} clientes</p>
-              <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mt-1">Cobrado</p>
-            </GlassCard>
-
-            {/* Recebido */}
-            <GlassCard variant="service" glowColor="rgba(34, 197, 94, 0.12)" onClick={() => setActiveTab('historico')} className="cursor-pointer">
-              <div className="rounded-lg bg-emerald-500/10 p-1.5 sm:p-2 w-fit">
-                <CheckCircle className="h-4 w-4 text-emerald-400" />
-              </div>
-              <p className="text-xl sm:text-2xl font-bold mt-2 sm:mt-3 text-emerald-400">{formatBRL(metricas.totalRecebido)}</p>
-              <div className="hidden sm:block w-full bg-foreground/10 rounded-full h-1.5 mt-2">
-                <div className="bg-emerald-400 h-1.5 rounded-full transition-all" style={{ width: `${metricas.taxaRecebimento}%` }} />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{metricas.taxaRecebimento}% do faturado</p>
-              <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mt-1">Recebido</p>
-            </GlassCard>
-
-            {/* Inadimplente */}
-            <GlassCard
-              variant="service"
-              glowColor="rgba(239, 68, 68, 0.12)"
+          {/* 5 KPIs — auditoria visual Q3 (14/05/2026): KPICard componente unificado */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+            <KPICard
+              variant="hero"
+              icon={DollarSign}
+              label="Faturado"
+              value={formatBRL(metricas.totalFaturado)}
+              hint={`${metricas.totalProcessos} processos`}
+            />
+            <KPICard
+              variant="default"
+              icon={Send}
+              label="Cobrado"
+              value={formatBRL(metricas.totalCobrado)}
+              hint={`${metricas.clientesCobrados} clientes`}
               onClick={() => setActiveTab('em_andamento')}
-              className="cursor-pointer"
-            >
-              <div className="rounded-lg bg-red-500/10 p-1.5 sm:p-2 w-fit">
-                <AlertTriangle className="h-4 w-4 text-red-400" />
-              </div>
-              <p className={`text-xl sm:text-2xl font-bold mt-2 sm:mt-3 ${inadimplenciaCalc.total > 0 ? 'text-red-400' : 'text-muted-foreground/70'}`}>
-                {formatBRL(inadimplenciaCalc.total)}
-              </p>
-              <p className="text-xs text-red-400/80">{inadimplenciaCalc.qtdClientes} clientes</p>
-              <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mt-1">Inadimplente</p>
-            </GlassCard>
-
-            {/* Resultado — spans 2 cols on mobile */}
-            <GlassCard variant="service" glowColor={resultado >= 0 ? 'rgba(168, 85, 247, 0.12)' : 'rgba(239, 68, 68, 0.12)'} className="col-span-2 lg:col-span-1">
-              <div className={`rounded-lg p-1.5 sm:p-2 w-fit ${resultado >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
-                {resultado >= 0 ? <TrendingUp className="h-4 w-4 text-emerald-400" /> : <TrendingDown className="h-4 w-4 text-red-400" />}
-              </div>
-              <p className={`text-xl sm:text-2xl font-bold mt-2 sm:mt-3 ${resultado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {formatBRL(resultado)}
-              </p>
-              <p className="text-xs text-muted-foreground">Receita - Despesas</p>
-              <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide mt-1">Resultado</p>
-            </GlassCard>
+            />
+            <KPICard
+              variant="success"
+              icon={CheckCircle}
+              label="Recebido"
+              value={formatBRL(metricas.totalRecebido)}
+              hint={`${metricas.taxaRecebimento}% do faturado`}
+              onClick={() => setActiveTab('historico')}
+            />
+            <KPICard
+              variant={inadimplenciaCalc.total > 0 ? 'danger' : 'default'}
+              icon={AlertTriangle}
+              label="Inadimplente"
+              value={formatBRL(inadimplenciaCalc.total)}
+              hint={`${inadimplenciaCalc.qtdClientes} clientes`}
+              onClick={() => setActiveTab('em_andamento')}
+            />
+            <KPICard
+              variant={resultado >= 0 ? 'success' : 'danger'}
+              icon={resultado >= 0 ? TrendingUp : TrendingDown}
+              label="Resultado"
+              value={formatBRL(resultado)}
+              hint="Receita - Despesas"
+              className="col-span-2 lg:col-span-1"
+            />
           </div>
 
           {/* Resumo do Mês */}

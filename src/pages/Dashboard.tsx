@@ -9,6 +9,8 @@ import { gerarRelatorioMensal } from '@/lib/relatorio-mensal-pdf';
 import { isProcessoFinalizado } from '@/types/process';
 import { Card } from '@/components/ui/card';
 import { GlassCard } from '@/components/ui/glass-card';
+import { KPICard } from '@/components/ui/kpi-card';
+import { AttentionCard } from '@/components/ui/attention-card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -363,69 +365,46 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* SEÇÃO 1: KPIs */}
+      {/* SEÇÃO 1: KPIs — auditoria visual Q3 (14/05/2026): KPICard padronizado */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 dashboard-section">
-        {/* Receita */}
         {podeVer('financeiro') && (
-          <GlassCard variant="service" glowColor="rgba(34, 197, 94, 0.12)" onClick={() => navigate('/financeiro')}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">Receita do mês</span>
-              <div className="h-8 w-8 rounded-lg bg-foreground/5 flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-emerald-400" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold tracking-tight text-foreground">{fmt(animFaturado)}</p>
-            <div className="flex items-center gap-1 mt-2">
-              {variacaoReceita >= 0 ? <TrendingUp className="h-3 w-3 text-emerald-400" /> : <TrendingDown className="h-3 w-3 text-red-400" />}
-              <span className={`text-xs ${variacaoReceita >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {variacaoReceita >= 0 ? '+' : ''}{variacaoReceita}% vs mês anterior
-              </span>
-            </div>
-          </GlassCard>
+          <KPICard
+            variant="hero"
+            icon={DollarSign}
+            label="Receita do mês"
+            value={fmt(animFaturado)}
+            trend={{ value: variacaoReceita, label: 'vs mês anterior' }}
+            onClick={() => navigate('/financeiro')}
+          />
         )}
-
-        {/* A Receber */}
         {podeVer('financeiro') && (
-          <GlassCard variant="service" glowColor="rgba(245, 158, 11, 0.12)" onClick={() => navigate('/financeiro')}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">A receber</span>
-              <div className="h-8 w-8 rounded-lg bg-foreground/5 flex items-center justify-center">
-                <Clock className="h-4 w-4 text-amber-400" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold tracking-tight text-amber-400">{fmt(animPendente)}</p>
-            <p className="text-xs text-muted-foreground mt-2">pendente de confirmação</p>
-          </GlassCard>
+          <KPICard
+            variant="warning"
+            icon={Clock}
+            label="A receber"
+            value={fmt(animPendente)}
+            hint="pendente de confirmação"
+            onClick={() => navigate('/financeiro')}
+          />
         )}
-
-        {/* Recebido — UX-054 (12/05/2026): adicionado onClick pra consistência com os outros 3 KPIs */}
         {podeVer('financeiro') && (
-          <GlassCard variant="service" glowColor="rgba(59, 130, 246, 0.12)" onClick={() => navigate('/financeiro', { state: { tab: 'historico' } })} className="cursor-pointer">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">Recebido</span>
-              <div className="h-8 w-8 rounded-lg bg-foreground/5 flex items-center justify-center">
-                <CheckCircle className="h-4 w-4 text-emerald-400" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold tracking-tight text-emerald-400">{fmt(animRecebido)}</p>
-            <div className="w-full bg-foreground/10 rounded-full h-2 mt-2">
-              <div className="bg-emerald-400 h-2 rounded-full transition-all duration-500" style={{ width: `${taxaRecebimento}%` }} />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{taxaRecebimento}% do faturado</p>
-          </GlassCard>
+          <KPICard
+            variant="success"
+            icon={CheckCircle}
+            label="Recebido"
+            value={fmt(animRecebido)}
+            hint={`${taxaRecebimento}% do faturado`}
+            onClick={() => navigate('/financeiro', { state: { tab: 'historico' } })}
+          />
         )}
-
-        {/* Processos Ativos */}
-        <GlassCard variant="service" glowColor="rgba(59, 130, 246, 0.12)" onClick={() => navigate('/processos-ativos')}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider">Processos ativos</span>
-            <div className="h-8 w-8 rounded-lg bg-foreground/5 flex items-center justify-center">
-              <Activity className="h-4 w-4 text-blue-400" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold tracking-tight text-foreground">{animAtivos}</p>
-          <p className="text-xs text-muted-foreground mt-2">{processosNovos} novos esta semana</p>
-        </GlassCard>
+        <KPICard
+          variant="default"
+          icon={Activity}
+          label="Processos ativos"
+          value={animAtivos}
+          hint={`${processosNovos} novos esta semana`}
+          onClick={() => navigate('/processos-ativos')}
+        />
       </div>
 
       {/* SEÇÃO 2: Ações Urgentes */}
@@ -472,44 +451,31 @@ export default function Dashboard() {
               </GlassCard>
             );
           }
-          const glowMap = {
-            critical: 'rgba(239, 68, 68, 0.12)',
-            warning: 'rgba(245, 158, 11, 0.12)',
-            info: 'rgba(59, 130, 246, 0.12)',
-          };
-          const iconColorMap = {
-            critical: 'text-red-400',
-            warning: 'text-amber-400',
-            info: 'text-blue-400',
-          };
+          const toneMap = {
+            critical: 'danger',
+            warning: 'warning',
+            info: 'info',
+          } as const;
           return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {alertasFiltrados.map(alerta => (
-                <GlassCard key={alerta.id} variant="service" glowColor={glowMap[alerta.severity]} onClick={() => {
-                  // UX-018: unificado — todos via state.tab. Antes auditoria_pendente
-                  // era exceção (`state: { tab: 'auditoria' }`) e os outros usavam
-                  // querystring que Financeiro ignorava silenciosamente.
-                  if (alerta.id === 'auditoria_pendente') {
-                    navigate('/financeiro', { state: { tab: 'auditoria' } });
-                  } else if (alerta.tabState) {
-                    navigate(alerta.link, { state: { tab: alerta.tabState } });
-                  } else {
-                    navigate(alerta.link);
-                  }
-                }}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-foreground/10 flex items-center justify-center">
-                        <alerta.icon className={`h-4 w-4 ${iconColorMap[alerta.severity]}`} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{alerta.titulo}</p>
-                        <p className="text-xs text-muted-foreground">{alerta.descricao}</p>
-                      </div>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
-                  </div>
-                </GlassCard>
+                <AttentionCard
+                  key={alerta.id}
+                  tone={toneMap[alerta.severity]}
+                  icon={alerta.icon}
+                  title={alerta.titulo}
+                  description={alerta.descricao}
+                  action={<ChevronRight className="h-4 w-4 text-muted-foreground/50" />}
+                  onClick={() => {
+                    if (alerta.id === 'auditoria_pendente') {
+                      navigate('/financeiro', { state: { tab: 'auditoria' } });
+                    } else if (alerta.tabState) {
+                      navigate(alerta.link, { state: { tab: alerta.tabState } });
+                    } else {
+                      navigate(alerta.link);
+                    }
+                  }}
+                />
               ))}
             </div>
           );

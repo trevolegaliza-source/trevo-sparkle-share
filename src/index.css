@@ -74,7 +74,7 @@
     --secondary-foreground: 0 0% 95%;
 
     --muted: 160 6% 14%;
-    --muted-foreground: 0 0% 55%;
+    --muted-foreground: 0 0% 68%;
 
     --accent: 160 6% 14%;
     --accent-foreground: 0 0% 95%;
@@ -82,8 +82,8 @@
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 0 0% 95%;
 
-    --border: 160 6% 18%;
-    --input: 160 6% 18%;
+    --border: 160 6% 24%;
+    --input: 160 6% 22%;
     --ring: 142 71% 45%;
 
     --sidebar-background: 160 10% 7%;
@@ -154,6 +154,34 @@
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background: hsl(var(--border));
     border-radius: 3px;
+  }
+}
+
+/* ===========================================================================
+   ESCALA TIPOGRÁFICA — auditoria visual Q1 (14/05/2026)
+   ---------------------------------------------------------------------------
+   Antes: text-xs/sm/base/lg/xl/2xl misturados sem regra. Sem hierarquia clara.
+   Agora: classes semânticas com tamanho/peso/letter-spacing fixos. Aplicar
+   gradualmente nas telas — co-existem com as classes Tailwind legadas.
+   =========================================================================== */
+@layer components {
+  /* Números hero (KPI principal do dashboard) */
+  .display-1 { @apply text-5xl font-extrabold tracking-tight leading-none; }
+  /* Valores KPI normais */
+  .display-2 { @apply text-3xl font-bold tracking-tight leading-tight; }
+  /* Título da tela (h1) */
+  .heading-1 { @apply text-2xl font-bold tracking-tight; }
+  /* Título de card / section (h2) */
+  .heading-2 { @apply text-lg font-semibold tracking-tight; }
+  /* Subtítulo / lead */
+  .heading-3 { @apply text-base font-semibold; }
+  /* Texto comum */
+  .body { @apply text-sm; }
+  /* Caption / metadata */
+  .caption { @apply text-xs text-muted-foreground; }
+  /* Label uppercase pra cards e KPIs */
+  .label-uppercase {
+    @apply text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground;
   }
 }
 
