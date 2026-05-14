@@ -166,7 +166,9 @@ export default function OrcamentoNovo() {
 
       const hasDetailedData = itens.some(i => i.taxa_min > 0 || i.taxa_max > 0 || i.prazo || i.docs_necessarios);
       const hasContexto = !!(orc as any).contexto;
-      const modo: OrcamentoModo = (hasDetailedData || hasContexto) ? 'detalhado' : 'simples';
+      // Modo "Detalhado" removido em 14/05/2026 — sempre simples ate v2 do PDF
+      const modo: OrcamentoModo = 'simples';
+      void hasDetailedData; void hasContexto;
 
       const rawPacotes = (orc as any).pacotes;
       const rawSecoes = (orc as any).secoes;
@@ -223,7 +225,9 @@ export default function OrcamentoNovo() {
       } catch { /* ignore */ }
 
       const hasDetailedData = itens.some(i => i.taxa_min > 0 || i.taxa_max > 0 || i.prazo || i.docs_necessarios);
-      const modo: OrcamentoModo = (hasDetailedData || orc.contexto) ? 'detalhado' : 'simples';
+      // Modo "Detalhado" removido em 14/05/2026 — sempre simples ate v2 do PDF
+      const modo: OrcamentoModo = 'simples';
+      void hasDetailedData;
       const rawPacotes = orc.pacotes;
       const rawSecoes = orc.secoes;
       const selectedCliente = clientes?.find(c => c.id === orc.cliente_id);
@@ -763,41 +767,11 @@ export default function OrcamentoNovo() {
       <div className="on-grid">
         <div className="on-form">
 
-          {/* ① Formato de apresentação — PASSO 1 */}
-          <section className="on-card" data-section="formato">
-            <div className="on-card-head">
-              <div className="meta">
-                <div className="on-card-step"><span className="num">01</span> Passo inicial</div>
-                <div className="on-card-title">Formato de apresentação</div>
-                <div className="on-card-desc">Como o cliente vai ver a proposta. Pode mudar a qualquer momento.</div>
-              </div>
-            </div>
-            <div className="on-seg on-seg-2">
-              <label className={`on-seg-opt ${form.modo === 'simples' ? 'active' : ''}`}>
-                <input type="radio" name="formato" checked={form.modo === 'simples'} onChange={() => setForm(f => ({ ...f, modo: 'simples' }))} style={{ display: 'none' }} />
-                <span className="ico">📋</span>
-                <div className="body">
-                  <div className="ttl">Simples</div>
-                  <div className="desc">Lista de serviços e valor total. Direto ao ponto, ideal para clientes que já conhecem o escopo.</div>
-                </div>
-                <span className="check" />
-              </label>
-              <label className={`on-seg-opt ${form.modo === 'detalhado' ? 'active' : ''}`}>
-                <input type="radio" name="formato" checked={form.modo === 'detalhado'} onChange={() => setForm(f => ({ ...f, modo: 'detalhado' }))} style={{ display: 'none' }} />
-                <span className="ico">📑</span>
-                <div className="body">
-                  <div className="ttl">
-                    Detalhado{' '}
-                    <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'rgba(34,197,94,0.16)', color: 'var(--brand-trevo)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Recomendado
-                    </span>
-                  </div>
-                  <div className="desc">Cards completos com prazo, documentos exigidos e detalhes do escopo de cada serviço.</div>
-                </div>
-                <span className="check" />
-              </label>
-            </div>
-          </section>
+          {/* Modo "Detalhado" removido em 14/05/2026 — versão do PDF detalhada
+              estava com qualidade visual ruim. Roadmap: "PDF Detalhado v2".
+              Por enquanto, todos os orçamentos saem como PDF simples (template
+              minimalista bonito, focado na lista + total).
+              `form.modo` segue sempre 'simples'. */}
 
           {/* ② Para quem é este orçamento? */}
           <section className="on-card">
@@ -1138,7 +1112,7 @@ export default function OrcamentoNovo() {
                 ))}
               </div>
               <div className="on-prev-foot">
-                Validade: {form.validade_dias} dias · Formato: {form.modo === 'simples' ? 'Simples' : 'Detalhado'}
+                Validade: {form.validade_dias} dias
               </div>
             </div>
           </div>

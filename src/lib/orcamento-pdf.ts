@@ -1611,11 +1611,13 @@ async function renderPageToCanvas(html: string): Promise<HTMLCanvasElement> {
 export async function gerarOrcamentoPDF(data: OrcamentoPDFData): Promise<Blob> {
   const logo = await preloadLogo();
 
-  const isDetalhado = data.modo === 'detalhado' ||
-    data.itens.some(i => i.taxa_min > 0 || i.taxa_max > 0 || i.prazo || i.docs_necessarios) ||
-    !!(data.contexto && data.contexto.trim());
-
-  if (!isDetalhado) {
+  // Modo "Detalhado" REMOVIDO em 14/05/2026 — qualidade visual estava ruim,
+  // Thales pediu pra usar so o template simples ate v2 do PDF detalhado.
+  // Roadmap: "PDF Detalhado v2 — capa + cenarios + cards de servicos".
+  // Toda chamada agora cai no buildSimplesHTML. buildDetalhadoPages mantido
+  // no arquivo pra ser reativado na v2 (codigo nao morre).
+  const FORCE_SIMPLES = true;
+  if (FORCE_SIMPLES) {
     const html = buildSimplesHTML(data, logo);
     const canvas = await renderPageToCanvas(html);
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -1623,6 +1625,8 @@ export async function gerarOrcamentoPDF(data: OrcamentoPDFData): Promise<Blob> {
     return doc.output('blob');
   }
 
+  // Bloco abaixo dormente — sera reativado na v2 do PDF detalhado.
+  // eslint-disable-next-line no-unreachable
   const pagesHtml = await buildDetalhadoPages(data, logo);
   const doc = new jsPDF('p', 'mm', 'a4');
 

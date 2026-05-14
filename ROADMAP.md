@@ -33,10 +33,11 @@
 
 | # | Frente | Estimativa | Doc | Status |
 |---|---|---|---|---|
-| 1 | **DSO + Top Inadimplentes** — métrica de cobrança (dias entre cobrança gerada e paga, ranking pior pagador) | ~2-3h | 06 #2 | Aguardando |
-| 2 | **EmptyState/Skeleton sweep** — aplicar os componentes novos em telas que ainda têm spinners/texto genérico | ~2h | 07 Q2/Q7 | Aguardando |
-| 3 | **Predição "vai bater o mês?"** — card no Dashboard com projeção × meta histórica + sugestões acionáveis | ~2h | 06 #7 | Aguardando |
-| 4 | **Refactor ClienteDetalhe** — god component 2549 linhas + ClienteAccordionFinanceiro 2300 linhas | ~5h | Auditoria A.3 | **Pede sessão acompanhada** (Thales testa cada batch) |
+| 1 | **PDF Detalhado v2** — versão visual rica do PDF (capa + cenários + cards de serviços com prazo/docs). V1 removida 14/05 (Thales: "estava horrível"). Sistema usa template simples até v2. | ~4-6h | — | **Pede ideação de layout** (Thales referência) |
+| 2 | **DSO + Top Inadimplentes** — métrica de cobrança (dias entre cobrança gerada e paga, ranking pior pagador) | ~2-3h | 06 #2 | Aguardando |
+| 3 | **EmptyState/Skeleton sweep** — aplicar os componentes novos em telas que ainda têm spinners/texto genérico | ~2h | 07 Q2/Q7 | Aguardando |
+| 4 | **Predição "vai bater o mês?"** — card no Dashboard com projeção × meta histórica + sugestões acionáveis | ~2h | 06 #7 | Aguardando |
+| 5 | **Refactor ClienteDetalhe** — god component 2549 linhas + ClienteAccordionFinanceiro 2300 linhas | ~5h | Auditoria A.3 | **Pede sessão acompanhada** (Thales testa cada batch) |
 
 ---
 
