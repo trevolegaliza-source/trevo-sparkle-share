@@ -545,7 +545,7 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
       if (l.status === 'pago' || l.etapa_financeiro === 'honorario_pago') return 'pagos';
       if (l.etapa_financeiro === 'contestado') return 'contestado';
       if (l.etapa_financeiro === 'cobranca_enviada') return 'aguardando';
-      if (l.etapa_financeiro === 'cobranca_gerada' && l.extrato_id) return 'aguardando';
+      if (l.etapa_financeiro === 'cobranca_gerada') return 'aguardando';
       return 'cobrar';
     }
 

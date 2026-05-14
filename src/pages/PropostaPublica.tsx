@@ -407,10 +407,10 @@ export default function PropostaPublica() {
   // ── Aprovação
   // Sprint 2.A.4 (13/05/2026 noite): fluxo automático.
   //   1. RPC aprovar_orcamento_e_gerar_cobranca → cria processo + lancamento + cobrança em transação
-  //   2. Edge function asaas-gerar-cobranca → gera PIX/boleto Asaas
+  //   2. Edge function asaas-gerar-cobranca-publico → gera PIX/boleto Asaas (autentica via share_token)
   //   3. Redirect pra /cobranca/{cobranca_token} → cliente já vê tela de pagamento
-  // Se Asaas falhar, segue pro /cobranca mesmo (tela mostra "Gerando..." e
-  // Thales pode regenerar Asaas manualmente via Financeiro como fallback).
+  // Se Asaas falhar, segue pro /cobranca mesmo (tela mostra fallback PIX manual e
+  // Thales pode regenerar Asaas via Financeiro).
   async function handleAprovar() {
     setProcessando(true);
     try {
@@ -428,11 +428,12 @@ export default function PropostaPublica() {
         throw new Error('Resposta inesperada da aprovação');
       }
 
-      // 2. Gerar Asaas (assíncrono — se demorar/falhar, redirect mesmo assim)
-      fetch(`${SUPABASE_URL}/functions/v1/asaas-gerar-cobranca`, {
+      // 2. Gerar Asaas via edge PÚBLICA (autentica por share_token — cliente é anônimo).
+      // Assíncrono: se demorar, redirect roda em paralelo e /cobranca mostra fallback até preencher.
+      fetch(`${SUPABASE_URL}/functions/v1/asaas-gerar-cobranca-publico`, {
         method: 'POST', headers: anonHeaders,
-        body: JSON.stringify({ cobranca_id: result.cobranca_id }),
-      }).catch(err => console.warn('[proposta] asaas-gerar falhou:', err));
+        body: JSON.stringify({ share_token: result.cobranca_token }),
+      }).catch(err => console.warn('[proposta] asaas-gerar-publico falhou:', err));
 
       // 3. Log evento
       fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
