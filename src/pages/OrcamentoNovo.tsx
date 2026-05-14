@@ -16,7 +16,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Plus, FileText, Save, FileDown, ArrowLeft, Copy, ExternalLink, Loader2, ChevronDown, Trash2,
-  Link as LinkIcon,
+  Link as LinkIcon, CheckCircle2, XCircle, Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
@@ -86,6 +86,20 @@ export default function OrcamentoNovo() {
   // ao salvar, exibido em badge + dropdown de mudança direta.
   const [orcamentoStatus, setOrcamentoStatus] = useState<string>('rascunho');
   const [shareToken, setShareToken] = useState<string | null>(null);
+  // Resposta do cliente — populada quando cliente aprovou via link público.
+  // itens_selecionados é o que o cliente marcou (subset dos itens propostos);
+  // se vazio/null, painel não renderiza. Usado pra mostrar visualmente o que
+  // foi aprovado vs descartado e o estado da cobrança gerada.
+  const [respostaCliente, setRespostaCliente] = useState<{
+    itens_selecionados: Array<{ id: string; descricao: string; valor_contador: number }> | null;
+    aprovado_em: string | null;
+    pago_em: string | null;
+    valor_aprovado: number;
+    cobranca_pago_em: string | null;
+    cobranca_status: string | null;
+    asaas_status: string | null;
+    cobranca_share_token: string | null;
+  } | null>(null);
   const [pacotesOpen, setPacotesOpen] = useState(false);
   const saveMutation = useSaveOrcamento();
   const { pdfs, salvarPDF } = useOrcamentoPDFs(orcamentoId);
@@ -112,6 +126,39 @@ export default function OrcamentoNovo() {
       setOrcamentoNumero(orc.numero);
       setOrcamentoStatus(orc.status || 'rascunho');
       setShareToken(orc.share_token || null);
+
+      // Carrega resposta do cliente se já aprovou. Sprint 2.A.4 popula
+      // orcamentos.itens_selecionados quando cliente confirma na proposta pública.
+      const itensSelecionados = Array.isArray((orc as any).itens_selecionados)
+        ? (orc as any).itens_selecionados as Array<{ id: string; descricao: string; valor_contador: number }>
+        : null;
+      if (itensSelecionados && itensSelecionados.length > 0) {
+        const valorAprovado = itensSelecionados.reduce((s, i) => s + Number(i.valor_contador || 0), 0);
+        // Busca cobranca pra mostrar estado de pagamento
+        let cobrancaInfo: { share_token: string | null; status: string | null; asaas_pago_em: string | null; asaas_status: string | null } = {
+          share_token: null, status: null, asaas_pago_em: null, asaas_status: null,
+        };
+        if ((orc as any).lancamento_id) {
+          const { data: cb } = await supabase
+            .from('cobrancas')
+            .select('share_token, status, asaas_pago_em, asaas_status')
+            .contains('lancamento_ids', [(orc as any).lancamento_id])
+            .maybeSingle();
+          if (cb) cobrancaInfo = cb as any;
+        }
+        setRespostaCliente({
+          itens_selecionados: itensSelecionados,
+          aprovado_em: (orc as any).aprovado_em || null,
+          pago_em: (orc as any).pago_em || null,
+          valor_aprovado: valorAprovado,
+          cobranca_pago_em: cobrancaInfo.asaas_pago_em,
+          cobranca_status: cobrancaInfo.status,
+          asaas_status: cobrancaInfo.asaas_status,
+          cobranca_share_token: cobrancaInfo.share_token,
+        });
+      } else {
+        setRespostaCliente(null);
+      }
 
       let itens: OrcamentoItem[] = [];
       try {
@@ -616,6 +663,95 @@ export default function OrcamentoNovo() {
           )}
         </div>
       </div>
+
+      {/* Resposta do Cliente — visível quando cliente já aprovou via link público.
+          Mostra o que ele marcou/desmarcou + estado de pagamento. Resolve o bug
+          de "perdi visibilidade do que cliente aceitou" pois itens_selecionados
+          fica só no banco sem refletir na UI de edit. */}
+      {respostaCliente && respostaCliente.itens_selecionados && (() => {
+        const aprovados = new Set(respostaCliente.itens_selecionados.map(i => i.id));
+        const valorTotal = form.itens.reduce((s, i) => s + getItemValor(i), 0);
+        const valorAprovado = respostaCliente.valor_aprovado;
+        const pago = orcamentoStatus === 'convertido' || respostaCliente.cobranca_status === 'paga' || respostaCliente.asaas_status === 'RECEIVED' || respostaCliente.asaas_status === 'CONFIRMED';
+        const dataPago = respostaCliente.pago_em || respostaCliente.cobranca_pago_em;
+        return (
+          <Card className="p-5 border-primary/30 bg-primary/[0.03]">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "h-9 w-9 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                  pago ? "bg-emerald-500/15 text-emerald-600" : "bg-amber-500/15 text-amber-600"
+                )}>
+                  {pago ? <CheckCircle2 className="h-5 w-5" /> : <Loader2 className="h-5 w-5" />}
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    📋 Resposta do cliente
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {pago
+                      ? `Pago via Asaas em ${dataPago ? new Date(dataPago).toLocaleDateString('pt-BR') : '—'} · ${fmt(valorAprovado)}`
+                      : respostaCliente.aprovado_em
+                        ? `Aprovado em ${new Date(respostaCliente.aprovado_em).toLocaleDateString('pt-BR')} · aguardando pagamento`
+                        : 'Aguardando aprovação do cliente'}
+                  </p>
+                </div>
+              </div>
+              {respostaCliente.cobranca_share_token && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`/cobranca/${respostaCliente.cobranca_share_token}`, '_blank')}
+                  className="gap-1.5 shrink-0"
+                >
+                  <Eye className="h-3.5 w-3.5" /> Ver cobrança do cliente
+                </Button>
+              )}
+            </div>
+
+            {/* Lista de itens com marcação de aprovado/recusado */}
+            <div className="space-y-1.5 text-sm">
+              {form.itens.map((item, idx) => {
+                const aprovou = aprovados.has(item.id);
+                const valor = getItemValor(item);
+                return (
+                  <div key={item.id || idx} className={cn(
+                    "flex items-center justify-between gap-3 px-3 py-2 rounded-md",
+                    aprovou ? "bg-emerald-500/[0.06]" : "bg-muted/40 opacity-60"
+                  )}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {aprovou
+                        ? <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        : <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                      }
+                      <span className={cn("truncate", !aprovou && "line-through")}>
+                        {item.servico || '(sem nome)'}
+                      </span>
+                    </div>
+                    <span className={cn(
+                      "text-xs tabular-nums shrink-0",
+                      aprovou ? "text-emerald-700 font-medium" : "text-muted-foreground"
+                    )}>
+                      {fmt(valor)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Totais */}
+            <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                {respostaCliente.itens_selecionados.length} de {form.itens.length} item{form.itens.length !== 1 ? 's' : ''} aprovado{respostaCliente.itens_selecionados.length !== 1 ? 's' : ''}
+              </span>
+              <span className="font-semibold tabular-nums">
+                <span className="text-muted-foreground line-through mr-2">{fmt(valorTotal)}</span>
+                <span className="text-foreground">{fmt(valorAprovado)}</span>
+              </span>
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Split Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
