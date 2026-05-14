@@ -202,7 +202,7 @@ async function medirAlturaReal(html: string): Promise<number> {
     box-sizing: border-box;
   `;
   // Match the exact same CSS context as the render container for accurate measurement
-  probe.innerHTML = `<div style="width:722px;"><style>* { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; } body, div, p, span, td, th, li { font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; }</style>${html}</div>`;
+  probe.innerHTML = `<div style="width:722px;"><style>* { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; } body, div, p, span, td, th, li { font-family: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; }</style>${html}</div>`;
   document.body.appendChild(probe);
 
   // Wait one frame for the browser to calculate layout
@@ -215,56 +215,68 @@ async function medirAlturaReal(html: string): Promise<number> {
   return Math.ceil(altura) + 8; // +8px safety margin to prevent content bleeding between pages
 }
 
-const HEADER_HEIGHT = 64;
+const HEADER_HEIGHT = 88;
+
+// Paleta Trevo Linear-like (refatoração 14/05/2026)
+// Verde Trevo principal: #16a34a (mais sóbrio que o #22c55e usado antes)
+// Verde claro: #f0fdf4 (background sutil)
+// Cinza neutro: slate-900 #0f172a (textos), slate-500 #64748b (secundário)
+// Acento dourado opcional: usado em itens premium
 
 function logoHtml(logo: string | null, height = 36, width?: number): string {
   const widthStyle = width ? `width: ${width}px !important; height: auto !important;` : `height: ${height}px !important; width: auto !important; max-height: ${height}px !important; min-height: ${height}px !important;`;
   return logo
     ? `<img src="${logo}" style="${widthStyle} object-fit: contain !important; display: block !important; flex-shrink: 0 !important;" crossorigin="anonymous" />`
-    : `<div style="font-size: 22px; font-weight: 800; line-height: 1.2;">
-         <span style="color: #22c55e;">Trevo</span>
-         <span style="color: #ffffff; font-weight: 400; font-size: 18px;"> Legaliza</span>
+    : `<div style="font-size: 24px; font-weight: 800; line-height: 1.2; letter-spacing: -0.02em;">
+         <span style="color: #16a34a;">Trevo</span><span style="color: #0f172a; font-weight: 500;"> Legaliza</span>
        </div>`;
 }
 
+// Header Trevo — minimalista, fundo branco, accent strip verde no topo
 const HEADER_TREVO = (numero: number, data: string, logo: string | null) => `
-  <div style="height:${HEADER_HEIGHT}px !important;min-height:${HEADER_HEIGHT}px !important;max-height:${HEADER_HEIGHT}px !important;overflow:hidden !important;flex-shrink:0;background: linear-gradient(135deg, #0f1f0f 0%, #1a3a1a 100%); padding: 0 32px; position:relative; display:flex; align-items:center; justify-content:space-between;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      ${logoHtml(logo, 36, 140)}
+  <div style="height: 4px; flex-shrink: 0; background: #16a34a;"></div>
+  <div style="height:${HEADER_HEIGHT}px !important; min-height:${HEADER_HEIGHT}px !important; max-height:${HEADER_HEIGHT}px !important; overflow:hidden !important; flex-shrink:0; background: #ffffff; padding: 0 48px; display:flex; align-items:center; justify-content:space-between; border-bottom: 1px solid #f1f5f9;">
+    <div style="display:flex; align-items:center; gap:14px;">
+      ${logoHtml(logo, 40, 156)}
     </div>
     <div style="text-align: right;">
-      <div style="font-size: 10px; color: #4ade80; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">PROPOSTA #${String(numero).padStart(3, '0')}</div>
-      <div style="font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 2px;">${data}</div>
+      <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;">Proposta</div>
+      <div style="font-size: 22px; color: #0f172a; font-weight: 800; letter-spacing: -0.02em; margin-top: 2px; line-height: 1;">#${String(numero).padStart(3, '0')}</div>
+      <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-weight: 500;">${data}</div>
     </div>
   </div>
-  <div style="height: 4px; flex-shrink:0; background: linear-gradient(90deg, #22c55e, #86efac, #22c55e);"></div>
 `;
 
+// Header cliente (white-label) — mesma estrutura, sem nome Trevo
 const HEADER_CLIENTE = (numero: number, data: string, nomeContabilidade: string) => `
-  <div style="height:${HEADER_HEIGHT}px !important;min-height:${HEADER_HEIGHT}px !important;max-height:${HEADER_HEIGHT}px !important;overflow:hidden !important;flex-shrink:0;background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 0 32px; position:relative; display:flex; align-items:center; justify-content:space-between;">
+  <div style="height: 4px; flex-shrink: 0; background: #1e293b;"></div>
+  <div style="height:${HEADER_HEIGHT}px !important; min-height:${HEADER_HEIGHT}px !important; max-height:${HEADER_HEIGHT}px !important; overflow:hidden !important; flex-shrink:0; background: #ffffff; padding: 0 48px; display:flex; align-items:center; justify-content:space-between; border-bottom: 1px solid #f1f5f9;">
     <div>
-      <div style="font-size: 20px; font-weight: 800; color: #ffffff;">${esc(nomeContabilidade)}</div>
-      <div style="font-size: 9px; color: rgba(255,255,255,0.5); margin-top: 2px;">Assessoria empresarial</div>
+      <div style="font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">${esc(nomeContabilidade)}</div>
+      <div style="font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 500;">Assessoria empresarial</div>
     </div>
     <div style="text-align: right;">
-      <div style="font-size: 10px; color: #93c5fd; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">PROPOSTA #${String(numero).padStart(3, '0')}</div>
-      <div style="font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 2px;">${data}</div>
+      <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;">Proposta</div>
+      <div style="font-size: 22px; color: #0f172a; font-weight: 800; letter-spacing: -0.02em; margin-top: 2px; line-height: 1;">#${String(numero).padStart(3, '0')}</div>
+      <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-weight: 500;">${data}</div>
     </div>
   </div>
-  <div style="height: 4px; flex-shrink:0; background: linear-gradient(90deg, #3b82f6, #93c5fd, #3b82f6);"></div>
 `;
 
 const FOOTER_TREVO = `
-  <div style="padding: 16px 40px; border-top: 1px solid #e2e8f0; background: #f8fafc; text-align: center;">
-    <div style="font-size: 10px; color: #94a3b8;">
-      Trevo Legaliza · CNPJ 39.969.412/0001-70 · Rua Brasil, nº 1170, Rudge Ramos, SBC/SP · administrativo@trevolegaliza.com.br · (11) 93492-7001 · trevolegaliza.com.br
+  <div style="padding: 20px 48px; border-top: 1px solid #f1f5f9; background: #ffffff; display: flex; align-items: center; justify-content: space-between;">
+    <div style="font-size: 9px; color: #94a3b8; font-weight: 500;">
+      Trevo Legaliza · CNPJ 39.969.412/0001-70 · SBC/SP
+    </div>
+    <div style="font-size: 9px; color: #94a3b8; font-weight: 500;">
+      trevolegaliza.com.br · (11) 93492-7001
     </div>
   </div>
 `;
 
 const FOOTER_CLIENTE = (nome: string) => `
-  <div style="padding: 16px 40px; border-top: 1px solid #e2e8f0; background: #f8fafc; text-align: center;">
-    <div style="font-size: 10px; color: #94a3b8;">${esc(nome)}</div>
+  <div style="padding: 20px 48px; border-top: 1px solid #f1f5f9; background: #ffffff; text-align: center;">
+    <div style="font-size: 9px; color: #94a3b8; font-weight: 500;">${esc(nome)}</div>
   </div>
 `;
 
@@ -388,68 +400,96 @@ function formatarOrdemExecucao(texto: string, isCliente: boolean): string {
 // ────────────────────────────────────────
 function buildSimplesHTML(d: OrcamentoPDFData, logo: string | null): string {
   const itensHtml = d.itens.map((item, idx) => `
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 0; ${idx > 0 ? 'border-top: 1px solid #e2e8f0;' : ''}">
-      <div style="flex: 1; padding-right: 20px;">
-        <div style="font-size: 13px; font-weight: 700; color: #1a1a2e;">${idx + 1}. ${esc(item.descricao)}${item.quantidade > 1 ? ` (×${item.quantidade})` : ''}</div>
-        ${item.detalhes ? `<div style="font-size: 11px; color: #64748b; margin-top: 4px; line-height: 1.4;">${sanitizeRichHtml(item.detalhes)}</div>` : ''}
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 16px 0; ${idx > 0 ? 'border-top: 1px solid #f1f5f9;' : ''}">
+      <div style="display: flex; align-items: flex-start; gap: 14px; flex: 1; padding-right: 20px;">
+        <div style="width: 28px; height: 28px; border-radius: 8px; background: #f0fdf4; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; line-height: 1;">${idx + 1}</div>
+        <div style="flex: 1;">
+          <div style="font-size: 13px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; line-height: 1.3;">${esc(item.descricao)}${item.quantidade > 1 ? ` <span style="color: #94a3b8; font-weight: 500;">×${item.quantidade}</span>` : ''}</div>
+          ${item.detalhes ? `<div style="font-size: 11px; color: #64748b; margin-top: 6px; line-height: 1.5;">${sanitizeRichHtml(item.detalhes)}</div>` : ''}
+        </div>
       </div>
-      <div style="font-size: 14px; font-weight: 800; color: #166534; white-space: nowrap;">${fmt(getItemValor(item) * item.quantidade)}</div>
+      <div style="font-size: 15px; font-weight: 700; color: #0f172a; white-space: nowrap; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">${fmt(getItemValor(item) * item.quantidade)}</div>
     </div>
   `).join('');
 
   const descontoHtml = d.desconto_pct > 0
-    ? `<div style="display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid #e2e8f0; font-size: 12px;">
+    ? `<div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 12px;">
         <span style="color: #64748b;">Desconto (${d.desconto_pct}%)</span>
-        <span style="color: #dc2626; font-weight: 600;">- ${fmt(d.subtotal * d.desconto_pct / 100)}</span>
+        <span style="color: #dc2626; font-weight: 600; font-variant-numeric: tabular-nums;">− ${fmt(d.subtotal * d.desconto_pct / 100)}</span>
        </div>` : '';
 
   const observacoesHtml = d.observacoes
     ? `<div style="margin-top: 20px;">
-        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Observações</div>
-        <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px; font-size: 11px; color: #92400e; line-height: 1.5;">${sanitizeRichHtml(d.observacoes)}</div>
+        <div style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 8px;">Observações</div>
+        <div style="border-left: 3px solid #f59e0b; padding: 10px 14px; background: #fffbeb; border-radius: 0 8px 8px 0; font-size: 11px; color: #78350f; line-height: 1.6;">${sanitizeRichHtml(d.observacoes)}</div>
        </div>` : '';
 
   return `
-    <div style="font-family: Arial, Helvetica, sans-serif; width: 794px; min-height: 1123px; background: white; position: relative;">
+    <div style="font-family: 'Plus Jakarta Sans', system-ui, sans-serif; width: 794px; min-height: 1123px; background: white; position: relative; color: #0f172a; letter-spacing: -0.005em;">
       ${HEADER_TREVO(d.numero, d.data_emissao, logo)}
-      <div style="padding: 24px 40px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-        <div style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Preparada para</div>
-        <div style="font-size: 18px; font-weight: 800; color: #1a1a2e;">${esc(d.prospect_nome)}</div>
-        ${d.prospect_cnpj ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">CNPJ: ${esc(d.prospect_cnpj)}</div>` : ''}
-        ${d.is_convertido
-          ? `<div style="font-size: 11px; color: #15803d; margin-top: 2px; font-weight: 600;">✓ Contrato ativo</div>`
-          : `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">Válida por ${d.validade_dias} dias</div>`}
-      </div>
-      <div style="padding: 24px 40px;">
-        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Escopo dos Serviços</div>
-        ${itensHtml}
-      </div>
-      <div style="padding: 0 40px 24px;">
-        <div style="border-top: 2px solid #e2e8f0; padding-top: 12px;">
-          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; padding: 6px 0;">
-            <span>Subtotal</span><span style="font-weight: 600;">${fmt(d.subtotal)}</span>
+
+      <!-- Cliente -->
+      <div style="padding: 32px 48px 24px;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 24px;">
+          <div>
+            <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; margin-bottom: 6px;">Preparada para</div>
+            <div style="font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.025em; line-height: 1.15;">${esc(d.prospect_nome)}</div>
+            ${d.prospect_cnpj ? `<div style="font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 500;">CNPJ ${esc(d.prospect_cnpj)}</div>` : ''}
           </div>
-          ${descontoHtml}
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; margin-top: 8px; background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px;">
-            <span style="font-size: 12px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 1px;">Total</span>
-            <span style="font-size: 28px; font-weight: 900; color: #166534;">${fmt(d.total)}</span>
+          <div style="text-align: right;">
+            ${d.is_convertido
+              ? `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 999px; font-size: 11px; color: #15803d; font-weight: 700;">✓ Contrato ativo</div>`
+              : `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 999px; font-size: 11px; color: #475569; font-weight: 600;">Válida por ${d.validade_dias} dias</div>`}
           </div>
         </div>
       </div>
-      <div style="padding: 0 40px 24px;">
-        <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Condições</div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-            <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Pagamento</div>
-            <div style="font-size: 12px; font-weight: 600; color: #1e293b; margin-top: 4px;">${sanitizeRichHtml(d.pagamento || 'A combinar')}</div>
+
+      <!-- Escopo -->
+      <div style="padding: 8px 48px 24px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+          <div style="width: 3px; height: 14px; background: #16a34a; border-radius: 2px;"></div>
+          <div style="font-size: 9px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.12em;">Escopo dos serviços</div>
+        </div>
+        ${itensHtml}
+      </div>
+
+      <!-- Total -->
+      <div style="padding: 0 48px 24px;">
+        <div style="border-top: 1px solid #f1f5f9; padding-top: 12px;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; padding: 4px 0;">
+            <span>Subtotal</span><span style="font-weight: 600; font-variant-numeric: tabular-nums;">${fmt(d.subtotal)}</span>
           </div>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
-            <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Prazo de Execução</div>
-            <div style="font-size: 12px; font-weight: 600; color: #1e293b; margin-top: 4px;">${esc(d.prazo_execucao || 'A combinar')}</div>
+          ${descontoHtml}
+          <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 20px 24px; margin-top: 12px; background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border: 1px solid #bbf7d0; border-radius: 12px; position: relative; overflow: hidden;">
+            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #16a34a;"></div>
+            <div>
+              <div style="font-size: 9px; font-weight: 700; color: #15803d; text-transform: uppercase; letter-spacing: 0.12em;">Total</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">honorários</div>
+            </div>
+            <span style="font-size: 32px; font-weight: 800; color: #15803d; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums;">${fmt(d.total)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Condições -->
+      <div style="padding: 0 48px 32px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+          <div style="width: 3px; height: 14px; background: #16a34a; border-radius: 2px;"></div>
+          <div style="font-size: 9px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.12em;">Condições</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px;">
+            <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Pagamento</div>
+            <div style="font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 6px; line-height: 1.4;">${sanitizeRichHtml(d.pagamento || 'A combinar')}</div>
+          </div>
+          <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px;">
+            <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Prazo de execução</div>
+            <div style="font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 6px; line-height: 1.4;">${esc(d.prazo_execucao || 'A combinar')}</div>
           </div>
         </div>
         ${observacoesHtml}
       </div>
+
       <div style="position: absolute; bottom: 0; left: 0; right: 0;">${FOOTER_TREVO}</div>
     </div>
   `;
@@ -547,30 +587,30 @@ async function buildDetalhadoPages(d: OrcamentoPDFData, logo: string | null): Pr
     const badgeNome = escritorioNome || 'USO EXCLUSIVO DA CONTABILIDADE';
 
     pages.push(`
-      <div style="font-family: Arial, Helvetica, sans-serif; width: 794px; height: 1123px; background: white; position: relative; display: flex; flex-direction: column;">
+      <div style="font-family: 'Plus Jakarta Sans', system-ui, sans-serif; width: 794px; height: 1123px; background: white; position: relative; display: flex; flex-direction: column; color: #0f172a; letter-spacing: -0.005em;">
 
-        <!-- ZONA 1: Identity header (dark green, ~30%) -->
-        <div style="background: #0f3d24; padding: 48px 40px 36px; position: relative; flex-shrink: 0;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              ${logoHtml(logo, 48, 140)}
-              <div style="font-size: 13px; color: #86efac; margin-top: 10px;">Seu Departamento Societário Completo</div>
-              <div style="font-size: 9px; color: #6ee7b7; font-style: italic; margin-top: 6px; opacity: 0.8;">🤝 PAINEL DO PARCEIRO — ${esc(badgeNome)}</div>
-            </div>
-            <div style="text-align: right;">
-              <div style="font-size: 10px; color: #ffffff; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">PROPOSTA #${String(d.numero).padStart(3, '0')}</div>
-              <div style="font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 4px;">${d.data_emissao}</div>
-              <div style="font-size: 9px; color: #6ee7b7; font-style: italic; margin-top: 16px;">Desde 2018 · 27 estados · Referência nacional</div>
-            </div>
+        <!-- HEADER limpo Linear-like -->
+        <div style="height: 4px; flex-shrink: 0; background: #16a34a;"></div>
+        <div style="height: 88px; flex-shrink: 0; background: #ffffff; padding: 0 48px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9;">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            ${logoHtml(logo, 40, 156)}
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;">Painel do Parceiro</div>
+            <div style="font-size: 22px; color: #0f172a; font-weight: 800; letter-spacing: -0.02em; margin-top: 2px; line-height: 1;">#${String(d.numero).padStart(3, '0')}</div>
+            <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-weight: 500;">${d.data_emissao}</div>
           </div>
         </div>
 
-        <!-- ZONA 2: Client identification -->
-        <div style="padding: 32px 40px 24px; flex-shrink: 0;">
-          <div style="font-size: 9px; color: #0f3d24; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin-bottom: 10px;">PAINEL DO PARCEIRO — PROPOSTA #${String(d.numero).padStart(3, '0')}</div>
-          <div style="font-size: 22px; font-weight: 700; color: #0f3d24; margin-bottom: 6px;">${esc(escritorioNome || toTitleCase(d.prospect_nome))}</div>
-          ${escritorioNome ? `<div style="font-size: 12px; color: #6b7280;">Para: ${esc(toTitleCase(d.prospect_nome))}</div>` : ''}
-          ${d.prospect_cnpj ? `<div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">CNPJ: ${esc(d.prospect_cnpj)}</div>` : ''}
+        <!-- Cliente identification + tagline parceiro -->
+        <div style="padding: 36px 48px 24px; flex-shrink: 0;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+            <div style="width: 3px; height: 14px; background: #16a34a; border-radius: 2px;"></div>
+            <div style="font-size: 9px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.12em;">Painel do Parceiro — ${esc(badgeNome)}</div>
+          </div>
+          <div style="font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.025em; line-height: 1.15;">${esc(escritorioNome || toTitleCase(d.prospect_nome))}</div>
+          ${escritorioNome ? `<div style="font-size: 13px; color: #64748b; margin-top: 6px; font-weight: 500;">Para: ${esc(toTitleCase(d.prospect_nome))}</div>` : ''}
+          ${d.prospect_cnpj ? `<div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-weight: 500;">CNPJ ${esc(d.prospect_cnpj)}</div>` : ''}
         </div>
 
         <!-- ZONA 3: Financial cards -->
@@ -616,28 +656,32 @@ async function buildDetalhadoPages(d: OrcamentoPDFData, logo: string | null): Pr
           }).join('')}
           ` : `
           ${temRecomendacaoPreco ? `
-          <div style="display: flex; gap: 16px; width: 100%; margin-top: 24px;">
-            <div style="flex: 1; background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px 16px; text-align: center;">
-              <div style="font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">SEU CUSTO TREVO</div>
-              <div style="font-size: 20px; font-weight: 700; color: #333;">${fmt(custoTrevoFinalCapa)}</div>
+          <div style="display: flex; gap: 12px; width: 100%; margin-top: 24px;">
+            <div style="flex: 1; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 18px; text-align: left; position: relative; overflow: hidden;">
+              <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #94a3b8;"></div>
+              <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;">Custo Trevo</div>
+              <div style="font-size: 22px; font-weight: 800; color: #0f172a; margin-top: 8px; letter-spacing: -0.025em; font-variant-numeric: tabular-nums;">${fmt(custoTrevoFinalCapa)}</div>
             </div>
-            <div style="flex: 1; background: #e8f5e9; border: 2px solid #2d6a4f; border-radius: 8px; padding: 20px 16px; text-align: center;">
-              <div style="font-size: 9px; color: #1a4731; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">COBRAR DO CLIENTE</div>
-              <div style="font-size: 24px; font-weight: 700; color: #0f3d24;">${valorCapa}</div>
-              <div style="font-size: 9px; color: #555; margin-top: 6px;">honorários${hasTaxas ? ' + taxas gov. estimadas' : ''}</div>
+            <div style="flex: 1; background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px 18px; text-align: left; position: relative; overflow: hidden;">
+              <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #16a34a;"></div>
+              <div style="font-size: 9px; color: #15803d; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;">Cobrar do cliente</div>
+              <div style="font-size: 22px; font-weight: 800; color: #15803d; margin-top: 8px; letter-spacing: -0.025em; font-variant-numeric: tabular-nums;">${valorCapa}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-weight: 500;">honorários${hasTaxas ? ' + taxas gov.' : ''}</div>
             </div>
-            <div style="flex: 1; background: #1a4731; border-radius: 8px; padding: 20px 16px; text-align: center;">
-              <div style="font-size: 9px; color: #86efac; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">SUA MARGEM</div>
-              <div style="font-size: ${temMargemFaixa ? '18' : '24'}px; font-weight: 700; color: #ffffff;">${temMargemFaixa ? `${fmt(margemCapaMin)} a ${fmt(margemCapaIdeal)}` : fmt(margemCapaMin)}</div>
-              <div style="font-size: 11px; color: #86efac; margin-top: 6px;">${temMargemFaixa ? `${margemCapaMinPct}% a ${margemCapaIdealPct}%` : `${margemCapaMinPct}%`} de lucro</div>
+            <div style="flex: 1; background: #0f172a; border-radius: 12px; padding: 20px 18px; text-align: left; position: relative; overflow: hidden;">
+              <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #22c55e;"></div>
+              <div style="font-size: 9px; color: #4ade80; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;">Sua margem</div>
+              <div style="font-size: ${temMargemFaixa ? '18' : '22'}px; font-weight: 800; color: #ffffff; margin-top: 8px; letter-spacing: -0.025em; font-variant-numeric: tabular-nums;">${temMargemFaixa ? `${fmt(margemCapaMin)} – ${fmt(margemCapaIdeal)}` : fmt(margemCapaMin)}</div>
+              <div style="font-size: 10px; color: #4ade80; margin-top: 4px; font-weight: 600;">${temMargemFaixa ? `${margemCapaMinPct}% – ${margemCapaIdealPct}%` : `${margemCapaMinPct}%`} de lucro</div>
             </div>
           </div>
           ` : `
           <div style="display: flex; justify-content: center; width: 100%; margin-top: 24px;">
-            <div style="background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px 48px; text-align: center;">
-              <div style="font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">SEU CUSTO TREVO</div>
-              <div style="font-size: 28px; font-weight: 700; color: #0f3d24;">${fmt(custoTrevoFinalCapa)}</div>
-              <div style="font-size: 9px; color: #555; margin-top: 6px;">honorários${hasTaxas ? ' + taxas gov. estimadas' : ''}</div>
+            <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border: 1px solid #bbf7d0; border-radius: 14px; padding: 28px 56px; text-align: left; position: relative; overflow: hidden;">
+              <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #16a34a;"></div>
+              <div style="font-size: 9px; color: #15803d; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;">Seu custo Trevo</div>
+              <div style="font-size: 32px; font-weight: 800; color: #15803d; margin-top: 8px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;">${fmt(custoTrevoFinalCapa)}</div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 6px; font-weight: 500;">honorários${hasTaxas ? ' + taxas governamentais estimadas' : ''}</div>
             </div>
           </div>
           `}
@@ -743,7 +787,7 @@ async function buildDetalhadoPages(d: OrcamentoPDFData, logo: string | null): Pr
     `;
 
     pages.push(`
-      <div style="font-family: Arial, Helvetica, sans-serif; width: 794px; height: 1123px; background: white; position: relative; display: flex; flex-direction: column;">
+      <div style="font-family: 'Plus Jakarta Sans', system-ui, sans-serif; width: 794px; height: 1123px; background: white; position: relative; display: flex; flex-direction: column;">
         ${header}
         <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px 60px;">
           <div style="font-size: 10px; color: ${accentColorLight}; text-transform: uppercase; letter-spacing: 4px; font-weight: 700; margin-bottom: 20px;">Proposta Comercial</div>
@@ -1505,7 +1549,7 @@ async function buildDetalhadoPages(d: OrcamentoPDFData, logo: string | null): Pr
     if (group.length === 0) continue; // skip empty pages
     const blocksHtml = group.map(i => contentBlocks[i].html).join('');
     pages.push(`
-      <div style="font-family: Arial, Helvetica, sans-serif; width: 794px; min-height: 1123px; background: white; position: relative;">
+      <div style="font-family: 'Plus Jakarta Sans', system-ui, sans-serif; width: 794px; min-height: 1123px; background: white; position: relative;">
         ${header}
         <div style="padding: 24px 36px; box-sizing: border-box;">
           ${blocksHtml}
@@ -1529,7 +1573,7 @@ async function renderPageToCanvas(html: string): Promise<HTMLCanvasElement> {
   container.id = 'orcamento-render-container';
   container.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:794px;overflow:hidden;';
   // Wrap content in a div so firstElementChild is always the renderable element
-  container.innerHTML = `<div style="width:794px;"><style>* { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; } body, div, p, span, td, th, li { font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; }</style>${html}</div>`;
+  container.innerHTML = `<div style="width:794px;"><style>* { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; } body, div, p, span, td, th, li { font-family: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; }</style>${html}</div>`;
   document.body.appendChild(container);
 
   // 3. Wait for ALL images (logo) to fully load
