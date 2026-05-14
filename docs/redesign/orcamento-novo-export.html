@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>OrcamentoNovo — Export HTML pra redesign</title>
+<!--
+  EXPORT da pagina OrcamentoNovo (src/pages/OrcamentoNovo.tsx) em HTML estatico.
+  Gerado 14/05/2026 pra Thales iterar visual via Claude Design.
+
+  Como usar:
+  1. Cola este HTML inteiro no Claude Design
+  2. Iterar visual livremente (cores, layout, tipografia, ordem das secoes)
+  3. Devolver HTML final pra implementacao em React
+  4. Claude (eu) implementa de volta em OrcamentoNovo.tsx mantendo a logica
+
+  Pontos que Thales explicitamente quer revisar:
+  - "Formato de apresentacao" deve estar no INICIO (atualmente no fim)
+  - "Trevo > Cliente Final" deve perguntar se contador eh o cliente final
+  - "Contexto e apresentacao" nao esta indo no link publico (resolver no fluxo)
+  - "Adicionar Item" sem animacao/scroll/feedback visual
+  - Confusao: "Valor + Valor de Venda" — entender o que cada um faz
+  - Switch "Obrigatorio" invertido — deve vir MARCADO=obrigatorio (amber)
+
+  Estado atual: Tailwind + shadcn/ui + Plus Jakarta Sans + verde Trevo #16a34a accent
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.005em; }
+  h1, h2, h3 { letter-spacing: -0.02em; }
+  .heading-1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
+  .heading-2 { font-size: 1rem; font-weight: 600; letter-spacing: -0.015em; }
+  .label-uppercase { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; }
+  .caption { font-size: 12px; color: #94a3b8; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  body { background: #f8fafc; color: #0f172a; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; transition: all 0.15s; cursor: pointer; }
+  .btn-primary { background: #16a34a; color: white; }
+  .btn-primary:hover { background: #15803d; }
+  .btn-outline { border: 1px solid #e2e8f0; background: white; color: #0f172a; }
+  .btn-outline:hover { border-color: #16a34a; }
+  .input { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; }
+  .input:focus { outline: none; border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.1); }
+</style>
+</head>
+<body class="min-h-screen p-6">
+<div class="max-w-7xl mx-auto space-y-4">
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- HEADER — titulo + botoes de acao -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div class="flex items-start gap-3 flex-1">
+      <div class="w-[3px] self-stretch bg-[#16a34a] rounded-full"></div>
+      <div>
+        <h1 class="heading-1">Editar Proposta</h1>
+        <p class="caption mt-1">Preencha os dados e gere um PDF profissional em minutos</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <!-- Status badge — visivel apenas se orcamentoId existe -->
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-100 border border-slate-200">
+        <span class="text-xs text-slate-500">Status:</span>
+        <span class="text-xs font-semibold">📤 Enviado</span>
+      </div>
+
+      <button class="btn btn-outline">💾 Salvar Rascunho</button>
+
+      <!-- "Salvar e Enviar" — so aparece se status == 'rascunho' OU novo orcamento -->
+      <button class="btn btn-primary">💾 Salvar e Enviar</button>
+
+      <!-- Mudar status — pos-envio (NAO inclui 'aguardando_pagamento' nem 'convertido' apos fix 14/05) -->
+      <select class="input w-44 text-xs">
+        <option value="">Mudar status →</option>
+        <option value="rascunho">✏️ Voltar pra Rascunho</option>
+        <option value="aprovado">✅ Marcar Aprovado</option>
+        <option value="recusado">❌ Marcar Recusado</option>
+      </select>
+
+      <button class="btn btn-outline">📋 Duplicar</button>
+      <button class="btn btn-outline">🔗 Copiar Link</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- PAINEL "RESPOSTA DO CLIENTE" — so aparece se status >= aguardando_pagamento -->
+  <!-- Mostra itens aprovados/desmarcados + estado pagamento -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="card p-5 border-[#16a34a]/30 bg-[#16a34a]/[0.03]">
+    <div class="flex items-start justify-between mb-4">
+      <div class="flex items-start gap-3">
+        <div class="h-9 w-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">✓</div>
+        <div>
+          <h3 class="text-sm font-semibold">📋 Resposta do cliente</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Pago via Asaas em 14/05/2026 · R$ 15,00</p>
+        </div>
+      </div>
+      <button class="btn btn-outline text-xs">👁 Ver cobrança do cliente</button>
+    </div>
+    <div class="space-y-1.5 text-sm">
+      <div class="flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-emerald-50">
+        <div class="flex items-center gap-2">
+          <span class="text-emerald-600">✓</span>
+          <span>TESTE C 01</span>
+        </div>
+        <span class="text-xs tabular-nums text-emerald-700 font-medium">R$ 5,00</span>
+      </div>
+      <div class="flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-slate-50 opacity-60">
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400">✗</span>
+          <span class="line-through">TESTE C 01 A</span>
+        </div>
+        <span class="text-xs tabular-nums text-slate-400">R$ 5,00</span>
+      </div>
+      <!-- ... mais itens ... -->
+    </div>
+    <div class="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between text-xs">
+      <span class="text-slate-500">2 de 4 itens aprovados</span>
+      <span class="font-semibold tabular-nums">
+        <span class="text-slate-400 line-through mr-2">R$ 1.020,00</span>
+        <span>R$ 15,00</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SPLIT LAYOUT — Form a esquerda (60%) + Preview a direita (40%) -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+    <!-- LEFT: Form (60%) -->
+    <div class="lg:col-span-3 space-y-5">
+
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <!-- SEÇÃO 1: PARA QUEM É ESTE ORÇAMENTO? -->
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold mb-3">Para quem é este orçamento?</h3>
+        <div class="space-y-3">
+          <!-- OPÇÃO A: Trevo → Contador (interno) -->
+          <label class="flex items-start gap-3 p-3 rounded-lg border border-[#16a34a] bg-[#16a34a]/[0.05] cursor-pointer">
+            <input type="radio" name="dest" checked class="mt-0.5">
+            <div>
+              <div class="font-medium text-sm">📊 Trevo → Contador</div>
+              <div class="text-xs text-slate-500">Painel interno com margens e precificação</div>
+            </div>
+          </label>
+          <!-- OPÇÃO B: Contador → Cliente Final (white-label) -->
+          <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:border-slate-300">
+            <input type="radio" name="dest" class="mt-0.5">
+            <div>
+              <div class="font-medium text-sm">📄 Contador → Cliente Final</div>
+              <div class="text-xs text-slate-500">White-label com branding do escritório</div>
+            </div>
+          </label>
+          <!-- OPÇÃO C: Trevo → Cliente Final (direto) -->
+          <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:border-slate-300">
+            <input type="radio" name="dest" class="mt-0.5">
+            <div>
+              <div class="font-medium text-sm">🍀 Trevo → Cliente Final</div>
+              <div class="text-xs text-slate-500">Atendimento direto com branding Trevo</div>
+            </div>
+          </label>
+          <!--
+            TODO Thales: quando "Trevo → Cliente Final" marcado, perguntar
+            "O contador será o cliente final?" e oferecer selector de contador cadastrado.
+          -->
+        </div>
+      </div>
+
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <!-- SEÇÃO 2: ESCRITÓRIO CONTÁBIL (oculto se destinatario='cliente_direto') -->
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold mb-3">Escritório Contábil</h3>
+
+        <div class="mb-4">
+          <label class="text-xs text-slate-500 mb-1.5 block">Selecionar escritório cadastrado</label>
+          <select class="input">
+            <option>Buscar escritório cadastrado...</option>
+            <option>AL Assessoria — CNPJ 12.345.678/0001-90</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">Nome do escritório *</label>
+            <input class="input" placeholder="Ex: AL Assessoria">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">CNPJ do escritório</label>
+            <input class="input" placeholder="00.000.000/0000-00">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">Email do escritório</label>
+            <input class="input" placeholder="email@escritorio.com">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">Telefone do escritório</label>
+            <input class="input" placeholder="(11) 99999-9999">
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <!-- SEÇÃO 3: EMPRESA A SER REGULARIZADA (= prospect_nome no banco) -->
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold">Empresa a ser regularizada</h3>
+        <p class="text-xs text-slate-500 mb-3">Esta é a empresa que receberá os serviços</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">Razão social da empresa *</label>
+            <input class="input" placeholder="Ex: Clínica Mater Senior Saúde e Longevidade Ltda">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">CNPJ</label>
+            <input class="input" placeholder="00.000.000/0000-00">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">Email de contato</label>
+            <input class="input" placeholder="email@empresa.com">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">Telefone</label>
+            <input class="input" placeholder="(11) 99999-9999">
+          </div>
+          <!--
+            TODO Thales: campo "Pessoa de contato" (prospect_contato) deveria estar aqui,
+            usado no template WhatsApp ao inves do nome da empresa.
+          -->
+        </div>
+      </div>
+
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <!-- SEÇÃO 4: CONTEXTO E APRESENTAÇÃO -->
+      <!-- Bug: nao esta sendo enviado no link publico. Resolver. -->
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold mb-3">Contexto e Apresentação</h3>
+        <label class="text-xs text-slate-500 mb-1.5 block">Descreva a situação atual</label>
+        <!-- RichText editor — TipTap -->
+        <div class="border border-slate-200 rounded-lg">
+          <div class="border-b border-slate-200 p-2 flex gap-1 text-xs">
+            <button class="px-2 py-1 hover:bg-slate-100 rounded font-bold">B</button>
+            <button class="px-2 py-1 hover:bg-slate-100 rounded italic">I</button>
+            <button class="px-2 py-1 hover:bg-slate-100 rounded underline">U</button>
+            <button class="px-2 py-1 hover:bg-slate-100 rounded">🔗</button>
+            <button class="px-2 py-1 hover:bg-slate-100 rounded">≡</button>
+            <button class="px-2 py-1 hover:bg-slate-100 rounded">≣</button>
+            <button class="px-2 py-1 hover:bg-slate-100 rounded">T_x</button>
+          </div>
+          <textarea class="w-full p-3 text-sm border-0 focus:outline-none" rows="4"
+            placeholder="Ex: Empresa sem Alvará Sanitário e sem CRM PJ. Atualmente em risco de interdição..."></textarea>
+        </div>
+      </div>
+
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <!-- SEÇÃO 5: ITENS DA PROPOSTA — CORE -->
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold">Itens da Proposta</h3>
+          <button class="btn btn-outline text-xs">+ Adicionar Item</button>
+          <!--
+            TODO Thales: ao clicar "Adicionar Item":
+            - scroll suave ate o item novo
+            - animacao de entrada (fade/slide)
+            - ou: novo item entra no TOPO da lista (nao no fim)
+          -->
+        </div>
+
+        <!-- ITEM 1 — obrigatorio (sem switch ativo) -->
+        <div class="border border-slate-200 rounded-lg p-4 space-y-3 mb-3">
+          <div class="flex items-end gap-2">
+            <div class="flex-1">
+              <label class="text-xs text-slate-500 mb-1.5 block">Descrição do serviço</label>
+              <input class="input" placeholder="Ex: Alvará Sanitário Municipal">
+            </div>
+            <div class="w-32">
+              <label class="text-xs text-slate-500 mb-1.5 block">Valor R$</label>
+              <input class="input text-right" placeholder="1.500,00">
+            </div>
+            <div class="w-16">
+              <label class="text-xs text-slate-500 mb-1.5 block">Qtd</label>
+              <input class="input text-center" value="1">
+            </div>
+            <button class="btn text-red-500" title="Remover">🗑</button>
+          </div>
+
+          <!--
+            BUG do Thales: tem campo "Valor" + "Valor de Venda" confusos.
+            Em modo INTERNO (contador), aparece:
+              - Honorário Trevo (custo)
+              - Sugestão Mínima R$
+              - Valor de Mercado
+              - Valor Premium
+              - Taxa Órgão Min/Max
+              - Prazo
+              - Docs necessários
+            Pra cliente final esses campos somem.
+
+            TODO: redesenhar essa parte. Possivel solucao:
+            - Modo simples (cliente_direto): 1 campo "Valor de Venda"
+            - Modo contador: card expandivel com "Mostrar precificacao avancada"
+              que abre os campos extras
+          -->
+
+          <div class="border border-slate-200 rounded-lg">
+            <div class="border-b border-slate-200 p-2 flex gap-1 text-xs">
+              <button class="px-2 py-1 hover:bg-slate-100 rounded font-bold">B</button>
+              <button class="px-2 py-1 hover:bg-slate-100 rounded italic">I</button>
+              <button class="px-2 py-1 hover:bg-slate-100 rounded underline">U</button>
+              <button class="px-2 py-1 hover:bg-slate-100 rounded">🔗</button>
+            </div>
+            <textarea class="w-full p-3 text-xs border-0 focus:outline-none" rows="2"
+              placeholder="Detalhes, escopo, o que está incluso... (opcional)"></textarea>
+          </div>
+
+          <div class="text-xs text-emerald-600 font-medium text-right">Subtotal: R$ 0,00</div>
+
+          <!--
+            BUG do Thales: switch "Obrigatorio" invertido.
+            Estado atual: DESMARCADO (cinza) = obrigatorio | MARCADO (amber) = opcional
+            Deve ser inverso: MARCADO (verde/amber) = obrigatorio | DESMARCADO = opcional
+            E vir MARCADO por padrao (obrigatorio default).
+          -->
+          <div class="flex items-center gap-3 pt-3 border-t border-slate-100">
+            <button class="relative w-10 h-5 bg-slate-300 rounded-full">
+              <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full"></span>
+            </button>
+            <div>
+              <div class="text-xs font-medium">🔒 Obrigatório — cliente NÃO pode desmarcar</div>
+              <div class="text-[10px] text-slate-500">Item sempre vai junto da proposta — sem opção pro cliente recusar.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ITEM 2 — opcional (switch ativo amber) -->
+        <div class="border border-amber-300 rounded-lg p-4 space-y-3 bg-amber-50/40">
+          <div class="flex items-end gap-2">
+            <div class="flex-1">
+              <label class="text-xs text-slate-500 mb-1.5 block">Descrição do serviço</label>
+              <input class="input" value="CRM Pessoa Jurídica">
+            </div>
+            <div class="w-32">
+              <input class="input text-right" value="800,00">
+            </div>
+            <div class="w-16">
+              <input class="input text-center" value="1">
+            </div>
+            <button class="btn text-red-500">🗑</button>
+          </div>
+          <div class="flex items-center gap-3 pt-3 border-t border-amber-200">
+            <button class="relative w-10 h-5 bg-amber-500 rounded-full">
+              <span class="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full"></span>
+            </button>
+            <div>
+              <div class="text-xs font-medium text-amber-700">⚡ Opcional — cliente pode desmarcar</div>
+              <div class="text-[10px] text-slate-500">Cliente vê uma caixinha pra escolher se quer este item.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <!-- SEÇÃO 6: PACOTES (collapsible) -->
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <div class="card p-5">
+        <button class="w-full flex items-center justify-between">
+          <h3 class="text-sm font-semibold">Pacotes</h3>
+          <span>▼</span>
+        </button>
+        <!-- Conteudo expandido: editor de pacotes -->
+      </div>
+
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <!-- SEÇÃO 7: CONDIÇÕES -->
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold mb-3">Condições</h3>
+        <div class="grid grid-cols-3 gap-4 mb-4">
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">Validade (dias)</label>
+            <input class="input" value="15">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">Desconto geral (%)</label>
+            <input class="input" placeholder="0">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 mb-1.5 block">Prazo de execução</label>
+            <input class="input" value="Prazo de execução: até 15 dias úteis após r">
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="text-xs text-slate-500 mb-1.5 block">Senha do link (proteção para o contador)</label>
+          <input class="input" placeholder="Ex: fato2026 (deixe vazio para link sem senha)">
+          <div class="text-[10px] text-slate-500 mt-1">O contador precisará digitar esta senha para acessar a proposta pelo link.</div>
+        </div>
+
+        <div class="mb-4">
+          <label class="text-xs text-slate-500 mb-1.5 block">Condições de pagamento</label>
+          <div class="border border-slate-200 rounded-lg">
+            <div class="border-b border-slate-200 p-2 flex gap-1 text-xs">
+              <button class="px-2 py-1 hover:bg-slate-100 rounded font-bold">B</button>
+              <button class="px-2 py-1 hover:bg-slate-100 rounded italic">I</button>
+              <button class="px-2 py-1 hover:bg-slate-100 rounded underline">U</button>
+            </div>
+            <textarea class="w-full p-3 text-sm border-0 focus:outline-none" rows="2">Pagamento à vista via PIX ou boleto bancário.</textarea>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-500 mb-1.5 block">Observações</label>
+          <textarea class="input" rows="3"
+            placeholder="Taxas governamentais não inclusas, documentação necessária, etc."></textarea>
+        </div>
+      </div>
+
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <!-- SEÇÃO 8: FORMATO DE APRESENTAÇÃO -->
+      <!-- TODO Thales: MOVER PRA O INICIO DA PAGINA (acima da seção 1) -->
+      <!-- ─────────────────────────────────────────────────────────── -->
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold mb-3">Formato de apresentação</h3>
+        <div class="space-y-3">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="radio" name="modo" class="mt-0.5">
+            <div>
+              <span class="font-medium text-sm">Simples</span>
+              <span class="text-xs text-slate-500 ml-2">— Lista de serviços com total</span>
+            </div>
+          </label>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="radio" name="modo" checked class="mt-0.5">
+            <div>
+              <span class="font-medium text-sm">Detalhado</span>
+              <span class="text-xs text-slate-500 ml-2">— Cards completos com prazo, documentos e detalhes</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Preview cards (40%) — sticky -->
+    <div class="lg:col-span-2 lg:sticky lg:top-4 space-y-4 h-fit">
+      <!-- Mini preview do PDF que sera gerado -->
+      <div class="rounded-xl overflow-hidden border border-emerald-700">
+        <div class="bg-[#0f3d24] p-5 text-white">
+          <div class="font-bold text-base mb-1">Trevo Legaliza</div>
+          <div class="text-xs uppercase tracking-wider opacity-80">Proposta Comercial</div>
+          <div class="border-t border-emerald-600/30 my-4 pt-4">
+            <div class="text-xs uppercase tracking-wider opacity-80 mb-1">Total</div>
+            <div class="text-2xl font-extrabold tabular-nums">R$ 1.020,00</div>
+          </div>
+          <div class="text-[10px] opacity-60">Válida por 15 dias · Pagamento à vista via PIX ou boleto bancário.</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary w-full justify-center">📄 Gerar PDF | Interno</button>
+      <button class="btn btn-outline w-full justify-center">💾 Salvar</button>
+      <button class="btn btn-outline w-full justify-center">📋 Duplicar</button>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

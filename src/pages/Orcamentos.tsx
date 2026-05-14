@@ -306,7 +306,11 @@ export default function Orcamentos() {
     }
     const url = `https://app.trevolegaliza.com/proposta/${orc.share_token}`;
     const num = String(orc.numero).padStart(3, '0');
-    const nome = orc.prospect_nome ? `, ${orc.prospect_nome}` : '';
+    // Prioriza nome da pessoa de contato sobre razao social da empresa.
+    // Antes: "Olá, ACME LTDA!" — formal e impessoal. Agora: "Olá, João!" se houver contato.
+    const nomePessoa = (orc as any).prospect_contato?.trim();
+    const nomeExibicao = nomePessoa || orc.prospect_nome;
+    const nome = nomeExibicao ? `, ${nomeExibicao}` : '';
 
     // Calcula valor aprovado pelo cliente (subset de servicos via itens_selecionados)
     const itensSelecionados = Array.isArray(orcAny.itens_selecionados) ? orcAny.itens_selecionados : null;

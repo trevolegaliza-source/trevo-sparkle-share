@@ -390,6 +390,12 @@ export default function OrcamentoNovo() {
       toast.error('Salve o orçamento antes de mudar status.');
       return;
     }
+    // Bloqueia mudancas manuais pra status que requerem dados associados
+    // (fluxo aprovacao publica cria processo+lancamento+cobranca atomicamente)
+    if (novoStatus === 'aguardando_pagamento' || novoStatus === 'convertido') {
+      toast.error(`Status "${novoStatus}" só pode ser atingido pelo fluxo do cliente aprovando o link público — não pode ser definido manualmente.`);
+      return;
+    }
     try {
       const { error } = await supabase
         .from('orcamentos')
@@ -660,7 +666,11 @@ export default function OrcamentoNovo() {
                 {orcamentoStatus !== 'rascunho' && <SelectItem value="rascunho">✏️ Voltar pra Rascunho</SelectItem>}
                 {orcamentoStatus !== 'enviado' && <SelectItem value="enviado">📤 Marcar como Enviado</SelectItem>}
                 {orcamentoStatus !== 'aprovado' && <SelectItem value="aprovado">✅ Marcar Aprovado</SelectItem>}
-                {orcamentoStatus !== 'aguardando_pagamento' && <SelectItem value="aguardando_pagamento">⏳ Aguardando Pagamento</SelectItem>}
+                {/* 'aguardando_pagamento' REMOVIDO do dropdown manual (14/05/2026):
+                    esse status SO deve ser atingido pelo fluxo aprovacao do link publico
+                    (RPC aprovar_orcamento_e_gerar_cobranca cria processo+lancamento+cobranca
+                    atomicamente). Mudar manualmente quebrava o sistema — orcamento ficava
+                    com status mas sem dados, e nao gerava PIX. */}
                 {orcamentoStatus !== 'recusado' && <SelectItem value="recusado">❌ Marcar Recusado</SelectItem>}
               </SelectContent>
             </Select>
