@@ -48,13 +48,13 @@ export function useDeleteProcesso() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      // Delete related lancamentos first (FK cobrancas_lancamentos.lancamento_id
-      // tem CASCADE — junction sai junto; cobranca propria fica preservada).
-      const { error: lancError } = await supabase
-        .from('lancamentos')
-        .delete()
-        .eq('processo_id', id);
-      if (lancError) throw lancError;
+      // 15/05/2026: NAO deletar lancamentos manualmente aqui — RLS
+      // lancamentos_delete_role so permite master, entao operacional
+      // ficava bloqueado. Solucao: FK lancamentos.processo_id agora e
+      // ON DELETE CASCADE (docs/sql/fix-fk-lancamentos-processo-cascade.sql)
+      // e cascade roda no engine bypassando RLS. Junction cobrancas_lancamentos
+      // tambem ja era CASCADE — sai junto. Cobranca propria fica preservada
+      // (lancamento_id vira NULL).
 
       // Bloqueia se houver documentos ou valores_adicionais (FK RESTRICT).
       // Mostra mensagem clara em vez de erro tecnico de FK.
