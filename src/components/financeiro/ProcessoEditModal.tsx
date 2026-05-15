@@ -35,12 +35,15 @@ export default function ProcessoEditModal({ open, onOpenChange, processo }: Proc
   const updateLanc = useUpdateLancamentoFinanceiro();
   const deleteProcesso = useDeleteProcesso();
   const { data: allNegotiations = [] } = useAllServiceNegotiations();
-  // SEC-019 + UX-VALORES-GERENTE (12/05/2026): operacional (secretária) NÃO
-  // deve mexer em valores adicionais (custos, taxas). Mas gerente PODE —
-  // mesmo SEM acesso ao módulo /financeiro (que mostra faturamento da empresa).
-  // Por isso o check inclui role, não só permissão de módulo.
+  // SEC-019 + UX-VALORES-GERENTE (12/05/2026):
+  //   Original: só master, gerente ou quem tem 'financeiro' mexia em valores.
+  //   Revisao 14/05: secretaria administrativa do Thales precisa lancar taxas
+  //   de processos no dia a dia (paga balcao, junta comercial, etc). Como ela
+  //   tem permissao de 'processos' mas nao 'financeiro', estava bloqueada.
+  //   Solucao: adicionar quem tem 'processos' ao check. Visualizador continua
+  //   fora porque nem ve a tela de processos.
   const { podeVer, isMaster, isGerente } = usePermissions();
-  const podeMexerEmValores = isMaster() || isGerente() || podeVer('financeiro');
+  const podeMexerEmValores = isMaster() || isGerente() || podeVer('financeiro') || podeVer('processos');
 
   // Editable form states
   const [editValor, setEditValor] = useState(0);
