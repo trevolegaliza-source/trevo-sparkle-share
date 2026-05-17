@@ -1020,7 +1020,13 @@ function EnviarItem({ cliente }: { cliente: ClienteFinanceiro }) {
         const token = await getCobrancaTokenAtiva(cliente.cliente_id, extratoId || undefined);
         if (token) msg += `\n\n🔗 Ver cobrança completa: ${getCobrancaPublicUrl(token)}`;
         if (active) setWhatsappMsgEnviar(msg);
-      } catch {/* noop */}
+      } catch (err) {
+        // CODE-003 (17/05/2026): antes era /* noop */ silencioso. Builder
+        // de msg WhatsApp falhar deixava o botão "Enviar via WhatsApp" sem
+        // mensagem montada — clicar abria WhatsApp com texto vazio sem o
+        // user saber. Loga pra debug; user vê empty pq estado nao mudou.
+        console.error('[whatsapp-builder enviar] falhou:', err);
+      }
     })();
     return () => { active = false; };
   }, [cliente]);
@@ -1413,7 +1419,11 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
         const token = await getCobrancaTokenAtiva(cliente.cliente_id, extratoId || undefined);
         if (token) msg += `\n\n🔗 Ver cobrança completa: ${getCobrancaPublicUrl(token)}`;
         if (active) setWhatsappMsgAguardando(msg);
-      } catch {/* noop */}
+      } catch (err) {
+        // CODE-003 (17/05/2026): antes /* noop */ — ver comentario do builder
+        // enviar acima. Mesma classe de bug.
+        console.error('[whatsapp-builder aguardando] falhou:', err);
+      }
     })();
     return () => { active = false; };
   }, [cliente, temVencidos, maiorAtraso]);
