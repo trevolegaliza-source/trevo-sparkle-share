@@ -31,9 +31,9 @@
 
 FIN-006, FIN-008, UX-146, UX-148, CODE-004, CODE-007, CODE-010.
 
-### 🟡 Bug-006 (carry-over)
+### ✅ Bug-006 (resolvido em 17/05/2026)
 
-| 006 | **Duplicação de lançamentos** — ADVANCE BPM 220352 teve 12 lançamentos órfãos criados em 3 batches (15/05/2026 21:20–21:52) com etapa `solicitacao_criada` sem cobrança vinculada. NÃO veio do `gerar_extrato_completo` (que só faz UPDATE). Suspeito: front criando INSERT em paralelo ou retry mal-rollback. Cleanup ad-hoc feito. **Investigar se reaparecer em outro cliente.** Possível causa raiz mapeada agora em **CODE-002** (race useEffect) — fix de CODE-002 pode fechar este bug também. | Médio | Triage query no `project_estado_17_05.md` |
+| 006 | ~~**Duplicação de lançamentos** ADVANCE BPM~~ — **CAUSA RAIZ ENCONTRADA E FIXADA:** botões "Gerar Fatura Mensal" em ClienteDetalhe e ClienteAccordionFinanceiro sem `disabled`/`pre-check`. Double-click disparava 2 INSERTs antes do `loadAll` atualizar `lancamentos` (state local). Fix em 3 camadas: (1) `disabled` durante mutation, (2) pre-check no banco, (3) UNIQUE constraint condicional via `fin-bug006-unique-fatura-mensal.sql`. | ✅ | commit 17/05 |
 
 ---
 

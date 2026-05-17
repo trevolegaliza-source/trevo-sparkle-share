@@ -365,7 +365,27 @@ function ClientesFaturarBase({
       if (vencimento < now) {
         vencimento.setMonth(vencimento.getMonth() + 1);
       }
+      const inicioMesISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const fimMesISO = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
       const mesLabel = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+      // Bug-006 (17/05/2026): pre-check pra fechar race entre abas/users (button
+      // disable só protege double-click na mesma instância). Defesa final é a
+      // UNIQUE constraint em fin-bug006-*.sql.
+      const { data: existentes, error: chkErr } = await supabase
+        .from('lancamentos')
+        .select('id')
+        .eq('cliente_id', m.id)
+        .eq('tipo', 'receber')
+        .gte('data_vencimento', inicioMesISO)
+        .lte('data_vencimento', fimMesISO)
+        .limit(1);
+      if (chkErr) throw chkErr;
+      if (existentes && existentes.length > 0) {
+        toast.warning(`Já existe fatura para ${m.apelido || m.nome} neste mês`);
+        invalidateFinanceiro(queryClient);
+        return;
+      }
 
       const { error } = await supabase.from('lancamentos').insert({
         tipo: 'receber' as const,

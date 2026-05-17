@@ -80,6 +80,8 @@ export default function ClienteDetalhe() {
   const [uploadingContract, setUploadingContract] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewFileName, setPreviewFileName] = useState('');
+  // Bug-006 (17/05/2026): guard contra double-click no botão Gerar Fatura Mensal.
+  const [gerandoFaturaMensal, setGerandoFaturaMensal] = useState(false);
   const [showDeletePassword, setShowDeletePassword] = useState(false);
   const [pendingDeleteAction, setPendingDeleteAction] = useState<(() => void) | null>(null);
   const [showEditCadastro, setShowEditCadastro] = useState(false);
@@ -1274,33 +1276,65 @@ export default function ClienteDetalhe() {
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={gerandoFaturaMensal}
                       onClick={async () => {
-                        const dia = (cliente as any).dia_vencimento_mensal || 10;
-                        const vencimento = new Date(now.getFullYear(), now.getMonth(), dia);
-                        if (vencimento < now) vencimento.setMonth(vencimento.getMonth() + 1);
-                        const mesLabel = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                        const { error } = await supabase.from('lancamentos').insert({
-                          tipo: 'receber' as const,
-                          cliente_id: cliente.id,
-                          descricao: `Fatura mensal — ${mesLabel}`,
-                          valor: Number((cliente as any).valor_base || 0),
-                          data_vencimento: vencimento.toISOString().split('T')[0],
-                          status: 'pendente' as const,
-                          etapa_financeiro: 'solicitacao_criada',
-                        });
-                        if (error) {
-                          toast.error('Erro ao gerar fatura: ' + error.message);
-                        } else {
-                          // UX-020 (11/05/2026): antes navegava pra /financeiro automaticamente,
-                          // tirando o usuário do cliente em que estava operando. Agora só
-                          // refresh silencioso + toast — usuário decide se quer sair.
-                          toast.success('Fatura mensal gerada!');
-                          loadAll(cliente.id, { silent: true });
+                        // Bug-006 / CODE-002 (17/05/2026): ADVANCE BPM teve 12 lancamentos
+                        // orfaos criados em 3 batches porque double-click disparava 2 INSERTs
+                        // antes do `loadAll` atualizar `lancamentos` (state local). 3 camadas:
+                        //   1) disable enquanto está rodando
+                        //   2) pre-check no banco (impede race entre 2 abas/users)
+                        //   3) UNIQUE constraint SQL (defesa final — ver fin-bug006-*.sql)
+                        if (gerandoFaturaMensal) return;
+                        setGerandoFaturaMensal(true);
+                        try {
+                          const dia = (cliente as any).dia_vencimento_mensal || 10;
+                          const vencimento = new Date(now.getFullYear(), now.getMonth(), dia);
+                          if (vencimento < now) vencimento.setMonth(vencimento.getMonth() + 1);
+                          const inicioMesISO = inicioMes.toISOString().split('T')[0];
+                          const fimMesISO = fimMes.toISOString().split('T')[0];
+                          const mesLabel = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+                          // Pre-check no banco (catch race entre janelas/abas)
+                          const { data: existentes, error: chkErr } = await supabase
+                            .from('lancamentos')
+                            .select('id')
+                            .eq('cliente_id', cliente.id)
+                            .eq('tipo', 'receber')
+                            .gte('data_vencimento', inicioMesISO)
+                            .lte('data_vencimento', fimMesISO)
+                            .limit(1);
+                          if (chkErr) throw chkErr;
+                          if (existentes && existentes.length > 0) {
+                            toast.warning('Já existe fatura para este mês — atualizando lista');
+                            loadAll(cliente.id, { silent: true });
+                            return;
+                          }
+
+                          const { error } = await supabase.from('lancamentos').insert({
+                            tipo: 'receber' as const,
+                            cliente_id: cliente.id,
+                            descricao: `Fatura mensal — ${mesLabel}`,
+                            valor: Number((cliente as any).valor_base || 0),
+                            data_vencimento: vencimento.toISOString().split('T')[0],
+                            status: 'pendente' as const,
+                            etapa_financeiro: 'solicitacao_criada',
+                          });
+                          if (error) {
+                            toast.error('Erro ao gerar fatura: ' + error.message);
+                          } else {
+                            // UX-020 (11/05/2026): refresh silencioso, sem tirar usuário do cliente.
+                            toast.success('Fatura mensal gerada!');
+                            loadAll(cliente.id, { silent: true });
+                          }
+                        } catch (err: any) {
+                          toast.error('Erro ao gerar fatura: ' + (err?.message || 'Erro'));
+                        } finally {
+                          setGerandoFaturaMensal(false);
                         }
                       }}
                     >
                       <Receipt className="h-3 w-3 mr-1" />
-                      Gerar Fatura Mensal
+                      {gerandoFaturaMensal ? 'Gerando...' : 'Gerar Fatura Mensal'}
                     </Button>
                   </div>
                 );

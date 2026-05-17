@@ -33,12 +33,15 @@
 - **PERM-014** — botões Arquivar/Desarquivar ocultos pra quem não tem `podeExcluir('clientes')`.
 - **UX-143** — Copiar Link em rascunho agora bloqueia o copy (era só warning).
 - **UX-140** — `handleSave('enviado')` valida itens > 0 antes de marcar como enviado.
-- **FIN-002** — SQL `fin-002-gerar-extrato-rejeita-array-vazio.sql` adiciona 2 guards na RPC.
+- **FIN-002** — SQL `fin-002-gerar-extrato-rejeita-array-vazio.sql` adiciona 2 guards na RPC. ✅ Rodado.
+- **BUG-006** — botões "Gerar Fatura Mensal" agora têm disable + pre-check + UNIQUE constraint SQL (3 camadas). Investigação descobriu causa raiz: double-click no ClienteDetalhe sem `disabled` disparava 2 INSERTs antes do `loadAll` atualizar state. CODE-002 era falso alarme — o bug real era no botão, não no useEffect.
 
 ### ⚠️ Falso alarme (descartados após validar contra código real)
 - **SEC-029 (Dashboard)** — Dashboard.tsx:311 já tem early return pra `!podeVer('dashboard')`. Só master/gerente/financeiro acessa; todos têm `podeVerValores=true`. Não vaza nada.
 - **UX-141** — `AlertDialog` de bulkDelete JÁ existe em ContasPagar.tsx:731-751. Botão linha 585 dispara `setShowBulkDeleteConfirm(true)`. Fluxo está OK.
 - **UX-145** — `useContasPagar` hook JÁ tem `toast.success` em todos os `onSuccess` (linhas 89, 105, 121, 195, 197, 241, 280). Feedback existe.
+- **CODE-002** — TODOS os 5 useEffects do ClienteAccordionFinanceiro já usam pattern `let active = true` + cleanup `() => active = false`. Pattern protege contra race. (Mas investigando achei o bug-006 real — ver acima.)
+- **CODE-005** — `editModalOpen` inicia em `false` (linha 88). GestaoUsuarios desmonta ao trocar de aba (Radix Tabs default). State se perde naturalmente.
 
 ### ⏳ Pendentes (próximas sessões)
 Tudo do bloco "🔴 Críticos" abaixo exceto SEC-029-Clientes; tudo do "🟡 Médios"; tudo do "🟢 Polish". 28 itens.
