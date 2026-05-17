@@ -6,6 +6,7 @@ import { ptBR } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { GlassCard } from '@/components/ui/glass-card';
 import { KPICard } from '@/components/ui/kpi-card';
+import { SkeletonKPIs, SkeletonList } from '@/components/ui/skeleton-patterns';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -385,7 +386,11 @@ export default function Financeiro() {
       />
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">Carregando...</div>
+        // UX-Onda10 (17/05/2026): Skeleton mais informativo que "Carregando..."
+        <div className="space-y-4">
+          <SkeletonKPIs count={5} />
+          <SkeletonList rows={4} />
+        </div>
       ) : (
         <>
           {/* 5 KPIs — auditoria visual Q3 (14/05/2026): KPICard componente unificado */}

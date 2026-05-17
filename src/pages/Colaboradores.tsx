@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SkeletonTable } from '@/components/ui/skeleton-patterns';
 import { Plus, Users, Search, Pencil, Trash2, Zap, Copy, Cake, DollarSign, CalendarDays } from 'lucide-react';
 import { useColaboradores, useCreateColaborador, useUpdateColaborador, useDeleteColaborador, type Colaborador } from '@/hooks/useColaboradores';
 import { getBusinessDaysInMonth } from '@/lib/business-days';
@@ -220,7 +221,8 @@ export default function Colaboradores() {
       <Card className="border-border/60">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">Carregando...</div>
+            // UX-Onda10 (17/05/2026): SkeletonTable consistente
+            <div className="p-4"><SkeletonTable rows={5} cols={5} /></div>
           ) : (
             <div className="overflow-x-auto">
               <Table>

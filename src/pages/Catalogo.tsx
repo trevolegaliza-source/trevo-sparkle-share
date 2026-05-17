@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { GlassCard } from '@/components/ui/glass-card';
+import { SkeletonList } from '@/components/ui/skeleton-patterns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -261,9 +262,8 @@ export default function Catalogo() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Carregando catálogo...
-        </div>
+        // UX-Onda10 (17/05/2026): SkeletonList em vez de spinner solitário
+        <SkeletonList rows={6} />
       ) : search && searchResults ? (
         <SearchResultsView
           results={searchResults}

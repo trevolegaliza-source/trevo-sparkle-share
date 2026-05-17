@@ -11,6 +11,7 @@ import { Plus, Users, Search, UserX, FileText, Download, Trash2, Archive, Eye, S
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SkeletonTable } from '@/components/ui/skeleton-patterns';
 import { useClientes, useUpdateCliente, useArchiveCliente, useUnarchiveCliente } from '@/hooks/useFinanceiro';
 import { useProcessos } from '@/hooks/useFinanceiro';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -335,7 +336,8 @@ export default function Clientes() {
         <CardHeader className="pb-3"><CardTitle className="text-base">Listagem de Clientes</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>
+            // UX-Onda10 (17/05/2026): SkeletonTable em vez de "Carregando..." (UX-104 antigo).
+            <SkeletonTable rows={8} cols={6} />
           ) : (
             <Table>
               <TableHeader>
