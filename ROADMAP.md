@@ -1,12 +1,20 @@
 # 🗺️ Roadmap Trevo ERP
 
-> **Atualizado:** 14/05/2026
-> **Last review:** sessão de 14/05 fechou recurring billing + notif cliente + Hoje view.
+> **Atualizado:** 17/05/2026
+> **Last review:** sessão de 17/05 atacou 3 hotfixes de produção (delete processo operacional, comprovante taxa_balcao virou opcional, cleanup 12 duplicatas ADVANCE BPM).
 > **Como usar:** lê esse doc primeiro pra entender estado atual antes de pedir nova feature. Cada item tem estimativa de horas + dependências + decisões pendentes.
 
 ---
 
-## 📍 Estado atual (14/05/2026)
+## 🐛 Bugs em aberto
+
+| # | Bug | Severidade | Notas |
+|---|---|---|---|
+| 006 | **Duplicação de lançamentos** — ADVANCE BPM 220352 teve 12 lançamentos órfãos criados em 3 batches (15/05/2026 21:20–21:52) com etapa `solicitacao_criada` sem cobrança vinculada. NÃO veio do `gerar_extrato_completo` (que só faz UPDATE). Suspeito: front criando INSERT em paralelo ou retry mal-rollback. Cleanup ad-hoc feito. **Investigar se reaparecer em outro cliente.** | Médio | Triage query no `project_estado_17_05.md` |
+
+---
+
+## 📍 Estado atual (17/05/2026)
 
 **Fluxos completos end-to-end:**
 - ✅ Cadastro Cliente + Processos + Financeiro (multi-tenant via empresa_id)
@@ -84,6 +92,7 @@
 
 | Data | Foco | Commits |
 |---|---|---|
+| 17/05/2026 | Hotfixes produção: FK CASCADE delete processo + comprovante taxa_balcao opcional + cleanup 12 duplicatas ADVANCE BPM | 2 commits + 1 SQL ad-hoc |
 | 14/05/2026 (noite) | Recurring billing + Notif cliente eventos + Hoje view | 8 commits |
 | 14/05/2026 (tarde) | Visual Plus Jakarta + Linear + PDF redesign | 5 commits |
 | 14/05/2026 (manhã) | Fix Asaas público + 6 bugs orçamento convertido | 4 commits |
