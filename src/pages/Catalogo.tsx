@@ -96,6 +96,10 @@ export default function Catalogo() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function handleCopyLink() {
+    // SEC-030 (17/05/2026): antes usava empresa_id direto como "token" —
+    // qualquer ex-funcionario com URL antiga acessava pra sempre. Agora
+    // busca portfolio_share_token (48 chars hex em empresas_config) que
+    // pode ser rotacionado se necessario.
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data: profile } = await supabase
@@ -104,7 +108,17 @@ export default function Catalogo() {
       .eq('id', user.id)
       .single();
     if (!profile) return;
-    const link = `${window.location.origin}/portfolio/${profile.empresa_id}`;
+    const { data: config } = await supabase
+      .from('empresas_config')
+      .select('portfolio_share_token')
+      .eq('empresa_id', (profile as any).empresa_id)
+      .maybeSingle();
+    const token = (config as any)?.portfolio_share_token;
+    if (!token) {
+      toast.error('Token do portfólio não configurado. Rode o SQL sec-030 primeiro.');
+      return;
+    }
+    const link = `${window.location.origin}/portfolio/${token}`;
     await navigator.clipboard.writeText(link);
     toast.success('Link público copiado! Envie para seus clientes.');
   }
