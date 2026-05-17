@@ -376,6 +376,16 @@ export default function OrcamentoNovo() {
       toast.error('Informe o nome da empresa a regularizar');
       return;
     }
+    // UX-140 (17/05/2026): "Salvar e Enviar" sem itens criava proposta vazia
+    // que cliente abria e via 0 serviços. Rascunho pode salvar incompleto, mas
+    // status `enviado`+ exige pelo menos 1 item.
+    if (status !== 'rascunho') {
+      const itensValidos = form.itens.filter(i => i.descricao.trim());
+      if (itensValidos.length === 0) {
+        toast.error('Adicione pelo menos um item antes de enviar');
+        return;
+      }
+    }
     try {
       const payload: any = buildPayload(status);
       if (orcamentoId) payload.id = orcamentoId;
@@ -544,14 +554,15 @@ export default function OrcamentoNovo() {
       toast.error('Salve o orçamento primeiro para gerar o link.');
       return;
     }
-    const url = `https://app.trevolegaliza.com/proposta/${shareToken}`;
-    await navigator.clipboard.writeText(url);
-
-    // Avisos extras: status precisa ser 'enviado' ou superior pro link funcionar.
+    // UX-143 (17/05/2026): antes só era warning — user copiava, mandava no
+    // WhatsApp, cliente abria e via 404. Agora bloqueia copy e força clicar
+    // "Salvar e Enviar" primeiro.
     if (orcamentoStatus === 'rascunho') {
-      toast.warning('Link copiado, mas orçamento ainda é RASCUNHO. Cliente vai ver 404. Clica "Salvar e Enviar" antes.', { duration: 8000 });
+      toast.error('Orçamento ainda é RASCUNHO. Clica "Salvar e Enviar" antes de compartilhar o link (senão cliente vê 404).', { duration: 8000 });
       return;
     }
+    const url = `https://app.trevolegaliza.com/proposta/${shareToken}`;
+    await navigator.clipboard.writeText(url);
 
     if (form.destinatario === 'contador' && (form as any).senha_link) {
       toast.success(`Link copiado! Senha: ${(form as any).senha_link}`);

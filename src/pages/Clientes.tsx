@@ -13,6 +13,8 @@ import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useClientes, useUpdateCliente, useArchiveCliente, useUnarchiveCliente } from '@/hooks/useFinanceiro';
 import { useProcessos } from '@/hooks/useFinanceiro';
+import { usePermissions } from '@/hooks/usePermissions';
+import { ValorProtegido } from '@/components/auth/ValorProtegido';
 import type { ClienteDB } from '@/types/financial';
 import { isProcessoFinalizado } from '@/types/process';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -41,6 +43,12 @@ export default function Clientes() {
   const { data: clientes, isLoading } = useClientes(search);
   const { data: processos } = useProcessos();
   const updateCliente = useUpdateCliente();
+  // SEC-029 + PERM-012/014 (17/05/2026): operacional/visualizador não viam ValorProtegido
+  // nem tinham botões escondidos. Frontend mostrava R$ + permitia clique em archive/edit
+  // que falhava no backend = UX ruim + confiança quebrada.
+  const { podeEditar, podeExcluir } = usePermissions();
+  const canEdit = podeEditar('clientes');
+  const canArchive = podeExcluir('clientes');
   // audit fix #5 — useDeleteCliente removido daqui (era rota dupla pra arquivamento).
   const archiveCliente = useArchiveCliente();
   const unarchiveCliente = useUnarchiveCliente();
@@ -413,7 +421,7 @@ export default function Clientes() {
                       <TableCell>
                         <span className="font-medium">
                           {valorExibir != null
-                            ? Number(valorExibir).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                            ? <ValorProtegido valor={Number(valorExibir)} />
                             : '—'}
                         </span>
                         {isMens && (client as any).qtd_processos != null && (
@@ -426,7 +434,7 @@ export default function Clientes() {
                             <span className="text-sm font-medium">{descontoExibir}%</span>
                             {limiteExibir != null && (
                               <p className="text-[10px] text-muted-foreground">
-                                Mín. {Number(limiteExibir).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                Mín. <ValorProtegido valor={Number(limiteExibir)} />
                               </p>
                             )}
                           </div>
@@ -444,12 +452,12 @@ export default function Clientes() {
                           {/* UX-082 (12/05/2026): edit por duplo-clique quebrava
                               em mobile/tablet (gesto não existe). Botão dedicado
                               + tooltip mantém também o atalho desktop. */}
-                          {!(client as any).is_archived && (
+                          {!(client as any).is_archived && canEdit && (
                             <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar cliente" onClick={() => openEdit(client)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          {(client as any).is_archived ? (
+                          {canArchive && ((client as any).is_archived ? (
                             <Button variant="ghost" size="icon" className="h-7 w-7" title="Desarquivar" onClick={() => handleUnarchive(client.id)}>
                               <Archive className="h-3.5 w-3.5" />
                             </Button>
@@ -457,7 +465,7 @@ export default function Clientes() {
                             <Button variant="ghost" size="icon" className="h-7 w-7" title="Arquivar" onClick={() => handleArchive(client.id)}>
                               <Archive className="h-3.5 w-3.5" />
                             </Button>
-                          )}
+                          ))}
                         </div>
                       </TableCell>
                     </TableRow>
