@@ -12,7 +12,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ClipboardCheck, Check, Pencil, Receipt, X, AlertTriangle, Phone, CalendarCheck, Trash2, ArrowDownAZ, CalendarClock } from 'lucide-react';
+import { ClipboardCheck, Check, Pencil, Receipt, X, AlertTriangle, Phone, CalendarCheck, Trash2, ArrowDownAZ, CalendarClock, DollarSign, Flame } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import type { ClienteFinanceiro, LancamentoFinanceiro } from '@/hooks/useFinanceiroClientes';
 import { useAuditarLancamento, useAuditarTodosCliente, useAlterarValorLancamento, ETAPAS_PRE_DEFERIMENTO, invalidateFinanceiro } from '@/hooks/useFinanceiroClientes';
@@ -45,14 +45,51 @@ function tipoLabel(c: ClienteFinanceiro): string {
   return 'Avulso';
 }
 
+// Onda A (17/05/2026): helpers pra ordenação inteligente + SLA visual.
+// Sem mudança em banco — só calcula do que já vem.
+function diasDesde(dataIso: string | null | undefined): number {
+  if (!dataIso) return 0;
+  return Math.floor((Date.now() - new Date(dataIso).getTime()) / 86400000);
+}
+
+function diasParadoCliente(c: ClienteFinanceiro): number {
+  const naoAud = c.lancamentos.filter(l => !l.auditado && l.status !== 'pago');
+  if (naoAud.length === 0) return 0;
+  return Math.max(...naoAud.map(l => diasDesde(l.processo_created_at)));
+}
+
+function valorTotalNaoAuditado(c: ClienteFinanceiro): number {
+  return c.lancamentos
+    .filter(l => !l.auditado && l.status !== 'pago')
+    .reduce((s, l) => s + l.valor + (l.total_valores_adicionais || 0), 0);
+}
+
+function corDiasParado(dias: number): { tone: 'success' | 'warning' | 'danger'; classes: string; prefix: string } {
+  if (dias < 3) {
+    return { tone: 'success', classes: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30', prefix: '' };
+  }
+  if (dias < 7) {
+    return { tone: 'warning', classes: 'bg-amber-500/15 text-amber-600 border-amber-500/30', prefix: '' };
+  }
+  return { tone: 'danger', classes: 'bg-destructive/15 text-destructive border-destructive/30', prefix: '🔥 ' };
+}
+
 export function ClientesAuditoria({ clientes }: { clientes: ClienteFinanceiro[] }) {
-  const [sortMode, setSortMode] = useState<'alpha' | 'deferimento'>('alpha');
+  // Onda A (17/05/2026): expandido pra incluir 'valor_desc' (maior valor primeiro)
+  // e 'dias_parado_desc' (mais parados primeiro — pra atacar fila urgente).
+  const [sortMode, setSortMode] = useState<'alpha' | 'deferimento' | 'valor_desc' | 'dias_parado_desc'>('alpha');
 
   const sortedClientes = useMemo(() => {
     const arr = [...clientes];
     const byName = (a: ClienteFinanceiro, b: ClienteFinanceiro) =>
       (a.cliente_apelido || a.cliente_nome).localeCompare(b.cliente_apelido || b.cliente_nome, 'pt-BR');
     if (sortMode === 'alpha') return arr.sort(byName);
+    if (sortMode === 'valor_desc') {
+      return arr.sort((a, b) => valorTotalNaoAuditado(b) - valorTotalNaoAuditado(a));
+    }
+    if (sortMode === 'dias_parado_desc') {
+      return arr.sort((a, b) => diasParadoCliente(b) - diasParadoCliente(a));
+    }
     // Deferimento primeiro: no_deferimento ↑ topo, demais ↓
     return arr.sort((a, b) => {
       const aDef = a.cliente_momento_faturamento === 'no_deferimento' ? 0 : 1;
@@ -84,7 +121,7 @@ export function ClientesAuditoria({ clientes }: { clientes: ClienteFinanceiro[] 
         <p className="text-sm text-muted-foreground">
           {clientes.length} clientes · {totalProcessos} processos aguardando
         </p>
-        <div className="inline-flex rounded-md border border-border overflow-hidden">
+        <div className="inline-flex rounded-md border border-border overflow-hidden flex-wrap">
           <button
             type="button"
             onClick={() => setSortMode('alpha')}
@@ -107,7 +144,32 @@ export function ClientesAuditoria({ clientes }: { clientes: ClienteFinanceiro[] 
                 : "bg-background text-muted-foreground hover:bg-muted"
             )}
           >
-            <CalendarClock className="h-3.5 w-3.5" /> Deferimento primeiro
+            <CalendarClock className="h-3.5 w-3.5" /> Deferimento
+          </button>
+          {/* Onda A (17/05/2026): 2 ordenações novas pra atacar fila estratégica */}
+          <button
+            type="button"
+            onClick={() => setSortMode('valor_desc')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors border-l border-border",
+              sortMode === 'valor_desc'
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            )}
+          >
+            <DollarSign className="h-3.5 w-3.5" /> Maior valor
+          </button>
+          <button
+            type="button"
+            onClick={() => setSortMode('dias_parado_desc')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors border-l border-border",
+              sortMode === 'dias_parado_desc'
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            )}
+          >
+            <Flame className="h-3.5 w-3.5" /> Mais parados
           </button>
         </div>
       </div>
@@ -292,6 +354,21 @@ function AuditoriaItem({ cliente }: { cliente: ClienteFinanceiro }) {
                   🔴 Prioridade
                 </Badge>
               )}
+              {/* Onda A (17/05/2026): badge SLA — dias parado com cor por threshold */}
+              {(() => {
+                const dias = Math.max(...lancNaoAuditados.map(l => Math.floor((Date.now() - new Date(l.processo_created_at).getTime()) / 86400000)));
+                if (!Number.isFinite(dias) || dias < 1) return null;
+                const cls = dias >= 7
+                  ? 'bg-destructive/15 text-destructive border-destructive/30'
+                  : dias >= 3
+                  ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
+                  : 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30';
+                return (
+                  <Badge variant="outline" className={cn(cls, 'text-[10px] sm:text-xs whitespace-nowrap')} title={`Processo mais antigo está há ${dias} dia${dias !== 1 ? 's' : ''} aguardando auditoria`}>
+                    {dias >= 7 ? '🔥 ' : ''}{dias}d parado
+                  </Badge>
+                );
+              })()}
               <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px] sm:text-xs whitespace-nowrap">
                 <span className="sm:hidden">{lancNaoAuditados.length} pend.</span>
                 <span className="hidden sm:inline">{lancNaoAuditados.length} não auditados</span>
