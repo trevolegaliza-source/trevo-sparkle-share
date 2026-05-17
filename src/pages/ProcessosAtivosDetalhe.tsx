@@ -1,11 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, AlertTriangle, FileText } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, FileText, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useDashboardStats } from '@/hooks/useProcessos';
 import { PROCESS_TYPE_LABELS } from '@/types/process';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export default function ProcessosAtivosDetalhe() {
   const { data: stats, isLoading } = useDashboardStats();
@@ -36,7 +37,12 @@ export default function ProcessosAtivosDetalhe() {
           {isLoading ? (
             <Skeleton className="h-20 w-full" />
           ) : urgentes.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhum processo com SLA em risco</p>
+            <EmptyState
+              variant="inline"
+              icon={ShieldCheck}
+              title="Nenhum SLA em risco"
+              description="Todos os processos estão dentro do prazo."
+            />
           ) : (
             <div className="space-y-2">
               {urgentes.map((proc) => (
@@ -77,7 +83,12 @@ export default function ProcessosAtivosDetalhe() {
           {isLoading ? (
             <Skeleton className="h-40 w-full" />
           ) : recentes.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhum processo encontrado</p>
+            <EmptyState
+              variant="inline"
+              icon={Sparkles}
+              title="Nenhum processo recente"
+              description="Quando um processo for criado, aparece aqui."
+            />
           ) : (
             <div className="space-y-2">
               {recentes.map((proc) => (

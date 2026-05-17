@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SkeletonList } from '@/components/ui/skeleton-patterns';
+import { EmptyState } from '@/components/ui/empty-state';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
@@ -557,15 +559,27 @@ export default function Orcamentos() {
 
         <TabsContent value={tab} className="mt-4">
           {isLoading ? (
-            <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
+            <SkeletonList rows={4} />
           ) : !orcamentos?.length ? (
-            <Card className="p-8 text-center">
-              <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <p className="text-sm text-muted-foreground">Nenhum orçamento encontrado</p>
-              <Button variant="outline" className="mt-3" onClick={() => navigate('/orcamentos/novo')}>
-                Criar primeiro orçamento
-              </Button>
-            </Card>
+            <EmptyState
+              icon={FileText}
+              title={tab === 'rascunho' ? 'Nenhum rascunho' : tab === 'convertido' ? 'Nenhuma conversão ainda' : 'Nenhum orçamento nesta aba'}
+              description={
+                tab === 'rascunho'
+                  ? 'Crie seu primeiro orçamento — quando enviar pro cliente vira "Enviado".'
+                  : tab === 'convertido'
+                  ? 'Aqui vão aparecer orçamentos que viraram processo. Vamos fechar o primeiro!'
+                  : 'Quando houver orçamentos nesse status, eles aparecem aqui.'
+              }
+              action={
+                podeCriar('orcamentos') && (
+                  <Button onClick={() => navigate('/orcamentos/novo')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Orçamento
+                  </Button>
+                )
+              }
+            />
           ) : (
             <div className="space-y-2">
               {orcamentos.map(orc => {

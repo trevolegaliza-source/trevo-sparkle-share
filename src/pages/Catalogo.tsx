@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { GlassCard } from '@/components/ui/glass-card';
 import { SkeletonList } from '@/components/ui/skeleton-patterns';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -483,12 +484,11 @@ function Level2View({
         <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
       </Button>
       {services.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <BookOpen className="h-10 w-10 text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground">Nenhum serviço cadastrado nesta categoria.</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={BookOpen}
+          title="Nenhum serviço nesta categoria"
+          description="Adicione o primeiro serviço pra começar a cobrar por aqui."
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {services.map((s, i) => {
@@ -695,12 +695,11 @@ function SearchResultsView({
         {results.length} resultado(s) para "<span className="font-medium text-foreground">{search}</span>"
       </p>
       {results.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Search className="h-10 w-10 text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground">Nenhum serviço encontrado.</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Search}
+          title="Nenhum serviço encontrado"
+          description={`Não achei nada com "${search}". Tenta outro termo ou cadastra esse serviço.`}
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {results.map(s => {
