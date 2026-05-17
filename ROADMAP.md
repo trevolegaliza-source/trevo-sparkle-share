@@ -1,16 +1,39 @@
 # 🗺️ Roadmap Trevo ERP
 
-> **Atualizado:** 17/05/2026
-> **Last review:** sessão de 17/05 atacou 3 hotfixes de produção (delete processo operacional, comprovante taxa_balcao virou opcional, cleanup 12 duplicatas ADVANCE BPM).
+> **Atualizado:** 17/05/2026 (após auditoria extremamente completa — 34 achados)
+> **Last review:** auditoria multi-perfil de 17/05 (5 agentes paralelos) — mapeou 30 bugs novos. Doc completo em [`docs/auditoria-2026-05-17/00-RESUMO.md`](docs/auditoria-2026-05-17/00-RESUMO.md).
 > **Como usar:** lê esse doc primeiro pra entender estado atual antes de pedir nova feature. Cada item tem estimativa de horas + dependências + decisões pendentes.
 
 ---
 
-## 🐛 Bugs em aberto
+## 🐛 Bugs em aberto (auditoria 17/05/2026)
 
-| # | Bug | Severidade | Notas |
+**Resumo:** 34 achados — 7 🔴 críticos, 20 🟡 médios, 7 🟢 polish. Lista completa em [`docs/auditoria-2026-05-17/00-RESUMO.md`](docs/auditoria-2026-05-17/00-RESUMO.md).
+
+### 🔴 Críticos
+
+| ID | Bug | Arquivo | Status |
 |---|---|---|---|
-| 006 | **Duplicação de lançamentos** — ADVANCE BPM 220352 teve 12 lançamentos órfãos criados em 3 batches (15/05/2026 21:20–21:52) com etapa `solicitacao_criada` sem cobrança vinculada. NÃO veio do `gerar_extrato_completo` (que só faz UPDATE). Suspeito: front criando INSERT em paralelo ou retry mal-rollback. Cleanup ad-hoc feito. **Investigar se reaparecer em outro cliente.** | Médio | Triage query no `project_estado_17_05.md` |
+| ~~SEC-029~~ | ✅ Valores R$ vazam em `/clientes` — fix aplicado (Dashboard era falso alarme) | `Clientes.tsx` | ✅ commit 17/05 |
+| ~~PERM-012/014~~ | ✅ Botões Editar/Arquivar sem check de permissão — fix aplicado | `Clientes.tsx` | ✅ commit 17/05 |
+| ~~UX-140/143~~ | ✅ Validação itens em handleSave + bloqueio copyLink em rascunho | `OrcamentoNovo.tsx` | ✅ commit 17/05 |
+| ~~FIN-002~~ | ✅ `gerar_extrato_completo` rejeita array vazio + 0 atualizados | `fin-002-*.sql` | ✅ commit 17/05 (aguarda rodar SQL) |
+| FIN-001 | Race no webhook Asaas — `handlePaidEvent` não libera `asaas_gerando_lock_ate` | `asaas-webhook/index.txt:180-229` | Refactor handler (~1h, sessão acompanhada) |
+| CODE-002 | Race em 2 `useEffect[cliente]` no ClienteAccordionFinanceiro — trocar cliente rápido mistura state | `ClienteAccordionFinanceiro.tsx:1322-1391` | Validar cliente_id no init (~30min) |
+| CODE-005 | Modal GestaoUsuarios persiste state ao navegar — volta com dado antigo | `GestaoUsuarios.tsx:88-100` | Cleanup ao unmount (~20min) |
+| CODE-009 | Delete cliente checa só frontend — RLS pode permitir DELETE via DevTools | `ClienteDetalhe.tsx:71-72,1340` | RLS policy SQL (~1h, acompanhada) |
+
+### 🟡 Médios (20 itens — ver doc completo)
+
+3 SEC + 2 PERM + 5 FIN + 6 UX + 4 CODE. Detalhe e fix em [`docs/auditoria-2026-05-17/00-RESUMO.md#-20-medios`](docs/auditoria-2026-05-17/00-RESUMO.md).
+
+### 🟢 Polish (7 itens)
+
+FIN-006, FIN-008, UX-146, UX-148, CODE-004, CODE-007, CODE-010.
+
+### 🟡 Bug-006 (carry-over)
+
+| 006 | **Duplicação de lançamentos** — ADVANCE BPM 220352 teve 12 lançamentos órfãos criados em 3 batches (15/05/2026 21:20–21:52) com etapa `solicitacao_criada` sem cobrança vinculada. NÃO veio do `gerar_extrato_completo` (que só faz UPDATE). Suspeito: front criando INSERT em paralelo ou retry mal-rollback. Cleanup ad-hoc feito. **Investigar se reaparecer em outro cliente.** Possível causa raiz mapeada agora em **CODE-002** (race useEffect) — fix de CODE-002 pode fechar este bug também. | Médio | Triage query no `project_estado_17_05.md` |
 
 ---
 

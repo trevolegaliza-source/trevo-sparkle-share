@@ -1,7 +1,23 @@
 # 🔥 AUDITORIA GROTESCA — TREVO ERP
 
-> **Doc vivo.** Atualizado a cada commit. Última atualização: **13/05/2026 noite** — DECISION-001 Fase 3 fechada (enum etapa binário no banco + delete Processos.tsx).
+> **Doc vivo.** Atualizado a cada commit. Última atualização: **17/05/2026** — nova auditoria extremamente completa disparada por Thales. 34 achados consolidados em [`docs/auditoria-2026-05-17/00-RESUMO.md`](docs/auditoria-2026-05-17/00-RESUMO.md). Resumo curto abaixo.
 > Auditoria original disparada pelo Thales: *"AUDITORIA COMPLETAMENTE GROSTESCA NESSE ERP! MAS GROTESCA MESMO OK?"*
+
+---
+
+## 🆕 Auditoria 17/05/2026 — 34 achados novos
+
+> Doc completo: [`docs/auditoria-2026-05-17/00-RESUMO.md`](docs/auditoria-2026-05-17/00-RESUMO.md). 5 agentes Explore em paralelo cobriram: segurança, UX, fluxo financeiro, perfis (operacional/gerente/visualizador), god components.
+
+**Distribuição:** 7 🔴 críticos + 20 🟡 médios + 7 🟢 polish.
+
+**Top 3 mais urgentes:**
+1. **SEC-029** 🔴 — valores R$ vazam pra operacional/visualizador em Clientes/Dashboard (0 referências a `<ValorProtegido>`). Sweep de 30min destrava.
+2. **FIN-001** 🔴 — webhook Asaas race com `asaas_gerando_lock_ate` (2 UPDATEs sem transação). Pode duplicar lançamentos.
+3. **CODE-002** 🔴 — race em useEffect do ClienteAccordionFinanceiro ao trocar cliente. **Possível causa raiz do bug-006 (duplicação ADVANCE BPM).**
+
+Sequência de ataque sugerida no doc consolidado (3 sessões totalizando ~8h).
+
 
 ---
 
