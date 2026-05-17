@@ -110,6 +110,10 @@ export default function OrcamentoNovo() {
       const { data } = await supabase.from('clientes').select('id, nome, apelido, cnpj, email, telefone').eq('is_archived', false).order('nome');
       return data || [];
     },
+    // CODE-004 (17/05/2026): staleTime 5min — lista de clientes muda pouco,
+    // refetch a cada remount era desperdício (OrcamentoNovo remonta toda vez
+    // que abre/edita orçamento).
+    staleTime: 5 * 60 * 1000,
   });
 
   // Load existing orcamento if editing

@@ -2504,12 +2504,13 @@ function ClienteDetalheFaturasAuditoria({ lancamentos, clienteApelido, onReload,
                       const valor = parseFloat(novoValor.replace(',', '.'));
                       if (isNaN(valor) || valor <= 0) { toast.error('Valor inválido'); return; }
                       alterarValorMut.mutate({ lancamentoId: l.id, novoValor: valor, valorAtual: l.valor }, {
-                        onSuccess: () => { setEditingId(null); onReload(); },
+                        // CODE-010 (17/05/2026): reset novoValor tambem (so editingId era resetado)
+                        onSuccess: () => { setEditingId(null); setNovoValor(''); onReload(); },
                       });
                     }} disabled={alterarValorMut.isPending}>
                       <Check className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-8 text-muted-foreground" onClick={() => setEditingId(null)}>
+                    <Button size="sm" variant="ghost" className="h-8 text-muted-foreground" onClick={() => { setEditingId(null); setNovoValor(''); }}>
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   </div>

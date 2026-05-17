@@ -84,9 +84,13 @@ function Section({ tone, icon: Icon, title, subtitle, items, emptyText }: Sectio
               key={item.id}
               onClick={() => item.link && navigate(item.link, { state: item.link_state })}
               disabled={!item.link}
+              // UX-148 (17/05/2026): aria-label dinâmico + opacity em itens sem
+              // link. Antes screen reader não distinguia clicáveis e ficava
+              // indistinguível visualmente.
+              aria-label={item.link ? `Abrir ${item.titulo}` : `${item.titulo} (sem ação disponível)`}
               className={cn(
                 'w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-md text-left transition-colors',
-                item.link ? 'hover:bg-muted/50 cursor-pointer' : 'cursor-default',
+                item.link ? 'hover:bg-muted/50 cursor-pointer' : 'cursor-default opacity-70',
               )}
             >
               <div className="min-w-0 flex-1">

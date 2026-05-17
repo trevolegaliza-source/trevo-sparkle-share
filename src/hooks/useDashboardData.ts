@@ -5,6 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 export function useDashboardData() {
   return useQuery({
     queryKey: ['dashboard_data'],
+    // UX-146 (17/05/2026): refetch ao voltar foco pro Dashboard. Default global
+    // do queryClient eh `refetchOnWindowFocus: false`, mas pro Dashboard faz
+    // sentido — quando user resolve fatura/marca pago em outra aba e volta,
+    // KPIs e alertas atualizam sem precisar F5.
+    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000,
     queryFn: async () => {
       const now = new Date();
       const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
