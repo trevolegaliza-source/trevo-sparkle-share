@@ -18,7 +18,7 @@
 | ~~PERM-012/014~~ | ✅ Botões Editar/Arquivar sem check de permissão — fix aplicado | `Clientes.tsx` | ✅ commit 17/05 |
 | ~~UX-140/143~~ | ✅ Validação itens em handleSave + bloqueio copyLink em rascunho | `OrcamentoNovo.tsx` | ✅ commit 17/05 |
 | ~~FIN-002~~ | ✅ `gerar_extrato_completo` rejeita array vazio + 0 atualizados | `fin-002-*.sql` | ✅ commit 17/05 (aguarda rodar SQL) |
-| FIN-001 | Race no webhook Asaas — `handlePaidEvent` não libera `asaas_gerando_lock_ate` | `asaas-webhook/index.txt:180-229` | Refactor handler (~1h, sessão acompanhada) |
+| ~~FIN-001~~ | ✅ Race resolvida via fallback por externalReference em 4 handlers (v27 deploy 17/05) | `asaas-webhook/index.txt` | ✅ commit 17/05 |
 | CODE-002 | Race em 2 `useEffect[cliente]` no ClienteAccordionFinanceiro — trocar cliente rápido mistura state | `ClienteAccordionFinanceiro.tsx:1322-1391` | Validar cliente_id no init (~30min) |
 | CODE-005 | Modal GestaoUsuarios persiste state ao navegar — volta com dado antigo | `GestaoUsuarios.tsx:88-100` | Cleanup ao unmount (~20min) |
 | CODE-009 | Delete cliente checa só frontend — RLS pode permitir DELETE via DevTools | `ClienteDetalhe.tsx:71-72,1340` | RLS policy SQL (~1h, acompanhada) |

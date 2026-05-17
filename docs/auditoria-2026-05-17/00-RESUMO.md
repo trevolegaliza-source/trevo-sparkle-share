@@ -44,6 +44,14 @@
 - **CODE-003** — 2 catches `/* noop */` viraram `console.error` tagueado
 - **FIN-003** — trigger `sync_orcamento_on_lancamento_pago` detecta estorno (SQL pendente rodar)
 - **FIN-007** — `notify-cliente-evento` cria notif in-app pro master se Resend falha (edge deploy pendente)
+- **CODE-004** — staleTime 5min em useQuery clientes_select (OrcamentoNovo)
+- **CODE-010** — reset novoValor/editingId após cancel inline
+- **UX-146** — Dashboard refetchOnWindowFocus + staleTime 30s
+- **UX-148** — aria-label + opacity em items disabled (Hoje)
+- **FIN-008** — alerta master se ASAAS_WEBHOOK_TOKEN vazio (edge v26)
+- **SEC-030** — portfolio_share_token aleatório (front + edge + SQL)
+- **FIN-004** — pg_cron mensalidades wrapper com log + alerta após 3 falhas
+- **FIN-001** — webhook Asaas resolve cobrança por externalReference como fallback (v27 — race PAYMENT chegando antes de UPDATE asaas_payment_id)
 
 ### ⚠️ Falso alarme (descartados após validar contra código real)
 - **SEC-029 (Dashboard)** — Dashboard.tsx:311 já tem early return pra `!podeVer('dashboard')`. Só master/gerente/financeiro acessa; todos têm `podeVerValores=true`. Não vaza nada.
