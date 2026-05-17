@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboardData, useCountUp } from '@/hooks/useDashboardData';
+import { useDSOData } from '@/hooks/useDSOData';
 import { getNomeUsuario, getSaudacao } from '@/hooks/useDashboard';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   DollarSign, Clock, CheckCircle, Activity, TrendingUp, TrendingDown,
   AlertTriangle, FileText, Send, PauseCircle, ChevronRight, Check, CreditCard, Download, ClipboardCheck,
+  Hourglass, UserX,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +46,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data, isLoading } = useDashboardData();
+  const { data: dsoData } = useDSOData(90, 5);
   const { podeVer, loading: permsLoading, isMaster } = usePermissions();
   const [profileName, setProfileName] = useState<string | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -403,6 +406,41 @@ export default function Dashboard() {
           onClick={() => navigate('/processos-ativos')}
         />
       </div>
+
+      {/* SEÇÃO 1.5: DSO + Top Inadimplentes — Onda 8 pré-viagem (17/05/2026)
+          Só pra quem vê financeiro (sem fazer alarde pra operacional). */}
+      {podeVer('financeiro') && dsoData && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 dashboard-section">
+          <KPICard
+            variant={
+              dsoData.dso.dso_geral > 30 ? 'danger'
+              : dsoData.dso.dso_geral > 15 ? 'warning'
+              : 'success'
+            }
+            icon={Hourglass}
+            label="DSO (dias médios pra receber)"
+            value={`${Number(dsoData.dso.dso_geral).toFixed(1)} dias`}
+            hint={`${dsoData.dso.total_lancamentos} lançamentos últimos ${dsoData.dso.dias_lookback}d · ${Number(dsoData.dso.dso_em_aberto || 0).toFixed(0)}d atraso médio em aberto`}
+            onClick={() => navigate('/financeiro', { state: { tab: 'em_andamento' } })}
+          />
+          <KPICard
+            variant={dsoData.top.length > 0 ? 'danger' : 'success'}
+            icon={UserX}
+            label={dsoData.top.length > 0 ? `Top ${dsoData.top.length} inadimplentes` : 'Sem inadimplentes'}
+            value={
+              dsoData.top.length > 0
+                ? fmt(dsoData.top.reduce((s, t) => s + Number(t.valor_total), 0))
+                : '🎉'
+            }
+            hint={
+              dsoData.top.length > 0
+                ? `${dsoData.top[0].cliente_apelido || dsoData.top[0].cliente_nome}: ${fmt(dsoData.top[0].valor_total)} (${dsoData.top[0].dias_max_atraso}d)`
+                : 'Todo mundo em dia'
+            }
+            onClick={() => navigate('/financeiro', { state: { tab: 'em_andamento' } })}
+          />
+        </div>
+      )}
 
       {/* SEÇÃO 2: Ações Urgentes */}
       <div className="space-y-2 dashboard-section">
