@@ -192,8 +192,11 @@ export async function buildValoresAdicionaisDetalhadosMap(
 
   if (vas) {
     for (const va of vas) {
+      // CODE-008 (17/05/2026): skip valor adicional NULL/0.
+      const vaValor = Number(va.valor);
+      if (!Number.isFinite(vaValor) || vaValor <= 0) continue;
       if (!map[va.processo_id]) map[va.processo_id] = [];
-      map[va.processo_id].push({ descricao: va.descricao || 'Taxa', valor: Number(va.valor) || 0 });
+      map[va.processo_id].push({ descricao: va.descricao || 'Taxa', valor: vaValor });
     }
   }
 
@@ -1392,9 +1395,14 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
           const { data: vas } = await supabase.from('valores_adicionais').select('processo_id, descricao, valor').in('processo_id', processoIds);
           if (vas) {
             for (const va of vas) {
-              vaMap[va.processo_id] = (vaMap[va.processo_id] || 0) + Number(va.valor);
+              // CODE-008 (17/05/2026): valor adicional com valor NULL/0 entrava
+              // na msg de WhatsApp como "Taxa R$ 0,00" — confundia cliente.
+              // Skip se não há valor real a cobrar.
+              const vaValor = Number(va.valor);
+              if (!Number.isFinite(vaValor) || vaValor <= 0) continue;
+              vaMap[va.processo_id] = (vaMap[va.processo_id] || 0) + vaValor;
               if (!vaDetalhadoMap[va.processo_id]) vaDetalhadoMap[va.processo_id] = [];
-              vaDetalhadoMap[va.processo_id].push({ descricao: (va as any).descricao || 'Taxa', valor: Number(va.valor) || 0 });
+              vaDetalhadoMap[va.processo_id].push({ descricao: (va as any).descricao || 'Taxa', valor: vaValor });
             }
           }
         }
@@ -1472,9 +1480,12 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
       const { data: vas } = await supabase.from('valores_adicionais').select('processo_id, descricao, valor').in('processo_id', processoIds);
       if (vas) {
         for (const va of vas) {
-          vaMap[va.processo_id] = (vaMap[va.processo_id] || 0) + Number(va.valor);
+          // CODE-008 (17/05/2026): skip valor adicional NULL/0 (msg WhatsApp limpa).
+          const vaValor = Number(va.valor);
+          if (!Number.isFinite(vaValor) || vaValor <= 0) continue;
+          vaMap[va.processo_id] = (vaMap[va.processo_id] || 0) + vaValor;
           if (!vaDetalhadoMap[va.processo_id]) vaDetalhadoMap[va.processo_id] = [];
-          vaDetalhadoMap[va.processo_id].push({ descricao: (va as any).descricao || 'Taxa', valor: Number(va.valor) || 0 });
+          vaDetalhadoMap[va.processo_id].push({ descricao: (va as any).descricao || 'Taxa', valor: vaValor });
         }
       }
     }
@@ -1511,9 +1522,12 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
       const { data: vas } = await supabase.from('valores_adicionais').select('processo_id, descricao, valor').in('processo_id', processoIds);
       if (vas) {
         for (const va of vas) {
-          vaMap[va.processo_id] = (vaMap[va.processo_id] || 0) + Number(va.valor);
+          // CODE-008 (17/05/2026): skip valor adicional NULL/0 (msg WhatsApp limpa).
+          const vaValor = Number(va.valor);
+          if (!Number.isFinite(vaValor) || vaValor <= 0) continue;
+          vaMap[va.processo_id] = (vaMap[va.processo_id] || 0) + vaValor;
           if (!vaDetalhadoMap[va.processo_id]) vaDetalhadoMap[va.processo_id] = [];
-          vaDetalhadoMap[va.processo_id].push({ descricao: (va as any).descricao || 'Taxa', valor: Number(va.valor) || 0 });
+          vaDetalhadoMap[va.processo_id].push({ descricao: (va as any).descricao || 'Taxa', valor: vaValor });
         }
       }
     }
@@ -1553,9 +1567,12 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
         const { data: vas } = await supabase.from('valores_adicionais').select('processo_id, descricao, valor').in('processo_id', processoIds);
         if (vas) {
           for (const va of vas) {
-            vaMap[va.processo_id] = (vaMap[va.processo_id] || 0) + Number(va.valor);
+            // CODE-008 (17/05/2026): skip valor adicional NULL/0 (msg WhatsApp limpa).
+            const vaValor = Number(va.valor);
+            if (!Number.isFinite(vaValor) || vaValor <= 0) continue;
+            vaMap[va.processo_id] = (vaMap[va.processo_id] || 0) + vaValor;
             if (!vaDetalhadoMap[va.processo_id]) vaDetalhadoMap[va.processo_id] = [];
-            vaDetalhadoMap[va.processo_id].push({ descricao: (va as any).descricao || 'Taxa', valor: Number(va.valor) || 0 });
+            vaDetalhadoMap[va.processo_id].push({ descricao: (va as any).descricao || 'Taxa', valor: vaValor });
           }
         }
       }

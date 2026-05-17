@@ -6,7 +6,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Plus, ChevronLeft, ChevronRight, Users, CheckSquare, X, CheckCircle } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Users, CheckSquare, X, CheckCircle, Loader2 } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import {
@@ -98,12 +98,21 @@ export default function ContasPagar() {
   const toggleRecorrente = useToggleRecorrente();
   const deleteRecorrente = useDeleteRecorrente();
 
+  // UX-147 (17/05/2026): banner de "Atualizando lançamentos do mês" enquanto
+  // as 2 operações automáticas (recorrentes + folha) rodam. Antes não havia
+  // feedback nenhum — user achava que tela estava pronta, clicava em "Nova
+  // Despesa" sobre dado inconsistente.
+  const [gerandoRec, setGerandoRec] = useState(false);
+  const [gerandoFolha, setGerandoFolha] = useState(false);
+  const gerandoBackground = gerandoRec || gerandoFolha;
+
   // Auto-generate recurring
   const [gerado, setGerado] = useState<string>('');
   useEffect(() => {
     const key = `${viewMonth}-${viewYear}`;
     if (gerado === key) return;
     setGerado(key);
+    setGerandoRec(true);
     gerarLancamentosRecorrentes(viewMonth, viewYear)
       .then(count => {
         if (count > 0) {
@@ -112,7 +121,8 @@ export default function ContasPagar() {
           queryClient.invalidateQueries({ queryKey: ['lancamentos_pagar_date'] });
         }
       })
-      .catch(() => { /* silent */ });
+      .catch(() => { /* silent */ })
+      .finally(() => setGerandoRec(false));
   }, [viewMonth, viewYear, gerado, queryClient]);
 
   // Demanda Thales 04/05 — Auto-importa folha (salário, adiantamento, VT,
@@ -139,6 +149,7 @@ export default function ContasPagar() {
     setFolhaGerada(key); // marca antes pra evitar re-trigger
     if (ativos.length === 0) return;
     const diasUteis = getBusinessDaysInMonth(viewYear, viewMonth);
+    setGerandoFolha(true);
     gerarVerbasDoMes(ativos, viewYear, viewMonth, diasUteis)
       .then(count => {
         if (count > 0) {
@@ -154,7 +165,8 @@ export default function ContasPagar() {
         // flag, mas por enquanto: melhor barulhento que invisível.
         console.error('[auto-folha] falhou:', err);
         toast.error(`Auto-importação de folha falhou: ${err?.message || 'erro desconhecido'}. Use "Importar Folha" manualmente.`);
-      });
+      })
+      .finally(() => setGerandoFolha(false));
   }, [viewMonth, viewYear, folhaGerada, colaboradores, queryClient]);
 
   // Demanda Thales 30/04: corrigir vencimentos pendentes que caíram em
@@ -396,6 +408,14 @@ export default function ContasPagar() {
 
   return (
     <div className="space-y-6">
+      {/* UX-147 (17/05/2026): banner discreto enquanto auto-gera recorrentes/folha */}
+      {gerandoBackground && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs text-blue-600">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Atualizando lançamentos do mês ({gerandoRec && 'recorrentes'}{gerandoRec && gerandoFolha && ' + '}{gerandoFolha && 'folha'})…
+        </div>
+      )}
+
       {/* Fluxo 15 dias */}
       <FluxoProximos15Dias />
 

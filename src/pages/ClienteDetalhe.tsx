@@ -415,9 +415,16 @@ export default function ClienteDetalhe() {
     updateCliente.mutate(payload as any, {
       onSuccess: () => {
         setEditing(false);
+        // CODE-006 (17/05/2026): invalidate amplo. Antes só ['financeiro_clientes']
+        // — outros componentes (lista de clientes, cards no Dashboard, useProcessos
+        // que carrega cliente_*) ficavam stale até refresh manual.
+        qcRef.invalidateQueries({ queryKey: ['financeiro_clientes'] });
+        qcRef.invalidateQueries({ queryKey: ['clientes'] });
+        qcRef.invalidateQueries({ queryKey: ['cliente_processos'] });
+        qcRef.invalidateQueries({ queryKey: ['cliente_lancamentos'] });
+        qcRef.invalidateQueries({ queryKey: ['cliente_financeiro'] });
         loadAll(cliente.id, { silent: true });
         toast.success('Parâmetros atualizados!');
-        qcRef.invalidateQueries({ queryKey: ['financeiro_clientes'] });
       },
       onError: (err: any) => { toast.error('Erro ao salvar: ' + (err?.message || 'Erro desconhecido')); },
     });
@@ -1481,7 +1488,13 @@ export default function ClienteDetalhe() {
       </Tabs>
 
       {/* Edit Cadastro Dialog */}
-      <Dialog open={showEditCadastro} onOpenChange={setShowEditCadastro}>
+      {/* CODE-001 (17/05/2026): reset form ao fechar pra não mostrar dado antigo
+          ao reabrir. Antes, fechar sem salvar + reabrir mostrava state da edição
+          anterior — confundia o user achando que mudanças foram salvas. */}
+      <Dialog open={showEditCadastro} onOpenChange={(o) => {
+        setShowEditCadastro(o);
+        if (!o) setEditCadastroForm({});
+      }}>
         <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Cadastro</DialogTitle>
