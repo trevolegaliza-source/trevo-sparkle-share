@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboardData, useCountUp } from '@/hooks/useDashboardData';
 import { useDSOData } from '@/hooks/useDSOData';
+import { usePrevisaoMes } from '@/hooks/usePrevisaoMes';
 import { getNomeUsuario, getSaudacao } from '@/hooks/useDashboard';
 import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,6 +48,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { data, isLoading } = useDashboardData();
   const { data: dsoData } = useDSOData(90, 5);
+  const { data: previsao } = usePrevisaoMes();
   const { podeVer, loading: permsLoading, isMaster } = usePermissions();
   const [profileName, setProfileName] = useState<string | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -406,6 +408,37 @@ export default function Dashboard() {
           onClick={() => navigate('/processos-ativos')}
         />
       </div>
+
+      {/* SEÇÃO 1.4: Previsão "vai bater o mês?" — Onda 9 pré-viagem (17/05/2026) */}
+      {podeVer('financeiro') && previsao && previsao.meta_historica > 0 && (() => {
+        const tone =
+          previsao.veredito === 'vai_bater_folgado' || previsao.veredito === 'vai_bater' ? 'success'
+          : previsao.veredito === 'no_limite' ? 'warning'
+          : 'danger';
+        const tituloMap: Record<string, string> = {
+          vai_bater_folgado: `🚀 Vai bater folgado: ${previsao.pct_atingido}% da meta`,
+          vai_bater: `✅ Vai bater: ${previsao.pct_atingido}% da meta`,
+          no_limite: `⚠️ No limite: ${previsao.pct_atingido}% da meta`,
+          abaixo: `📉 Abaixo da meta: ${previsao.pct_atingido}% (faltam ${fmt(Math.max(previsao.meta_historica - previsao.previsto_total, 0))})`,
+          sem_historico: 'Sem histórico pra prever',
+        };
+        return (
+          <div className="dashboard-section">
+            <AttentionCard
+              tone={tone}
+              title={tituloMap[previsao.veredito] || 'Previsão do mês'}
+              description={
+                <>
+                  Recebido: <strong>{fmt(previsao.recebido_mes)}</strong> · A receber: <strong>{fmt(previsao.pendente_mes)}</strong>
+                  {' '}· Meta (média 3m): <strong>{fmt(previsao.meta_historica)}</strong>
+                  {' '}· {previsao.dias_restantes_mes} dias até o fim do mês
+                </>
+              }
+              onClick={() => navigate('/financeiro')}
+            />
+          </div>
+        );
+      })()}
 
       {/* SEÇÃO 1.5: DSO + Top Inadimplentes — Onda 8 pré-viagem (17/05/2026)
           Só pra quem vê financeiro (sem fazer alarde pra operacional). */}
