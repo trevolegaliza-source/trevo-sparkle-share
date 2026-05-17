@@ -36,12 +36,26 @@
 - **FIN-002** — SQL `fin-002-gerar-extrato-rejeita-array-vazio.sql` adiciona 2 guards na RPC. ✅ Rodado.
 - **BUG-006** — botões "Gerar Fatura Mensal" agora têm disable + pre-check + UNIQUE constraint SQL (3 camadas). Investigação descobriu causa raiz: double-click no ClienteDetalhe sem `disabled` disparava 2 INSERTs antes do `loadAll` atualizar state. CODE-002 era falso alarme — o bug real era no botão, não no useEffect.
 
+### ✅ Resolvidos onda 1-3 (17/05 noite)
+- **CODE-001** — `editCadastroForm` reseta ao fechar Dialog
+- **CODE-006** — `updateCliente` invalida 5 queryKeys (era só 1)
+- **CODE-008** — skip valor adicional NULL em 5 lugares
+- **UX-147** — banner discreto + 2 states durante auto-geração ContasPagar
+- **CODE-003** — 2 catches `/* noop */` viraram `console.error` tagueado
+- **FIN-003** — trigger `sync_orcamento_on_lancamento_pago` detecta estorno (SQL pendente rodar)
+- **FIN-007** — `notify-cliente-evento` cria notif in-app pro master se Resend falha (edge deploy pendente)
+
 ### ⚠️ Falso alarme (descartados após validar contra código real)
 - **SEC-029 (Dashboard)** — Dashboard.tsx:311 já tem early return pra `!podeVer('dashboard')`. Só master/gerente/financeiro acessa; todos têm `podeVerValores=true`. Não vaza nada.
 - **UX-141** — `AlertDialog` de bulkDelete JÁ existe em ContasPagar.tsx:731-751. Botão linha 585 dispara `setShowBulkDeleteConfirm(true)`. Fluxo está OK.
 - **UX-145** — `useContasPagar` hook JÁ tem `toast.success` em todos os `onSuccess` (linhas 89, 105, 121, 195, 197, 241, 280). Feedback existe.
 - **CODE-002** — TODOS os 5 useEffects do ClienteAccordionFinanceiro já usam pattern `let active = true` + cleanup `() => active = false`. Pattern protege contra race. (Mas investigando achei o bug-006 real — ver acima.)
 - **CODE-005** — `editModalOpen` inicia em `false` (linha 88). GestaoUsuarios desmonta ao trocar de aba (Radix Tabs default). State se perde naturalmente.
+- **UX-142** — `Clientes.tsx:448` já tem `<Button><Pencil/></Button>` dedicado por row.
+- **UX-144** — "Tudo em dia ✓" só aparece com 3 métricas zero; Financeiro só é acessado por roles que veem essas métricas. Agent inventou `haAlertasMascarados`.
+- **PERM-013** — operacional vê R$ em CadastroRapido por design (UX-114 antiga — precisa confirmar valor antes de salvar).
+- **SEC-031** — `Dashboard.tsx:311` já tem early return pra `!podeVer('dashboard')` ANTES do isLoading check. `useMemo` só calcula em memória.
+- **FIN-005** — `asaas-gerar-cobranca-publico` usa RPC `asaas_tentar_lock_cobranca` com transação Postgres. 5 abas paralelas: primeira adquire lock, demais recebem 409 `in_progress` sem criar duplicata.
 
 ### ⏳ Pendentes (próximas sessões)
 Tudo do bloco "🔴 Críticos" abaixo exceto SEC-029-Clientes; tudo do "🟡 Médios"; tudo do "🟢 Polish". 28 itens.
