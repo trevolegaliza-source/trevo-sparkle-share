@@ -10,6 +10,7 @@ import { X, Loader2, Info } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCreateCliente } from '@/hooks/useFinanceiro';
 import { maskCNPJ, isValidCNPJ } from '@/lib/cnpj';
+import { maskCPF, isValidCPF } from '@/lib/cpf';
 import { formatCEP, buscarCEP, buscarCoordenadas } from '@/lib/cep';
 import { toast } from 'sonner';
 import type { TipoCliente } from '@/types/financial';
@@ -22,10 +23,12 @@ interface Props {
 
 export default function NovoClienteInline({ onClose, onCreated }: Props) {
   const [form, setForm] = useState({
+    tipo_pessoa: 'PJ' as 'PF' | 'PJ',
     codigo_identificador: '',
     nome: '',
     apelido: '',
     cnpj: '',
+    cpf: '',
     nome_contador: '',
     email: '',
     telefone: '',
@@ -56,6 +59,15 @@ export default function NovoClienteInline({ onClose, onCreated }: Props) {
       ? `${digits.slice(0, 3)}.${digits.slice(3, 6)}`
       : !codigoManual ? digits.slice(0, digits.length) : form.codigo_identificador;
     setForm(f => ({ ...f, cnpj: masked, codigo_identificador: newCodigo }));
+  };
+
+  const handleCpfChange = (value: string) => {
+    const masked = maskCPF(value);
+    const digits = masked.replace(/\D/g, '');
+    const newCodigo = !codigoManual && digits.length >= 6
+      ? `${digits.slice(0, 3)}.${digits.slice(3, 6)}`
+      : !codigoManual ? digits.slice(0, digits.length) : form.codigo_identificador;
+    setForm(f => ({ ...f, cpf: masked, codigo_identificador: newCodigo }));
   };
 
   const handleCodigoChange = (value: string) => {
@@ -107,12 +119,17 @@ export default function NovoClienteInline({ onClose, onCreated }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cnpjDigits = form.cnpj.replace(/\D/g, '');
-    if (cnpjDigits.length > 0 && !isValidCNPJ(form.cnpj)) {
+    const cpfDigits = form.cpf.replace(/\D/g, '');
+    if (form.tipo_pessoa === 'PJ' && cnpjDigits.length > 0 && !isValidCNPJ(form.cnpj)) {
       toast.error('CNPJ inválido');
       return;
     }
+    if (form.tipo_pessoa === 'PF' && cpfDigits.length > 0 && !isValidCPF(form.cpf)) {
+      toast.error('CPF inválido');
+      return;
+    }
     if (!form.codigo_identificador.trim()) {
-      toast.error('Preencha o Código do Cliente (ou digite o CNPJ)');
+      toast.error(`Preencha o Código do Cliente (ou digite o ${form.tipo_pessoa === 'PF' ? 'CPF' : 'CNPJ'})`);
       return;
     }
     if (form.tipo === 'MENSALISTA') {
@@ -152,10 +169,12 @@ export default function NovoClienteInline({ onClose, onCreated }: Props) {
 
     createCliente.mutate(
       {
+        tipo_pessoa: form.tipo_pessoa,
         codigo_identificador: form.codigo_identificador.trim(),
         nome: form.nome,
         apelido: form.apelido || null,
-        cnpj: cnpjDigits || null,
+        cnpj: form.tipo_pessoa === 'PJ' ? (cnpjDigits || null) : null,
+        cpf: form.tipo_pessoa === 'PF' ? (cpfDigits || null) : null,
         nome_contador: form.nome_contador || null,
         tipo: form.tipo,
         email: form.email || null,
@@ -199,11 +218,30 @@ export default function NovoClienteInline({ onClose, onCreated }: Props) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="grid gap-3">
+          {/* Tipo de Pessoa */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold">Tipo de Pessoa</Label>
+            <RadioGroup
+              value={form.tipo_pessoa}
+              onValueChange={(v: 'PF' | 'PJ') => setForm(f => ({ ...f, tipo_pessoa: v, cnpj: '', cpf: '' }))}
+              className="flex gap-4"
+            >
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="PJ" id="tp-pj" />
+                <Label htmlFor="tp-pj" className="text-xs cursor-pointer">Pessoa Jurídica (CNPJ)</Label>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="PF" id="tp-pf" />
+                <Label htmlFor="tp-pf" className="text-xs cursor-pointer">Pessoa Física (CPF)</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
           {/* Nome + Apelido */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">Nome *</Label>
-              <Input required value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome da contabilidade" />
+              <Label className="text-xs">{form.tipo_pessoa === 'PF' ? 'Nome Completo *' : 'Nome *'}</Label>
+              <Input required value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder={form.tipo_pessoa === 'PF' ? 'Nome do contador/autônomo' : 'Nome da contabilidade'} />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Apelido</Label>
@@ -211,15 +249,22 @@ export default function NovoClienteInline({ onClose, onCreated }: Props) {
             </div>
           </div>
 
-          {/* CNPJ + Código */}
+          {/* CPF/CNPJ + Código */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">CNPJ</Label>
-              <Input value={form.cnpj} onChange={e => handleCnpjChange(e.target.value)} placeholder="00.000.000/0000-00" maxLength={18} />
-            </div>
+            {form.tipo_pessoa === 'PJ' ? (
+              <div className="space-y-1">
+                <Label className="text-xs">CNPJ</Label>
+                <Input value={form.cnpj} onChange={e => handleCnpjChange(e.target.value)} placeholder="00.000.000/0000-00" maxLength={18} />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Label className="text-xs">CPF</Label>
+                <Input value={form.cpf} onChange={e => handleCpfChange(e.target.value)} placeholder="000.000.000-00" maxLength={14} />
+              </div>
+            )}
             <div className="space-y-1">
               <Label className="text-xs">Código do Cliente *</Label>
-              <Input required value={form.codigo_identificador} onChange={e => handleCodigoChange(e.target.value)} placeholder="Preencha o CNPJ" />
+              <Input required value={form.codigo_identificador} onChange={e => handleCodigoChange(e.target.value)} placeholder={`Preencha o ${form.tipo_pessoa === 'PF' ? 'CPF' : 'CNPJ'}`} />
             </div>
           </div>
 

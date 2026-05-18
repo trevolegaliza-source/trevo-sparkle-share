@@ -26,6 +26,7 @@ import { empresaPath } from '@/lib/storage-path';
 import ContractDropzone from '@/components/contratos/ContractDropzone';
 import ContractPreviewModal from '@/components/contratos/ContractPreviewModal';
 import { formatCNPJ, maskCNPJ, isValidCNPJ, maskCodigo } from '@/lib/cnpj';
+import { formatCPF } from '@/lib/cpf';
 import { UFS_BRASIL, UF_NOMES } from '@/constants/estados-brasil';
 import { useQuery } from '@tanstack/react-query';
 
@@ -358,7 +359,10 @@ export default function Clientes() {
                   const valorExibir = isMens ? (client as any).mensalidade : (client as any).valor_base;
                   const descontoExibir = (client as any).desconto_progressivo;
                   const limiteExibir = (client as any).valor_limite_desconto;
-                  const cnpjInfo = formatCNPJ((client as any).cnpj);
+                  const tipoPessoa: 'PF' | 'PJ' = ((client as any).tipo_pessoa as 'PF' | 'PJ') || 'PJ';
+                  const cnpjInfo = tipoPessoa === 'PJ'
+                    ? formatCNPJ((client as any).cnpj)
+                    : formatCPF((client as any).cpf);
                   const hasContract = !!(client as any).contrato_url;
 
                   return (

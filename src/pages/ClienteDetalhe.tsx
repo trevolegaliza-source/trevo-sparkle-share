@@ -19,6 +19,7 @@ import { useAuditarLancamento, useAuditarTodosCliente, useAlterarValorLancamento
 import ValoresAdicionaisModal from '@/components/financeiro/ValoresAdicionaisModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCNPJ, maskCNPJ, isValidCNPJ, maskCodigo } from '@/lib/cnpj';
+import { formatCPF } from '@/lib/cpf';
 import { formatCEP, buscarCEP, buscarCoordenadas } from '@/lib/cep';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -690,8 +691,12 @@ export default function ClienteDetalhe() {
     ? processos.filter(p => !(p as any).data_deferimento && !isProcessoFinalizado(p.etapa) && !billedProcessIds.has(p.id))
     : [];
 
-  // CNPJ display - field is cnpj (14 digits), codigo_identificador is 6 digits
-  const cnpjInfo = formatCNPJ((cliente as any).cnpj);
+  // 18/05/2026: clientes podem ser PF (contadores autônomos) ou PJ (default).
+  // tipo_pessoa default = 'PJ' por retrocompat — clientes antigos continuam com CNPJ.
+  const tipoPessoa: 'PF' | 'PJ' = ((cliente as any).tipo_pessoa as 'PF' | 'PJ') || 'PJ';
+  const cnpjInfo = tipoPessoa === 'PJ'
+    ? formatCNPJ((cliente as any).cnpj)
+    : formatCPF((cliente as any).cpf);
   const codigoDisplay = cliente.codigo_identificador || '—';
 
   return (
