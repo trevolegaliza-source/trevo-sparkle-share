@@ -330,10 +330,32 @@ function buildStyles(accent: string, accentDark: string) {
       transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
     }
     .pp-btn svg { width: 16px; height: 16px; }
-    .pp-btn-approve { flex: 1; min-width: 220px; background: ${accent}; color: #ffffff; box-shadow: 0 6px 20px -8px ${accent}88; }
-    .pp-btn-approve:hover { background: ${accentDark}; transform: translateY(-1px); box-shadow: 0 10px 28px -8px ${accent}a8; }
+    .pp-btn-approve {
+      flex: 1; min-width: 220px; background: ${accent}; color: #ffffff;
+      box-shadow: 0 6px 20px -8px ${accent}88;
+      position: relative; overflow: hidden;
+      animation: ppApproveBreath 2.4s ease-in-out infinite;
+    }
+    .pp-btn-approve::before {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.30) 50%, transparent 70%);
+      transform: translateX(-100%);
+      animation: ppApproveShine 3.2s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .pp-btn-approve > * { position: relative; z-index: 1; }
+    .pp-btn-approve:hover { background: ${accentDark}; transform: translateY(-1px) scale(1.005); box-shadow: 0 12px 32px -8px ${accent}cc; animation-play-state: paused; }
     .pp-btn-approve:active { transform: translateY(0); }
-    .pp-btn-approve:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .pp-btn-approve:disabled { opacity: 0.6; cursor: not-allowed; transform: none; animation: none; }
+    .pp-btn-approve:disabled::before { display: none; }
+    @keyframes ppApproveBreath {
+      0%, 100% { box-shadow: 0 6px 20px -8px ${accent}88, 0 0 0 0 ${accent}40; }
+      50%      { box-shadow: 0 8px 24px -8px ${accent}aa, 0 0 0 10px transparent; }
+    }
+    @keyframes ppApproveShine {
+      0%, 60% { transform: translateX(-100%); }
+      80%, 100% { transform: translateX(100%); }
+    }
     .pp-btn-decline { background: #ffffff; color: var(--pp-fg-2); border-color: var(--pp-border-strong); }
     .pp-btn-decline:hover { background: rgba(239,68,68,0.04); color: var(--pp-danger); border-color: rgba(239,68,68,0.30); }
     .pp-btn-secondary { background: #ffffff; color: var(--pp-fg-2); border-color: var(--pp-border-strong); height: 40px; padding: 0 16px; font-size: 13px; }
