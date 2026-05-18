@@ -47,6 +47,12 @@ export const MODULOS_DISPONIVEIS = [
   { value: 'catalogo', label: 'Portfólio & Preços', grupo: 'Comercial' },
   { value: 'financeiro', label: 'Financeiro (Cobranças)', grupo: 'Financeiro' },
   { value: 'contas_pagar', label: 'Contas a Pagar', grupo: 'Financeiro' },
+  // Auditoria 18/05/2026 (b): Cartões era mascarado como contas_pagar. Agora
+  // tem módulo próprio — dar acesso a Cartões não obriga ver folha de pagamento.
+  { value: 'cartao', label: 'Cartões', grupo: 'Financeiro' },
+  // Auditoria 18/05/2026 (c): MRR Dashboard agora separado pra dar acesso
+  // independente do Financeiro completo.
+  { value: 'mrr', label: 'MRR Dashboard', grupo: 'Financeiro' },
   { value: 'relatorios_dre', label: 'Relatórios DRE', grupo: 'Financeiro' },
   { value: 'fluxo_caixa', label: 'Fluxo de Caixa', grupo: 'Financeiro' },
   { value: 'colaboradores', label: 'Colaboradores', grupo: 'Gestão' },

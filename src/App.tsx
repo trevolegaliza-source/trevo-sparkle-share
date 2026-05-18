@@ -117,7 +117,7 @@ const App = () => (
                     </RequirePermission>
                   } />
                   <Route path="/mrr" element={
-                    <RequirePermission modulo="financeiro">
+                    <RequirePermission modulo="mrr">
                       <MRRDashboard />
                     </RequirePermission>
                   } />
@@ -133,12 +133,12 @@ const App = () => (
                     </RequirePermission>
                   } />
                   <Route path="/cartao" element={
-                    <RequirePermission modulo="contas_pagar">
+                    <RequirePermission modulo="cartao">
                       <Cartao />
                     </RequirePermission>
                   } />
                   <Route path="/cartao/:id" element={
-                    <RequirePermission modulo="contas_pagar">
+                    <RequirePermission modulo="cartao">
                       <CartaoDetalhe />
                     </RequirePermission>
                   } />

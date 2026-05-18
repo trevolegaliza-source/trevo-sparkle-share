@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Users, Loader2, UserPlus, MoreHorizontal, UserX, UserCheck, Shield, Mail, Lock, Trash2, AlertTriangle, ShieldOff, Eye } from 'lucide-react';
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -817,70 +817,77 @@ export default function GestaoUsuarios() {
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {/* SEC-015 (11/05/2026): master não pode se auto-desativar/remover.
-                              Sem este guard, 1 clique acidental tranca o admin fora do sistema
-                              (precisaria outro master pra reverter). */}
+                        <DropdownMenuContent align="end" className="w-64">
+                          {/* Auditoria 18/05/2026 (f): grupos visuais + descrições inline
+                              pra master entender o que cada ação faz sem precisar hover. */}
+                          <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Estado</DropdownMenuLabel>
                           {status === 'ativo' && (
                             <DropdownMenuItem
                               onClick={() => setDeactivateUser(p)}
                               disabled={isMe}
                               title={isMe ? 'Você não pode se auto-desativar' : undefined}
+                              className="flex-col items-start gap-0.5"
                             >
-                              <UserX className="h-3.5 w-3.5 mr-2" /> Desativar
+                              <div className="flex items-center w-full"><UserX className="h-3.5 w-3.5 mr-2" /> Desativar</div>
+                              <span className="text-[10px] text-muted-foreground ml-5">User não loga, dados preservados</span>
                             </DropdownMenuItem>
                           )}
                           {status === 'inativo' && (
-                            <DropdownMenuItem onClick={() => handleReactivate(p)}>
-                              <UserCheck className="h-3.5 w-3.5 mr-2" /> Reativar
+                            <DropdownMenuItem onClick={() => handleReactivate(p)} className="flex-col items-start gap-0.5">
+                              <div className="flex items-center w-full"><UserCheck className="h-3.5 w-3.5 mr-2" /> Reativar</div>
+                              <span className="text-[10px] text-muted-foreground ml-5">Volta a poder logar</span>
                             </DropdownMenuItem>
                           )}
-                          {/* FEAT-USR-SET-PASS: master define senha direto (sem email) */}
+
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Credenciais</DropdownMenuLabel>
                           <DropdownMenuItem
                             onClick={() => setSetPassUser(p)}
                             disabled={isMe || p.role === 'master'}
                             title={
                               isMe ? 'Use Configurações → Segurança → Trocar senha' :
-                              p.role === 'master' ? 'Não é permitido alterar senha de outro master' :
-                              'Define a senha sem enviar email (sem rate limit)'
+                              p.role === 'master' ? 'Não é permitido alterar senha de outro master' : undefined
                             }
+                            className="flex-col items-start gap-0.5"
                           >
-                            <Lock className="h-3.5 w-3.5 mr-2" /> Definir senha
+                            <div className="flex items-center w-full"><Lock className="h-3.5 w-3.5 mr-2" /> Definir senha</div>
+                            <span className="text-[10px] text-muted-foreground ml-5">Cria/troca senha sem enviar email</span>
                           </DropdownMenuItem>
-                          {/* SEC-023 (12/05/2026): reseta 2FA do user (perdeu celular) */}
                           <DropdownMenuItem
                             onClick={() => setResetMfaUser(p)}
                             disabled={isMe || p.role === 'master'}
                             title={
                               isMe ? 'Use Configurações → Segurança pra gerenciar seu próprio 2FA' :
-                              p.role === 'master' ? 'Não é permitido resetar 2FA de outro master' :
-                              'Remove o 2FA do user — próximo login vai pedir configuração de novo'
+                              p.role === 'master' ? 'Não é permitido resetar 2FA de outro master' : undefined
                             }
+                            className="flex-col items-start gap-0.5"
                           >
-                            <ShieldOff className="h-3.5 w-3.5 mr-2" /> Resetar 2FA
+                            <div className="flex items-center w-full"><ShieldOff className="h-3.5 w-3.5 mr-2" /> Resetar 2FA</div>
+                            <span className="text-[10px] text-muted-foreground ml-5">User perdeu celular — pede config nova no próximo login</span>
                           </DropdownMenuItem>
-                          {/* SEC-014: desativa (preserva histórico) */}
+
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel className="text-[10px] uppercase text-destructive">Zona perigosa</DropdownMenuLabel>
                           <DropdownMenuItem
-                            className="text-destructive"
+                            className="text-destructive flex-col items-start gap-0.5"
                             onClick={() => setDeleteConfirm(p)}
                             disabled={isMe}
-                            title={isMe ? 'Você não pode se auto-remover' : 'Marca como removido — preserva histórico, user não consegue mais logar'}
+                            title={isMe ? 'Você não pode se auto-remover' : undefined}
                           >
-                            <UserX className="h-3.5 w-3.5 mr-2" /> Desativar permanente
+                            <div className="flex items-center w-full"><UserX className="h-3.5 w-3.5 mr-2" /> Desativar permanente</div>
+                            <span className="text-[10px] opacity-70 ml-5">Marca removido — preserva histórico, não loga mais</span>
                           </DropdownMenuItem>
-                          {/* FEAT-USR-DELETE (12/05/2026): exclui DE VERDADE — profile + auth.user.
-                              Operação irreversível. Anti auto-delete + anti-master no backend. */}
                           <DropdownMenuItem
-                            className="text-destructive font-semibold"
+                            className="text-destructive font-semibold flex-col items-start gap-0.5"
                             onClick={() => setExcluirDefinitivo(p)}
                             disabled={isMe || p.role === 'master'}
                             title={
                               isMe ? 'Você não pode se auto-excluir' :
-                              p.role === 'master' ? 'Rebaixe o role antes de excluir outro master' :
-                              'Apaga permanente: profile + auth. Irreversível.'
+                              p.role === 'master' ? 'Rebaixe o role antes de excluir outro master' : undefined
                             }
                           >
-                            <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir DEFINITIVO
+                            <div className="flex items-center w-full"><Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir DEFINITIVO</div>
+                            <span className="text-[10px] opacity-70 ml-5">Apaga profile + auth.user. Irreversível.</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
