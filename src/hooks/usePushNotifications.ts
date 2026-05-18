@@ -65,7 +65,7 @@ export function usePushNotifications() {
         });
       }
       const json = sub.toJSON();
-      const empresa_id = getEmpresaId();
+      const empresa_id = await getEmpresaId();
       const { error } = await supabase.from('push_subscriptions' as any).upsert({
         user_id: user.id,
         empresa_id,
