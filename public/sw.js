@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trevo-erp-v1';
+const CACHE_NAME = 'trevo-erp-v2-badge';
 
 // Install — skip waiting
 self.addEventListener('install', (event) => {
