@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Loader2, Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Shield, Loader2, Lock, KeyRound, Eye, EyeOff, History } from 'lucide-react';
 import GestaoUsuarios from '@/components/configuracoes/GestaoUsuarios';
+import AuditoriaPermissoesTab from '@/components/configuracoes/AuditoriaPermissoesTab';
 import { MfaEnroll } from '@/components/auth/MfaEnroll';
 import { RecoveryCodesCard } from '@/components/auth/RecoveryCodesCard';
 import { supabase } from '@/integrations/supabase/client';
@@ -194,6 +195,7 @@ export default function Configuracoes() {
         <TabsList>
           {isMaster() && <TabsTrigger value="rbac" className="gap-1.5"><Shield className="h-3.5 w-3.5" />Usuários</TabsTrigger>}
           <TabsTrigger value="seguranca" className="gap-1.5"><Lock className="h-3.5 w-3.5" />Segurança</TabsTrigger>
+          {isMaster() && <TabsTrigger value="auditoria" className="gap-1.5"><History className="h-3.5 w-3.5" />Auditoria</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="rbac">
@@ -240,6 +242,12 @@ export default function Configuracoes() {
           {/* SEC-024 (12/05/2026): recovery codes só pra master. */}
           {isMaster() && mfaEnabled && <RecoveryCodesCard />}
         </TabsContent>
+
+        {isMaster() && (
+          <TabsContent value="auditoria">
+            <AuditoriaPermissoesTab />
+          </TabsContent>
+        )}
 
       </Tabs>
     </div>
