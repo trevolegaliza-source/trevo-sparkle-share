@@ -511,10 +511,13 @@ export default function PropostaPublica() {
             .catch(() => {});
         } else if (orcData.status === 'recusado') setStatusFinal('recusado');
 
-        if (orcData.senha_link && !autenticado) { setSenhaRequerida(true); setLoading(false); return; }
+        // RPC retorna has_password (bool), não senha_link (string). Bug 18/05 do
+        // redesign que confundiu nome do campo.
+        if (orcData.has_password && !autenticado) { setSenhaRequerida(true); setLoading(false); return; }
 
         setOrc(orcData);
-        const rawItens: any[] = Array.isArray(orcData.itens_proposta) ? orcData.itens_proposta : [];
+        // RPC retorna os itens em `servicos` (jsonb), não `itens_proposta`.
+        const rawItens: any[] = Array.isArray(orcData.servicos) ? orcData.servicos : [];
         const normalizados = rawItens.map(normalizeItem);
         setItens(normalizados);
 
