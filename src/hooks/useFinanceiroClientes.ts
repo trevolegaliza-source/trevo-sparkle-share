@@ -61,6 +61,11 @@ export interface LancamentoFinanceiro {
   valor_original: number | null;
   valor_alterado_por: string | null;
   valor_alterado_em: string | null;
+  // Feature "Aguardando" (17/05/2026): estado intermediário entre não-conferido e auditado.
+  // NULL = sem pendência (fila ativa). Preenchido = sai da fila, vai pra sub-seção.
+  pendencia_motivo: string | null;
+  pendencia_marcada_em: string | null;
+  pendencia_marcada_por: string | null;
 }
 
 // DECISION-001 Fase 3 (13/05/2026 noite): ETAPAS_PRE_DEFERIMENTO obsoleto.
@@ -202,6 +207,54 @@ export function useAlterarValorLancamento() {
   });
 }
 
+// Feature "Aguardando" (17/05/2026): marca/resolve pendência num lançamento.
+// Estado intermediário entre não-conferido e auditado — usado quando user
+// conferiu mas viu impedimento (falta doc, valor errado, etc).
+export function useMarcarPendencia() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ lancamentoId, motivo }: { lancamentoId: string; motivo: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from('lancamentos')
+        .update({
+          pendencia_motivo: motivo,
+          pendencia_marcada_em: new Date().toISOString(),
+          pendencia_marcada_por: user?.id || null,
+        } as any)
+        .eq('id', lancamentoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateFinanceiro(qc);
+      toast.success('Marcado como aguardando ⏳ — sai da fila ativa até resolver.');
+    },
+    onError: (e: Error) => toast.error('Erro ao marcar pendência: ' + e.message),
+  });
+}
+
+export function useResolverPendencia() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (lancamentoId: string) => {
+      const { error } = await supabase
+        .from('lancamentos')
+        .update({
+          pendencia_motivo: null,
+          pendencia_marcada_em: null,
+          pendencia_marcada_por: null,
+        } as any)
+        .eq('id', lancamentoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateFinanceiro(qc);
+      toast.success('Pendência resolvida ✅ — voltou pra fila ativa.');
+    },
+    onError: (e: Error) => toast.error('Erro ao resolver: ' + e.message),
+  });
+}
+
 export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
   const queryClient = useQueryClient();
 
@@ -210,14 +263,14 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
     queryFn: async () => {
       const pendingQ = supabase
         .from('lancamentos')
-        .select('id, valor, data_vencimento, data_pagamento, status, etapa_financeiro, extrato_id, descricao, processo_id, cliente_id, confirmado_recebimento, observacoes_financeiro, auditado, auditado_por, auditado_em, valor_original, valor_alterado_por, valor_alterado_em')
+        .select('id, valor, data_vencimento, data_pagamento, status, etapa_financeiro, extrato_id, descricao, processo_id, cliente_id, confirmado_recebimento, observacoes_financeiro, auditado, auditado_por, auditado_em, valor_original, valor_alterado_por, valor_alterado_em, pendencia_motivo, pendencia_marcada_em, pendencia_marcada_por')
         .eq('tipo', 'receber')
         .neq('status', 'pago')
         .order('created_at', { ascending: false });
 
       let pagosQ = supabase
         .from('lancamentos')
-        .select('id, valor, data_vencimento, data_pagamento, status, etapa_financeiro, extrato_id, descricao, processo_id, cliente_id, confirmado_recebimento, observacoes_financeiro, auditado, auditado_por, auditado_em, valor_original, valor_alterado_por, valor_alterado_em')
+        .select('id, valor, data_vencimento, data_pagamento, status, etapa_financeiro, extrato_id, descricao, processo_id, cliente_id, confirmado_recebimento, observacoes_financeiro, auditado, auditado_por, auditado_em, valor_original, valor_alterado_por, valor_alterado_em, pendencia_motivo, pendencia_marcada_em, pendencia_marcada_por')
         .eq('tipo', 'receber')
         .eq('status', 'pago')
         .order('created_at', { ascending: false });
@@ -343,6 +396,9 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
           valor_original: (l as any).valor_original || null,
           valor_alterado_por: (l as any).valor_alterado_por || null,
           valor_alterado_em: (l as any).valor_alterado_em || null,
+          pendencia_motivo: (l as any).pendencia_motivo || null,
+          pendencia_marcada_em: (l as any).pendencia_marcada_em || null,
+          pendencia_marcada_por: (l as any).pendencia_marcada_por || null,
         });
 
         c.total_faturado += l.valor;

@@ -12,10 +12,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ClipboardCheck, Check, Pencil, Receipt, X, AlertTriangle, Phone, CalendarCheck, Trash2, ArrowDownAZ, CalendarClock, DollarSign, Flame } from 'lucide-react';
+import { ClipboardCheck, Check, Pencil, Receipt, X, AlertTriangle, Phone, CalendarCheck, Trash2, ArrowDownAZ, CalendarClock, DollarSign, Flame, Clock, ChevronDown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import type { ClienteFinanceiro, LancamentoFinanceiro } from '@/hooks/useFinanceiroClientes';
-import { useAuditarLancamento, useAuditarTodosCliente, useAlterarValorLancamento, ETAPAS_PRE_DEFERIMENTO, invalidateFinanceiro } from '@/hooks/useFinanceiroClientes';
+import { useAuditarLancamento, useAuditarTodosCliente, useAlterarValorLancamento, useMarcarPendencia, useResolverPendencia, ETAPAS_PRE_DEFERIMENTO, invalidateFinanceiro } from '@/hooks/useFinanceiroClientes';
 // DECISION-001 Fase 3: gerarFaturamentoDeferimento removido — a RPC
 // marcar_deferimento já promove o lancamento dentro da mesma transação.
 import ValoresAdicionaisModal from './ValoresAdicionaisModal';
@@ -113,7 +113,24 @@ export function ClientesAuditoria({ clientes }: { clientes: ClienteFinanceiro[] 
     );
   }
 
-  const totalProcessos = clientes.reduce((s, c) => s + c.qtd_nao_auditados, 0);
+  // Feature "Aguardando" (17/05/2026): separar fila ativa de sub-seção pendentes
+  const lancPendentesPorCliente = sortedClientes
+    .map(c => ({
+      cliente: c,
+      pendentes: c.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && l.pendencia_motivo),
+    }))
+    .filter(x => x.pendentes.length > 0);
+  const totalLancPendentes = lancPendentesPorCliente.reduce((s, x) => s + x.pendentes.length, 0);
+
+  // Cliente só aparece na fila ATIVA se tiver pelo menos 1 lancamento sem pendência
+  const clientesAtivos = sortedClientes.filter(c =>
+    c.lancamentos.some(l => !l.auditado && l.status !== 'pago' && !l.pendencia_motivo)
+  );
+
+  const totalProcessos = clientesAtivos.reduce(
+    (s, c) => s + c.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && !l.pendencia_motivo).length,
+    0
+  );
 
   return (
     <div className="space-y-4">
@@ -174,10 +191,90 @@ export function ClientesAuditoria({ clientes }: { clientes: ClienteFinanceiro[] 
         </div>
       </div>
 
+      {/* Sub-seção "⏳ Aguardando algo" — Onda Aguardando (17/05/2026).
+          Aparece se houver QUALQUER lancamento com pendencia_motivo preenchido.
+          Default fechado pra não atrapalhar a fila ativa. */}
+      {totalLancPendentes > 0 && (
+        <Accordion type="multiple" className="space-y-2">
+          <AccordionItem value="aguardando" className="border rounded-lg bg-blue-500/5 border-blue-500/30">
+            <AccordionTrigger className="px-4 py-3 hover:no-underline">
+              <div className="flex items-center gap-2 flex-1">
+                <Clock className="h-4 w-4 text-blue-600" />
+                <span className="font-semibold text-sm text-blue-700 dark:text-blue-400">
+                  Aguardando algo
+                </span>
+                <Badge variant="outline" className="ml-auto mr-2 bg-blue-500/15 text-blue-600 border-blue-500/30 text-[10px]">
+                  {lancPendentesPorCliente.length} clientes · {totalLancPendentes} lançamentos
+                </Badge>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-3">
+              {lancPendentesPorCliente.map(({ cliente, pendentes }) => (
+                <Card key={cliente.cliente_id} className="p-3 space-y-2 border-blue-500/20">
+                  <p className="text-sm font-semibold">
+                    {cliente.cliente_apelido || cliente.cliente_nome}
+                    <span className="text-xs text-muted-foreground font-normal ml-2">
+                      {pendentes.length} lançamento{pendentes.length !== 1 ? 's' : ''} aguardando
+                    </span>
+                  </p>
+                  <div className="space-y-1.5">
+                    {pendentes.map(l => {
+                      const dias = l.pendencia_marcada_em
+                        ? Math.floor((Date.now() - new Date(l.pendencia_marcada_em).getTime()) / 86400000)
+                        : 0;
+                      const cls = dias >= 7
+                        ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                        : dias >= 3
+                        ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                        : 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400';
+                      return (
+                        <div key={l.id} className="flex items-center gap-2 flex-wrap">
+                          <p className="text-xs text-muted-foreground flex-1 min-w-[180px] truncate">
+                            {l.processo_razao_social || l.descricao}
+                            <span className="ml-1.5 font-mono">· {fmt(l.valor)}</span>
+                          </p>
+                          <div className={cn('inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium', cls)}>
+                            <Clock className="h-3 w-3" />
+                            <span>⏳ {l.pendencia_motivo}</span>
+                            <span className="opacity-70">· {dias === 0 ? 'hoje' : `${dias}d`}</span>
+                          </div>
+                          <ResolverButton lancamentoId={l.id} motivo={l.pendencia_motivo || ''} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              ))}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
+
       <Accordion type="multiple" className="space-y-2">
-        {sortedClientes.map(c => <AuditoriaItem key={c.cliente_id} cliente={c} />)}
+        {clientesAtivos.map(c => <AuditoriaItem key={c.cliente_id} cliente={c} />)}
       </Accordion>
     </div>
+  );
+}
+
+// Feature "Aguardando" (17/05/2026) — botão pequeno pra resolver pendência inline
+function ResolverButton({ lancamentoId, motivo }: { lancamentoId: string; motivo: string }) {
+  const resolverMut = useResolverPendencia();
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-7 w-7 p-0 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10"
+      title={`Resolver "${motivo}" — volta pra fila ativa`}
+      onClick={() => {
+        if (window.confirm(`Resolver "${motivo}"? O lançamento volta pra fila ativa de auditoria.`)) {
+          resolverMut.mutate(lancamentoId);
+        }
+      }}
+      disabled={resolverMut.isPending}
+    >
+      <Check className="h-3.5 w-3.5" />
+    </Button>
   );
 }
 
@@ -193,7 +290,10 @@ function AuditoriaItem({ cliente }: { cliente: ClienteFinanceiro }) {
   const [contactAction, setContactAction] = useState<'single' | 'all'>('single');
   const [pendingAuditId, setPendingAuditId] = useState('');
 
-  const lancNaoAuditados = cliente.lancamentos.filter(l => !l.auditado && l.status !== 'pago');
+  // Feature "Aguardando" (17/05/2026): pendência tira o lançamento da fila ativa
+  // — fica visível na sub-seção dedicada, não no fluxo principal de auditoria.
+  const lancComPendencia = cliente.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && l.pendencia_motivo);
+  const lancNaoAuditados = cliente.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && !l.pendencia_motivo);
   const totalNaoAuditado = lancNaoAuditados.reduce((s, l) => s + l.valor, 0);
   const totalTaxasNaoAuditado = lancNaoAuditados.reduce((s, l) => s + (l.total_valores_adicionais || 0), 0);
 
@@ -501,6 +601,11 @@ function AuditoriaFicha({
   const [savingTrevo, setSavingTrevo] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deletingProcesso, setDeletingProcesso] = useState(false);
+  // Feature "Aguardando" (17/05/2026)
+  const [pendenciaOpen, setPendenciaOpen] = useState(false);
+  const [pendenciaMotivoCustom, setPendenciaMotivoCustom] = useState('');
+  const marcarPendenciaMut = useMarcarPendencia();
+  const resolverPendenciaMut = useResolverPendencia();
 
   const handleExcluirProcesso = async () => {
     if (!l.processo_id) return;
@@ -750,6 +855,38 @@ function AuditoriaFicha({
             🕒 Aguardando deferimento — cobrança bloqueada até marcar deferido
           </div>
         )}
+        {/* Badge "Aguardando algo" (17/05/2026) — cor evolui por dias parado */}
+        {l.pendencia_motivo && (() => {
+          const dias = l.pendencia_marcada_em
+            ? Math.floor((Date.now() - new Date(l.pendencia_marcada_em).getTime()) / 86400000)
+            : 0;
+          const cls = dias >= 7
+            ? 'border-destructive/30 bg-destructive/10 text-destructive'
+            : dias >= 3
+            ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+            : 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400';
+          return (
+            <div className={cn('mt-1 inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium', cls)}>
+              <Clock className="h-3 w-3" />
+              <span>⏳ {l.pendencia_motivo}</span>
+              <span className="opacity-70">· {dias === 0 ? 'hoje' : `${dias}d`}</span>
+              <button
+                type="button"
+                className="ml-1 hover:bg-current/10 rounded-sm p-0.5 -m-0.5"
+                title="Resolver pendência (volta pra fila ativa)"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm(`Resolver pendência "${l.pendencia_motivo}"? O lançamento volta pra fila ativa de auditoria.`)) {
+                    resolverPendenciaMut.mutate(l.id);
+                  }
+                }}
+                disabled={resolverPendenciaMut.isPending}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Etiquetas + Switch Método Trevo */}
@@ -983,6 +1120,74 @@ function AuditoriaFicha({
         >
           <Check className="h-3 w-3 mr-1" /> {l.auditado ? 'Auditado ✅' : 'Auditar'}
         </Button>
+        {/* Feature "Aguardando" (17/05/2026) — só aparece se ainda não auditou nem tem pendência */}
+        {!l.auditado && !l.pendencia_motivo && (
+          <Popover open={pendenciaOpen} onOpenChange={setPendenciaOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-7 border-blue-500/40 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700"
+                title="Conferi mas tem algo pendente — pausa a auditoria"
+              >
+                <Clock className="h-3 w-3 mr-1" /> Aguardando…
+                <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-2" align="start">
+              <p className="text-xs font-semibold text-muted-foreground px-2 py-1.5">Marcar como aguardando:</p>
+              {[
+                'Falta comprovante de taxa',
+                'Falta documento do cliente',
+                'Valor divergente — conferir com cliente',
+                'Cliente pediu desconto, aguardando aprovação',
+                'Cliente devendo, segurar',
+              ].map(preset => (
+                <button
+                  key={preset}
+                  type="button"
+                  className="w-full text-left text-sm px-2 py-2 rounded hover:bg-muted transition-colors"
+                  onClick={() => {
+                    marcarPendenciaMut.mutate({ lancamentoId: l.id, motivo: preset }, {
+                      onSuccess: () => setPendenciaOpen(false),
+                    });
+                  }}
+                  disabled={marcarPendenciaMut.isPending}
+                >
+                  ⏳ {preset}
+                </button>
+              ))}
+              <div className="border-t my-1" />
+              <p className="text-xs font-semibold text-muted-foreground px-2 py-1.5">Outro motivo:</p>
+              <div className="px-2 pb-2 space-y-2">
+                <Textarea
+                  placeholder="Descreva o motivo…"
+                  value={pendenciaMotivoCustom}
+                  onChange={e => setPendenciaMotivoCustom(e.target.value)}
+                  className="text-sm min-h-[60px]"
+                  rows={2}
+                />
+                <Button
+                  size="sm"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                  onClick={() => {
+                    const motivo = pendenciaMotivoCustom.trim();
+                    if (!motivo) { toast.error('Digite o motivo'); return; }
+                    marcarPendenciaMut.mutate({ lancamentoId: l.id, motivo }, {
+                      onSuccess: () => {
+                        setPendenciaOpen(false);
+                        setPendenciaMotivoCustom('');
+                      },
+                    });
+                  }}
+                  disabled={marcarPendenciaMut.isPending || !pendenciaMotivoCustom.trim()}
+                >
+                  <Clock className="h-3 w-3 mr-1" /> Marcar com este motivo
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
         {isMaster() && l.processo_id && (
           <Button
             size="sm"
