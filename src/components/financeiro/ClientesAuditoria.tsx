@@ -488,7 +488,7 @@ function SugestaoBatchMensalistas({
             disabled={auditarTodosMut.isPending}
           >
             <Check className="h-3 w-3 mr-1" />
-            Auditar {lancamentos.length} de {qtdClientes} mensalistas
+            Auditar {lancamentos.length} lançamento{lancamentos.length !== 1 ? 's' : ''} ({qtdClientes} cliente{qtdClientes !== 1 ? 's' : ''})
           </Button>
         </div>
       </Card>
@@ -1137,8 +1137,9 @@ function AuditoriaFicha({
           )}
         </p>
         {(l as any).etapa_financeiro === 'aguardando_deferimento' && (
-          <div className="mt-1 inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-            🕒 Aguardando deferimento — cobrança bloqueada até marcar deferido
+          <div className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+            <span>🕒 Aguardando deferimento</span>
+            <span className="opacity-70">— marca a data abaixo OU usa "⏳ Aguardando…" pra tirar da fila</span>
           </div>
         )}
         {/* Badge "Aguardando algo" — cor por idade + info do timer se houver */}
@@ -1477,6 +1478,13 @@ function AuditoriaFicha({
 
               <div>
                 <p className="text-xs font-semibold text-muted-foreground mb-1">Motivo (clique pra marcar):</p>
+                {/* K (17/05/2026 noite): se prazoChoice='custom' E sem data, desabilita
+                    todos os presets pra evitar toast.error confuso depois do click. */}
+                {prazoChoice === 'custom' && !customDate && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 px-2 mb-1">
+                    Escolha a data primeiro ↑
+                  </p>
+                )}
                 {[
                   'Aguardando deferimento',
                   'Falta comprovante de taxa',
@@ -1488,15 +1496,14 @@ function AuditoriaFicha({
                   <button
                     key={preset}
                     type="button"
-                    className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted transition-colors"
+                    className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                     onClick={() => {
-                      if (prazoChoice === 'custom' && !customDate) { toast.error('Escolha a data'); return; }
                       marcarPendenciaMut.mutate(
                         { lancamentoId: l.id, motivo: preset, expiraEm: calcularExpiraEm() },
                         { onSuccess: () => setPendenciaOpen(false) }
                       );
                     }}
-                    disabled={marcarPendenciaMut.isPending}
+                    disabled={marcarPendenciaMut.isPending || (prazoChoice === 'custom' && !customDate)}
                   >
                     ⏳ {preset}
                   </button>
@@ -1519,8 +1526,6 @@ function AuditoriaFicha({
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs"
                   onClick={() => {
                     const motivo = pendenciaMotivoCustom.trim();
-                    if (!motivo) { toast.error('Digite o motivo'); return; }
-                    if (prazoChoice === 'custom' && !customDate) { toast.error('Escolha a data'); return; }
                     marcarPendenciaMut.mutate(
                       { lancamentoId: l.id, motivo, expiraEm: calcularExpiraEm() },
                       {
@@ -1531,7 +1536,9 @@ function AuditoriaFicha({
                       }
                     );
                   }}
-                  disabled={marcarPendenciaMut.isPending || !pendenciaMotivoCustom.trim()}
+                  // K (17/05/2026 noite): disabled cobre todas as condições (motivo vazio,
+                  // data custom faltando, mutação rodando). Sem toast.error confuso depois.
+                  disabled={marcarPendenciaMut.isPending || !pendenciaMotivoCustom.trim() || (prazoChoice === 'custom' && !customDate)}
                 >
                   <Clock className="h-3 w-3 mr-1" /> Marcar
                 </Button>

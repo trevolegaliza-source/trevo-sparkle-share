@@ -265,6 +265,17 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
 
   const query = useQuery({
     queryKey: ['financeiro_clientes', dataInicio, dataFim],
+    // L (17/05/2026 noite): refetch automático a cada 60s se houver pendência com
+    // pendencia_expira_em — pra que o lancamento volte sozinho pra fila ativa quando
+    // o timer expirar sem precisar F5. Quando não há timer, refetch fica em off.
+    refetchInterval: (q) => {
+      const data = q.state.data;
+      if (!data || !Array.isArray(data)) return false;
+      const temPendenciaComTimer = data.some((c: any) =>
+        c.lancamentos?.some((l: any) => l.pendencia_motivo && l.pendencia_expira_em)
+      );
+      return temPendenciaComTimer ? 60_000 : false;
+    },
     queryFn: async () => {
       const pendingQ = supabase
         .from('lancamentos')
