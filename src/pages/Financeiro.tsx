@@ -63,7 +63,10 @@ function getPeriodoDates(preset: PeriodoPreset): { inicio: string; fim: string }
 }
 
 export default function Financeiro() {
-  const { role, isMaster } = usePermissions();
+  const { role, isMaster, podeVerValores } = usePermissions();
+  // 18/05/2026: operacional/visualizador acessam financeiro mas valores monetarios
+  // do panorama (KPIs, falta cobrar/receber, projeção) saem mascarados.
+  const fmtMoney = (v: number) => podeVerValores() ? formatBRL(v) : '•••••';
   const isFinanceiro = role === 'financeiro';
   const masterBypassJanela = isMaster();
   const [periodo, setPeriodo] = useState<PeriodoPreset>('este_mes');
@@ -399,14 +402,14 @@ export default function Financeiro() {
               variant="hero"
               icon={DollarSign}
               label="Faturado"
-              value={formatBRL(metricas.totalFaturado)}
+              value={fmtMoney(metricas.totalFaturado)}
               hint={`${metricas.totalProcessos} processos`}
             />
             <KPICard
               variant="default"
               icon={Send}
               label="Cobrado"
-              value={formatBRL(metricas.totalCobrado)}
+              value={fmtMoney(metricas.totalCobrado)}
               hint={`${metricas.clientesCobrados} clientes`}
               onClick={() => setActiveTab('em_andamento')}
             />
@@ -414,7 +417,7 @@ export default function Financeiro() {
               variant="success"
               icon={CheckCircle}
               label="Recebido"
-              value={formatBRL(metricas.totalRecebido)}
+              value={fmtMoney(metricas.totalRecebido)}
               hint={`${metricas.taxaRecebimento}% do faturado`}
               onClick={() => setActiveTab('historico')}
             />
@@ -422,7 +425,7 @@ export default function Financeiro() {
               variant={inadimplenciaCalc.total > 0 ? 'danger' : 'default'}
               icon={AlertTriangle}
               label="Inadimplente"
-              value={formatBRL(inadimplenciaCalc.total)}
+              value={fmtMoney(inadimplenciaCalc.total)}
               hint={`${inadimplenciaCalc.qtdClientes} clientes`}
               onClick={() => setActiveTab('em_andamento')}
             />
@@ -430,7 +433,7 @@ export default function Financeiro() {
               variant={resultado >= 0 ? 'success' : 'danger'}
               icon={resultado >= 0 ? TrendingUp : TrendingDown}
               label="Resultado"
-              value={formatBRL(resultado)}
+              value={fmtMoney(resultado)}
               hint="Receita - Despesas"
               className="col-span-2 lg:col-span-1"
             />
@@ -463,11 +466,11 @@ export default function Financeiro() {
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-6 text-left sm:text-right">
                   <div>
                     <p className="text-xs text-muted-foreground">Falta cobrar</p>
-                    <p className="text-sm font-bold text-amber-500">{formatBRL(resumoMes.faltaCobrar)}</p>
+                    <p className="text-sm font-bold text-amber-500">{fmtMoney(resumoMes.faltaCobrar)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Falta receber</p>
-                    <p className="text-sm font-bold text-red-500">{formatBRL(resumoMes.faltaReceber)}</p>
+                    <p className="text-sm font-bold text-red-500">{fmtMoney(resumoMes.faltaReceber)}</p>
                   </div>
                 </div>
               </div>
@@ -493,7 +496,7 @@ export default function Financeiro() {
                           {' · top: '}
                           {projecao30d.top.map((t, i) => (
                             <span key={i} className="text-muted-foreground/90">
-                              {i > 0 ? ', ' : ''}{t.nome} <span className="text-foreground/70">({formatBRL(t.valor)})</span>
+                              {i > 0 ? ', ' : ''}{t.nome} <span className="text-foreground/70">({fmtMoney(t.valor)})</span>
                             </span>
                           ))}
                         </>
@@ -502,7 +505,7 @@ export default function Financeiro() {
                   </div>
                   <div className="text-left sm:text-right shrink-0">
                     <p className="text-xs text-muted-foreground">Total previsto</p>
-                    <p className="text-lg font-bold text-blue-400">{formatBRL(projecao30d.total)}</p>
+                    <p className="text-lg font-bold text-blue-400">{fmtMoney(projecao30d.total)}</p>
                   </div>
                 </div>
               </CardContent>
