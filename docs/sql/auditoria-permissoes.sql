@@ -194,5 +194,9 @@ $$;
 REVOKE ALL ON FUNCTION public.listar_permissoes_audit(int) FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.listar_permissoes_audit(int) TO authenticated;
 
--- Smoke test
-SELECT public.listar_permissoes_audit(5);
+-- Confirma instalação (sem chamar a RPC — Editor não tem auth.uid() de master,
+-- então o gate da RPC falha por design. Em produção, frontend passa o JWT correto).
+SELECT
+  (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='permissoes_audit') AS tabela_criada,
+  (SELECT count(*) FROM pg_trigger WHERE tgname IN ('trg_log_role_change', 'trg_log_user_permissions_change')) AS triggers_ativos,
+  (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON p.pronamespace=n.oid WHERE n.nspname='public' AND p.proname='listar_permissoes_audit') AS rpc_criada;
