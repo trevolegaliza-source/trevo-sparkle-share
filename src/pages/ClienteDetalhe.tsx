@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ValorProtegido } from '@/components/auth/ValorProtegido';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useProfileNames } from '@/hooks/useProfileNames';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -69,6 +70,7 @@ export default function ClienteDetalhe() {
   const navigate = useNavigate();
   const qcRef = useQueryClient();
   const { isMaster: permIsMasterFn } = usePermissions();
+  const { data: profileNames = {} } = useProfileNames();
   const permIsMaster = permIsMasterFn();
   const [cliente, setCliente] = useState<ClienteDB | null>(null);
   const [processos, setProcessos] = useState<ProcessoDB[]>([]);
@@ -1119,6 +1121,12 @@ export default function ClienteDetalhe() {
                             <EtiquetasDisplay etiquetas={(p as any).etiquetas || []} size="compact" />
                             <EtiquetasEdit etiquetas={(p as any).etiquetas || []} processoId={p.id} size="compact" triggerVariant="icon" />
                           </div>
+                          {/* 18/05/2026: criado por (preenchido por trigger SQL pos-deploy) */}
+                          {(p as any).created_by && (
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              criado por {profileNames[(p as any).created_by] || 'Usuário'}
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 flex-wrap">
