@@ -54,6 +54,7 @@ import { getCobrancaTokenAtiva } from '@/hooks/useFinanceiroClientes';
 import { getCobrancaPublicUrl } from '@/lib/cobranca-url';
 import GerarAsaasModal from './GerarAsaasModal';
 import DetalhesCobrancaModal from './DetalhesCobrancaModal';
+import { EditarVencimentoButton } from './EditarVencimentoButton';
 import { useCobrancaAsaas } from '@/hooks/useAsaas';
 import { FileBadge, Eye } from 'lucide-react';
 
@@ -1309,6 +1310,11 @@ function EnviarItem({ cliente }: { cliente: ClienteFinanceiro }) {
             <Button size="sm" variant="outline" onClick={handleCompartilhar} className="gap-1 h-11 sm:h-9">
               <Share2 className="h-4 w-4" /> <span className="hidden sm:inline">Compartilhar</span><span className="sm:hidden">Enviar</span>
             </Button>
+            <EditarVencimentoButton
+              cobrancaId={cobrancaIdAtiva}
+              dataAtual={cliente.lancamentos[0]?.data_vencimento || null}
+              className="h-11 sm:h-9"
+            />
             {hasExtratoNoSistema && (
               <Button size="sm" variant="outline" onClick={handleBaixarExtrato} disabled={loadingExtrato} className="h-11 sm:h-9">
                 {loadingExtrato ? (
@@ -1707,6 +1713,11 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
               <Button size="sm" variant="outline" onClick={handleCompartilharAguardando} className="gap-1 h-11 sm:h-9">
                 <Share2 className="h-4 w-4" /> <span className="hidden sm:inline">Compartilhar</span><span className="sm:hidden">Enviar</span>
               </Button>
+              <EditarVencimentoButton
+                cobrancaId={cobrancaIdAtiva}
+                dataAtual={cliente.lancamentos[0]?.data_vencimento || null}
+                className="h-11 sm:h-9"
+              />
               <Button size="sm" variant="outline" onClick={handleCopiarCobranca} className="h-11 sm:h-9">
                 <Copy className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">{temVencidos ? 'Reenviar Cobrança' : 'Copiar WhatsApp'}</span><span className="sm:hidden">{temVencidos ? 'Reenviar' : 'Copiar'}</span>
               </Button>
