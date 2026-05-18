@@ -1463,9 +1463,14 @@ export default function ClienteDetalhe() {
                         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => handleDownload(c.name)}>
                           <Download className="h-3 w-3" /> Baixar
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-7 text-destructive" onClick={() => handleDeleteContract(c.name)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        {/* Agent 4 BUG-001 (17/05/2026 noite): só master deleta contrato.
+                            RLS no bucket Storage também precisa estar master-only — front
+                            esconde botão pra operacional/gerente. */}
+                        {permIsMaster && (
+                          <Button variant="ghost" size="sm" className="h-7 text-destructive" onClick={() => handleDeleteContract(c.name)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     );
                   })}
@@ -1473,7 +1478,10 @@ export default function ClienteDetalhe() {
               ) : (
                 <p className="text-center py-6 text-muted-foreground text-sm">Nenhum contrato anexado</p>
               )}
-              <ContractDropzone uploading={uploadingContract} onUpload={handleUpload} />
+              {/* Agent 4 BUG-002 (17/05/2026 noite): upload de contrato só pra master */}
+              {permIsMaster && (
+                <ContractDropzone uploading={uploadingContract} onUpload={handleUpload} />
+              )}
             </CardContent>
           </Card>
         </TabsContent>

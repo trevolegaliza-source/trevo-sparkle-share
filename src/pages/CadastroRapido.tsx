@@ -99,10 +99,13 @@ export default function CadastroRapido() {
   const { data: negotiations } = useServiceNegotiations(clienteId || undefined);
 
   // Fetch colaboradores for responsavel select
+  // Agent 2 BUG-001 (17/05/2026 noite): antes ignorava error — RLS deny ou DB falho
+  // resultava em select vazio sem aviso. Agora propaga pra react-query mostrar erro.
   const { data: colaboradores } = useQuery({
     queryKey: ['colaboradores_ativos_cadastro'],
     queryFn: async () => {
-      const { data } = await supabase.from('colaboradores').select('id, nome').eq('status', 'ativo');
+      const { data, error } = await supabase.from('colaboradores').select('id, nome').eq('status', 'ativo');
+      if (error) throw error;
       return data || [];
     },
   });

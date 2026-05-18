@@ -64,6 +64,9 @@ export interface MRRData {
 export function useMRRData() {
   return useQuery<MRRData>({
     queryKey: ['mrr-data'],
+    // Agent 3 BUG 3 (17/05/2026 noite): refetchOnWindowFocus pra alinhar com DSO/Previsao.
+    // Antes inconsistente — DSO atualizava ao voltar pra aba, MRR não.
+    refetchOnWindowFocus: true,
     staleTime: 60_000,
     queryFn: async () => {
       // 1. Mensalistas ativos + soma de mensalidade

@@ -366,7 +366,7 @@ export default function Clientes() {
                       key={client.id}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => navigate(`/clientes/${client.id}`)}
-                      onDoubleClick={() => openEdit(client)}
+                      onDoubleClick={() => canEdit && openEdit(client)}
                     >
                       {/* Compliance column */}
                       <TableCell className="w-8 px-2">

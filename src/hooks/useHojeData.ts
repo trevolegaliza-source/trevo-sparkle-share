@@ -54,6 +54,8 @@ function isoDaysAgo(days: number): string {
 export function useHojeData() {
   return useQuery<HojeData>({
     queryKey: ['hoje-data'],
+    // Agent 3 BUG 3 (17/05/2026 noite): refetchOnWindowFocus pra alinhar com DSO/Previsao.
+    refetchOnWindowFocus: true,
     staleTime: 60_000,
     queryFn: async () => {
       const hoje = isoToday();

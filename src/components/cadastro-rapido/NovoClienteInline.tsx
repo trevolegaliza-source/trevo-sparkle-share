@@ -125,6 +125,14 @@ export default function NovoClienteInline({ onClose, onCreated }: Props) {
         return;
       }
     }
+    // Agent 1 BUG-002 (17/05/2026 noite): cliente PRE_PAGO sem saldo inicial
+    // travava ao criar 1º processo com erro genérico do backend. Valida agora.
+    if (form.tipo === 'PRE_PAGO') {
+      if (!form.saldo_prepago || Number(form.saldo_prepago) <= 0) {
+        toast.error('Preencha o Saldo Inicial (cliente pré-pago não pode começar com saldo zero)');
+        return;
+      }
+    }
 
     const cepDigits = form.cep.replace(/\D/g, '');
 
