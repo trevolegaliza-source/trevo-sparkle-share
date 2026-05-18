@@ -9,7 +9,7 @@ import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Plus, FileText, Save, Copy, Loader2, ChevronDown,
-  Link as LinkIcon, CheckCircle2, XCircle, Eye,
+  Link as LinkIcon, CheckCircle2, XCircle, Eye, Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
@@ -584,16 +584,12 @@ export default function OrcamentoNovo() {
       toast.error('Salve o orçamento primeiro para gerar o link.');
       return;
     }
-    // UX-143 (17/05/2026): antes só era warning — user copiava, mandava no
-    // WhatsApp, cliente abria e via 404. Agora bloqueia copy e força clicar
-    // "Salvar e Enviar" primeiro.
     if (orcamentoStatus === 'rascunho') {
-      toast.error('Orçamento ainda é RASCUNHO. Clica "Salvar e Enviar" antes de compartilhar o link (senão cliente vê 404).', { duration: 8000 });
+      toast.error('Orçamento ainda é RASCUNHO. Clica "Enviar Proposta" antes de compartilhar o link (senão cliente vê 404).', { duration: 8000 });
       return;
     }
     const url = `https://app.trevolegaliza.com/proposta/${shareToken}`;
     await navigator.clipboard.writeText(url);
-
     if (form.destinatario === 'contador' && (form as any).senha_link) {
       toast.success(`Link copiado! Senha: ${(form as any).senha_link}`);
     } else if (form.destinatario === 'contador') {
@@ -601,6 +597,41 @@ export default function OrcamentoNovo() {
     } else {
       toast.success('Link copiado!');
     }
+  }
+
+  // 18/05/2026: WhatsApp pre-formatado com mensagem + link + senha (se houver).
+  // Mesmo padrao do Orcamentos.tsx mas direto dentro do editor.
+  function handleWhatsApp() {
+    if (!shareToken) { toast.error('Salve e envie o orçamento primeiro.'); return; }
+    if (orcamentoStatus === 'rascunho') {
+      toast.error('Orçamento ainda é RASCUNHO. Clica "Enviar Proposta" antes de compartilhar.');
+      return;
+    }
+    if (form.destinatario === 'cliente_via_contador') {
+      toast.error('Orçamentos white-label não têm link público. Use o PDF.');
+      return;
+    }
+    const url = `https://app.trevolegaliza.com/proposta/${shareToken}`;
+    const num = String(orcamentoNumero || 0).padStart(3, '0');
+    const nomePessoa = (form as any).prospect_contato?.trim();
+    const nomeExibicao = nomePessoa || form.prospect_nome;
+    const nome = nomeExibicao ? `, ${nomeExibicao}` : '';
+    const validade = form.validade_dias ?? 15;
+
+    let msg: string;
+    if (orcamentoStatus === 'convertido') {
+      msg = `Olá${nome}! 🍀\n\nSeu contrato com a *Trevo Legaliza* está ativo.\n\n📋 Proposta #${num}\n💰 Valor: *${fmt(totalFinal)}* (pago ✅)\n\nAcompanhe os detalhes:\n${url}`;
+    } else if (orcamentoStatus === 'aguardando_pagamento') {
+      msg = `Olá${nome}! 🍀\n\nSua proposta da *Trevo Legaliza* foi aprovada e está aguardando pagamento.\n\n📋 Proposta #${num}\n💰 Valor: *${fmt(totalFinal)}*\n\nFinalize o pagamento:\n${url}`;
+    } else if (orcamentoStatus === 'recusado') {
+      msg = `Olá${nome}! 🍀\n\nVocê recusou a proposta #${num} da *Trevo Legaliza*. Se mudou de ideia, ainda pode revisar:\n${url}`;
+    } else {
+      msg = `Olá${nome}! 🍀\n\nSegue sua proposta de honorários da *Trevo Legaliza*.\n\n📋 Proposta #${num}\n💰 Valor: *${fmt(totalFinal)}*\n⏱️ Válida por ${validade} dias\n\nAcesse e aprove online:\n${url}`;
+    }
+    if (form.destinatario === 'contador' && (form as any).senha_link) {
+      msg += `\n\n🔒 Senha de acesso: *${(form as any).senha_link}*`;
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   }
 
   function handleDuplicate() {
@@ -706,36 +737,58 @@ export default function OrcamentoNovo() {
               <span className="dot" /> <span className="lbl">Status:</span> {statusLabel[orcamentoStatus] || orcamentoStatus}
             </div>
           )}
-          <Button variant="outline" size="sm" onClick={() => handleSave('rascunho')} disabled={saveMutation.isPending}>
-            <Save className="h-4 w-4 mr-1" /> Salvar Rascunho
-          </Button>
-          {(orcamentoStatus === 'rascunho' || !orcamentoId) && (
-            <Button size="sm" onClick={() => handleSave('enviado')} disabled={saveMutation.isPending}>
-              <Save className="h-4 w-4 mr-1" /> Salvar e Enviar
+          {/* 18/05/2026: simplificação dos botões.
+              Antes: 3-4 botões + select de status (confuso).
+              Agora: 1 botão principal contextual + ações secundárias só quando relevantes. */}
+
+          {(orcamentoStatus === 'rascunho' || !orcamentoId) ? (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => handleSave('rascunho')} disabled={saveMutation.isPending}>
+                <Save className="h-4 w-4 mr-1" /> Salvar
+              </Button>
+              <Button size="sm" onClick={() => handleSave('enviado')} disabled={saveMutation.isPending}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Send className="h-4 w-4 mr-1" /> Enviar Proposta
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={() => handleSave(orcamentoStatus)} disabled={saveMutation.isPending}>
+              <Save className="h-4 w-4 mr-1" /> Salvar Alterações
             </Button>
           )}
-          {orcamentoId && orcamentoStatus !== 'rascunho' && orcamentoStatus !== 'convertido' && (
-            <Select value="" onValueChange={(v) => v && handleChangeStatus(v)}>
-              <SelectTrigger className="h-9 w-44 text-xs">
-                <SelectValue placeholder="Mudar status →" />
-              </SelectTrigger>
-              <SelectContent>
-                {orcamentoStatus !== 'rascunho' && <SelectItem value="rascunho">✏️ Voltar pra Rascunho</SelectItem>}
-                {orcamentoStatus !== 'enviado' && <SelectItem value="enviado">📤 Marcar como Enviado</SelectItem>}
-                {orcamentoStatus !== 'aprovado' && <SelectItem value="aprovado">✅ Marcar Aprovado</SelectItem>}
-                {orcamentoStatus !== 'recusado' && <SelectItem value="recusado">❌ Marcar Recusado</SelectItem>}
-              </SelectContent>
-            </Select>
-          )}
-          {orcamentoId && (
-            <Button variant="outline" size="sm" onClick={handleDuplicate}>
-              <Copy className="h-4 w-4 mr-1" /> Duplicar
+
+          {/* WhatsApp em destaque (verde) quando há link público — ação principal pós-envio */}
+          {shareToken && orcamentoStatus !== 'rascunho' && form.destinatario !== 'cliente_via_contador' && (
+            <Button size="sm" onClick={handleWhatsApp}
+              className="bg-[#25D366] hover:bg-[#1ebe57] text-white border-0">
+              <Send className="h-4 w-4 mr-1" /> WhatsApp
             </Button>
           )}
+
           {shareToken && form.destinatario !== 'cliente_via_contador' && (
             <Button variant="outline" size="sm" onClick={handleCopyLink}>
               <LinkIcon className="h-4 w-4 mr-1" /> Copiar Link
             </Button>
+          )}
+
+          {/* Menu de ações secundárias agrupadas: mudar status + duplicar.
+              Só aparece se o orcamento já existe (não é novo). */}
+          {orcamentoId && (
+            <Select value="" onValueChange={(v) => {
+              if (v === '__duplicar') { handleDuplicate(); return; }
+              if (v) handleChangeStatus(v);
+            }}>
+              <SelectTrigger className="h-9 w-36 text-xs">
+                <SelectValue placeholder="Mais ações →" />
+              </SelectTrigger>
+              <SelectContent>
+                {orcamentoStatus !== 'rascunho' && <SelectItem value="rascunho">✏️ Voltar pra Rascunho</SelectItem>}
+                {orcamentoStatus !== 'enviado' && orcamentoStatus !== 'convertido' && <SelectItem value="enviado">📤 Marcar como Enviado</SelectItem>}
+                {orcamentoStatus !== 'aprovado' && orcamentoStatus !== 'convertido' && <SelectItem value="aprovado">✅ Marcar Aprovado</SelectItem>}
+                {orcamentoStatus !== 'recusado' && orcamentoStatus !== 'convertido' && <SelectItem value="recusado">❌ Marcar Recusado</SelectItem>}
+                <SelectItem value="__duplicar">📋 Duplicar</SelectItem>
+              </SelectContent>
+            </Select>
           )}
         </div>
       </header>
