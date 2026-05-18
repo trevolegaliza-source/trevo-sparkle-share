@@ -310,9 +310,13 @@ export function useCreateProcesso() {
       const descontoPercent = Number(cliente.desconto_progressivo ?? 0);
       const valorLimite = cliente.valor_limite_desconto != null ? Number(cliente.valor_limite_desconto) : null;
 
-      // Se cliente é PRECO_POR_TIPO, tenta resolver preço fixo do tipo do processo
+      // Resolve preco fixo por tipo. Antes: so se cliente.tipo=PRECO_POR_TIPO.
+      // Agora (18/05): qualquer cliente pode ter override por tipo. Se houver
+      // registro em cliente_precos_por_tipo pro tipo do processo, vira o valor
+      // base (override do valor_base do cliente). Caso de uso: VITAE negociou
+      // abertura por R$ 540 mas mantem R$ 680 pros demais tipos.
       let precoPorTipoFixo: number | null = null;
-      if (isPrecoPorTipo && !isAvulso && !isManualPrice) {
+      if (!isAvulso && !isManualPrice) {
         const { data: precoRpc, error: precoErr } = await supabase.rpc(
           'get_preco_por_tipo' as any,
           { p_cliente_id: input.cliente_id, p_tipo: input.tipo }
@@ -322,6 +326,7 @@ export function useCreateProcesso() {
         }
         if (precoRpc != null) precoPorTipoFixo = Number(precoRpc);
       }
+      const usaOverridePorTipo = !isPrecoPorTipo && precoPorTipoFixo != null;
 
       // Count same-month processes for this client based on data_entrada (or today)
       const refDate = input.data_entrada ? new Date(input.data_entrada + 'T12:00:00') : new Date();
@@ -346,6 +351,17 @@ export function useCreateProcesso() {
         valorFinal = isManualPrice ? Number(input.valor_manual) : 0;
       } else if (isManualPrice) {
         valorFinal = Number(input.valor_manual);
+      } else if (usaOverridePorTipo) {
+        // Cliente "normal" com override por tipo configurado.
+        // Trata igual PRECO_POR_TIPO: base fixa + modificadores (urgencia, UF).
+        // Desconto progressivo/franquia NAO se aplicam aqui (preco ja foi negociado).
+        let base = precoPorTipoFixo!;
+        if (isUrgente) base = base * 1.5;
+        if (slots === 2) base = base * 2;
+        valorFinal = Math.round(base * 100) / 100;
+        discountInfo = `Preço negociado por tipo (${input.tipo}): R$ ${precoPorTipoFixo!.toFixed(2)}`
+          + (isUrgente ? ' × 1.5 Urgência' : '')
+          + (slots === 2 ? ' × 2 (Mudança UF)' : '');
       } else if (isPrecoPorTipo) {
         // Preço fixo por tipo de processo, sem desconto progressivo/franquia.
         // Urgência ainda se aplica (+50%). Mudança UF duplica (2 processos).
