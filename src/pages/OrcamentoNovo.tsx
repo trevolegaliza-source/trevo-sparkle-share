@@ -316,11 +316,14 @@ export default function OrcamentoNovo() {
     const c = clientes?.find(cl => cl.id === clienteId);
     if (!c) return;
     setForm(f => {
+      // No header do escritorio mostra apelido se houver (mais curto, fica bonito).
       const escritorioNome = c.apelido || c.nome;
       // No fluxo "Trevo→Cliente Final + contador é o próprio cliente", o card
-      // "Empresa a ser regularizada" é escondido — usamos o nome do contador
-      // como prospect_nome pra todas as referências (PDF, link, mensagens) ficarem consistentes.
+      // "Empresa a ser regularizada" é escondido — usamos os dados do contador.
+      // BUG 18/05: prospect_nome deve usar NOME COMPLETO (não apelido) pra
+      // aparecer formal na proposta pública. Apelido fica só no header do admin.
       const ehFluxoContadorClienteFinal = f.destinatario === 'cliente_direto' && contadorEhClienteFinal === true;
+      const prospectNomeCompleto = c.nome || c.apelido;
       return {
         ...f,
         cliente_id: c.id,
@@ -328,7 +331,7 @@ export default function OrcamentoNovo() {
         escritorio_cnpj: c.cnpj || '',
         escritorio_email: c.email || '',
         escritorio_telefone: c.telefone || '',
-        prospect_nome: ehFluxoContadorClienteFinal ? escritorioNome : f.prospect_nome,
+        prospect_nome: ehFluxoContadorClienteFinal ? prospectNomeCompleto : f.prospect_nome,
         prospect_cnpj: ehFluxoContadorClienteFinal ? (c.cnpj || '') : f.prospect_cnpj,
         prospect_email: ehFluxoContadorClienteFinal ? (c.email || '') : f.prospect_email,
         prospect_telefone: ehFluxoContadorClienteFinal ? (c.telefone || '') : f.prospect_telefone,

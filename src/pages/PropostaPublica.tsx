@@ -212,17 +212,32 @@ function buildStyles(accent: string, accentDark: string) {
     .pp-svc.opt-off { background: rgba(11,18,32,0.012); border-color: var(--pp-border); border-style: dashed; }
     .pp-svc.opt-off .pp-svc-name, .pp-svc.opt-off .pp-svc-desc, .pp-svc.opt-off .pp-svc-price, .pp-svc.opt-off .pp-svc-meta { opacity: 0.55; }
     .pp-svc-row { display: flex; align-items: center; gap: 12px; }
+    /* iOS-style switch — bem visível: 44px wide, knob slide, accent quando ON */
     .pp-svc-toggle {
-      width: 22px; height: 22px; flex-shrink: 0; border-radius: 6px;
-      display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
-      background: transparent; border: 2px solid rgba(11,18,32,0.22);
-      padding: 0; font-family: inherit; transition: all 0.18s;
+      width: 44px; height: 26px; flex-shrink: 0; border-radius: 999px;
+      cursor: pointer; padding: 0; font-family: inherit;
+      background: #cbd5e1; border: 1px solid #94a3b8;
+      position: relative; transition: background 0.22s, border-color 0.22s, box-shadow 0.22s;
     }
-    .pp-svc-toggle:hover { border-color: ${accent}; background: ${accent}0f; }
-    .pp-svc-toggle.on { background: ${accent}; border-color: ${accent}; color: #ffffff; box-shadow: 0 4px 12px -4px ${accent}80; }
-    .pp-svc-toggle.on svg { width: 13px; height: 13px; }
-    .pp-svc-toggle.lock { background: ${accent}1a; color: ${accentDark}; cursor: default; border: 1px solid ${accent}33; }
-    .pp-svc-toggle.lock svg { width: 12px; height: 12px; }
+    .pp-svc-toggle::after {
+      content: ""; position: absolute; top: 2px; left: 2px;
+      width: 20px; height: 20px; border-radius: 50%; background: #ffffff;
+      box-shadow: 0 2px 6px rgba(11,18,32,0.30);
+      transition: left 0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+    .pp-svc-toggle:hover { background: #94a3b8; }
+    .pp-svc-toggle.on { background: ${accent}; border-color: ${accentDark}; box-shadow: 0 0 0 4px ${accent}25; }
+    .pp-svc-toggle.on::after { left: 20px; }
+    .pp-svc-toggle.lock {
+      background: ${accentDark}; border-color: ${accentDark}; cursor: not-allowed;
+      box-shadow: 0 0 0 4px ${accent}25;
+    }
+    .pp-svc-toggle.lock::after {
+      left: 20px; background: #ffffff;
+      content: "✓"; color: ${accentDark}; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; font-size: 12px;
+    }
+    .pp-svc-toggle svg { display: none; }
     .pp-svc-num {
       width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%;
       background: ${accent}1f; color: ${accentDark};
@@ -358,14 +373,34 @@ function buildStyles(accent: string, accentDark: string) {
     }
     .pp-sticky-reject:hover { background: #fef2f2; }
 
-    /* FOOTER */
-    .pp-foot { border-top: 1px solid var(--pp-border); padding: 22px 24px; background: rgba(255,255,255,0.6); backdrop-filter: blur(10px); margin-top: 8px; }
-    .pp-foot-inner { max-width: 920px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-    .pp-foot-brand { display: inline-flex; align-items: center; gap: 12px; }
-    .pp-foot-logo { height: 28px; width: auto; max-width: 100px; object-fit: contain; opacity: 0.85; }
-    .pp-foot-dani { height: 28px; width: auto; max-width: 60px; object-fit: contain; opacity: 0.85; }
-    .pp-foot-text { font-size: 11.5px; color: var(--pp-fg-3); line-height: 1.6; }
-    .pp-foot-text b { color: var(--pp-fg-2); font-weight: 600; }
+    /* FOOTER — robusto, com logo grande + contatos completos */
+    .pp-foot {
+      border-top: 1px solid var(--pp-border);
+      padding: 32px 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.6), #ffffff);
+      margin-top: 16px;
+    }
+    .pp-foot-inner {
+      max-width: 920px; margin: 0 auto;
+      display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: center;
+    }
+    @media (max-width: 720px) { .pp-foot-inner { grid-template-columns: 1fr; gap: 20px; text-align: center; justify-items: center; } }
+    .pp-foot-brand { display: inline-flex; align-items: center; gap: 16px; }
+    .pp-foot-logo { height: 52px; width: auto; max-width: 180px; object-fit: contain; }
+    .pp-foot-dani { height: 44px; width: auto; max-width: 90px; object-fit: contain; opacity: 0.9; }
+    .pp-foot-divider { width: 1px; height: 40px; background: var(--pp-border-strong); }
+    .pp-foot-info { font-size: 12.5px; color: var(--pp-fg-2); line-height: 1.7; }
+    @media (max-width: 720px) { .pp-foot-info { text-align: center; } }
+    .pp-foot-name { font-size: 14px; font-weight: 800; color: var(--pp-fg-1); letter-spacing: -0.01em; margin-bottom: 4px; }
+    .pp-foot-line { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--pp-fg-3); font-size: 12px; }
+    @media (max-width: 720px) { .pp-foot-line { justify-content: center; } }
+    .pp-foot-line span { white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+    .pp-foot-tag {
+      display: inline-block; margin-top: 8px;
+      font-size: 10.5px; font-weight: 600; color: ${accentDark};
+      background: ${accent}14; border: 1px solid ${accent}33;
+      padding: 3px 10px; border-radius: 999px; letter-spacing: 0.02em;
+    }
 
     .pp-rascunho { background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--pp-radius-xl); padding: 14px 18px; text-align: center; font-size: 13.5px; color: #92400e; font-weight: 500; }
 
@@ -1020,7 +1055,7 @@ export default function PropostaPublica() {
                   <img src={daniAvatar} alt="Dani" style={{ height: 56, width: 'auto', maxWidth: 80, objectFit: 'contain', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--pp-fg-1)' }}>Dani</span>
+                      {/* Logo "dani" já contém o texto — não duplica span 'Dani'. */}
                       <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', padding: '3px 9px', borderRadius: 999, background: `${accent}1a`, color: accentDark, border: `1px solid ${accent}40`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <Sparkles size={10} /> IA da Trevo Legaliza
                       </span>
@@ -1194,18 +1229,19 @@ export default function PropostaPublica() {
                       const hasTaxa = item.taxa_min > 0 || item.taxa_max > 0;
                       const cls = ['pp-svc'];
                       if (isReq) cls.push('req'); else if (isOptOn) cls.push('opt-on'); else cls.push('opt-off');
+                      if (!isReq) cls.push('clickable');
                       return (
-                        <div key={item.id} className={cls.join(' ')}>
+                        <div key={item.id} className={cls.join(' ')}
+                          onClick={() => !isReq && toggleItem(item.id, false)}
+                          style={!isReq ? { cursor: 'pointer' } : undefined}>
                           <div className="pp-svc-row">
                             {isReq ? (
-                              <span className="pp-svc-toggle lock" title="Item obrigatório"><LockIcon /></span>
+                              <span className="pp-svc-toggle lock" title="Item obrigatório"></span>
                             ) : (
                               <button type="button" className={`pp-svc-toggle ${checked ? 'on' : ''}`}
-                                onClick={() => toggleItem(item.id, false)}
+                                onClick={e => { e.stopPropagation(); toggleItem(item.id, false); }}
                                 aria-pressed={checked}
-                                aria-label={checked ? 'Remover item' : 'Adicionar item'}>
-                                {checked && <CheckCircle />}
-                              </button>
+                                aria-label={checked ? 'Remover item' : 'Adicionar item'} />
                             )}
                             <span className="pp-svc-num">{String(idx + 1).padStart(2, '0')}</span>
                             <span className="pp-svc-name">{item.descricao}</span>
@@ -1369,22 +1405,16 @@ export default function PropostaPublica() {
                   <Send /> Você poderá revisar os itens uma última vez na tela de pagamento.
                 </p>
 
-                <div className="pp-dl-bar">
-                  {isContador ? (
+                {/* Botão downloads: só pra fluxo CONTADOR (gera PDF white-label pro cliente dele).
+                    No fluxo cliente final, esconder — cliente não precisa de PDF/HTML, vai
+                    direto pra pagamento ao aprovar. */}
+                {isContador && (
+                  <div className="pp-dl-bar">
                     <button className="pp-btn pp-btn-secondary" onClick={handleDownloadHTML}>
                       <Download /> Gerar PDF pro cliente
                     </button>
-                  ) : (
-                    <>
-                      <button className="pp-btn pp-btn-secondary" onClick={handleDownloadHTML}>
-                        <Download /> Salvar HTML
-                      </button>
-                      <button className="pp-btn pp-btn-secondary" onClick={handleDownloadPDF}>
-                        <FileText /> Baixar PDF
-                      </button>
-                    </>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -1412,17 +1442,25 @@ export default function PropostaPublica() {
           </div>
         </main>
 
-        {/* FOOTER */}
+        {/* FOOTER — institucional Trevo Legaliza */}
         <footer className="pp-foot">
           <div className="pp-foot-inner">
             <div className="pp-foot-brand">
               <img src={logoTrevo} alt="Trevo Legaliza" className="pp-foot-logo" />
-              <div style={{ width: 1, height: 22, background: 'var(--pp-border)' }} />
-              <img src={daniAvatar} alt="Dani" className="pp-foot-dani" title="Dani — Digital Assistant" />
+              <div className="pp-foot-divider" />
+              <img src={daniAvatar} alt="Dani — IA da Trevo" className="pp-foot-dani" title="Dani — IA da Trevo Legaliza" />
             </div>
-            <div className="pp-foot-text" style={{ textAlign: 'right' }}>
-              <div><b>{isContador ? 'Trevo Legaliza' : (escritorioNome || 'Trevo Legaliza')}</b></div>
-              <div>CNPJ 39.969.412/0001-70 · (11) 93492-7001</div>
+            <div className="pp-foot-info">
+              <div className="pp-foot-name">Trevo Legaliza · Assessoria Empresarial</div>
+              <div className="pp-foot-line">
+                <span>CNPJ 39.969.412/0001-70</span>
+                <span>· (11) 93492-7001</span>
+                <span>· administrativo@trevolegaliza.com.br</span>
+              </div>
+              <div className="pp-foot-line" style={{ marginTop: 4 }}>
+                <span>Rua Brasil, 1170 · Rudge Ramos · São Bernardo do Campo/SP</span>
+              </div>
+              <div className="pp-foot-tag">Desde 2018 · Regularização empresarial em 27 estados</div>
             </div>
           </div>
         </footer>
