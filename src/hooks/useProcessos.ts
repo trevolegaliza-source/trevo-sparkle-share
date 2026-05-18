@@ -73,11 +73,19 @@ export function useDeleteProcesso() {
         throw new Error(`Processo tem ${vaCount} valor(es) adicional(is). Remova antes de excluir.`);
       }
 
-      const { error } = await supabase
+      // .select() no DELETE confirma que algo foi deletado de fato.
+      // Sem isso, RLS bloqueando silenciosamente retorna error=null + 0 rows,
+      // e o onSuccess dispara toast "excluído com sucesso" mentindo
+      // (CODE-009 jogou DELETE pra master-only — operacional/gerente tomam RLS).
+      const { data, error } = await supabase
         .from('processos')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Sem permissão para excluir esse processo. Apenas o master pode excluir.');
+      }
     },
     onSuccess: () => {
       // Invalida tudo que pode estar mostrando o processo/lancamento deletados
