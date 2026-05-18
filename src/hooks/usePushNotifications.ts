@@ -3,7 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getEmpresaId } from '@/lib/storage-path';
 
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+// VAPID public key — projetada pra ser publica (vai no JS do bundle de qualquer jeito).
+// A correspondente PRIVADA fica em secret do Supabase Edge Function (VAPID_PRIVATE_KEY).
+// Pra rotacionar: gerar novo par (`npx web-push generate-vapid-keys`), substituir aqui
+// + atualizar VAPID_PRIVATE_KEY no Supabase + todas as subscriptions existentes ficam
+// invalidas e precisam re-subscrever.
+const VAPID_PUBLIC_KEY = 'BKNDE5fkuC-HByUkhhsi5BkdZZO6mU4Zb4eibO_dbfS8_8oX1lqluiRlziDSnV2bVfCCEbnTuit2B3AjODfisdI';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
