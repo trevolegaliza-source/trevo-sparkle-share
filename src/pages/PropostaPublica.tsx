@@ -461,7 +461,19 @@ export default function PropostaPublica() {
       navigate(`/cobranca/${result.cobranca_token}`, { replace: true });
     } catch (err: any) {
       console.error('[proposta] handleAprovar falhou:', err);
-      alert(`Não conseguimos confirmar sua aprovação: ${err?.message || 'tente novamente'}.\n\nSe persistir, recarregue a página ou entre em contato com a Trevo.`);
+      // BUG-002 fluxo público (18/05/2026): antes mostrava erro bruto do
+      // backend ao cliente final (401, 429, etc). Agora traduz pra msg
+      // friendly que não assusta nem chama suporte por dúvida técnica.
+      const rawMsg = String(err?.message || '');
+      const friendlyMsg =
+        rawMsg.includes('401') || rawMsg.toLowerCase().includes('unauthorized')
+          ? 'Seu link expirou. Peça um novo pra equipe da Trevo.'
+        : rawMsg.includes('429') || rawMsg.toLowerCase().includes('rate')
+          ? 'Muitas tentativas em sequência — aguarde 1 minuto e tente de novo.'
+        : rawMsg.includes('404')
+          ? 'Proposta não encontrada. Peça um novo link à Trevo.'
+          : 'Não conseguimos processar agora. Recarregue a página e tente de novo. Se persistir, entre em contato com a Trevo.';
+      alert(friendlyMsg);
       setProcessando(false);
     }
   }
@@ -489,6 +501,8 @@ export default function PropostaPublica() {
       }).catch(err => console.warn('[proposta] log recusou falhou:', err));
       setStatusFinal('recusado');
       setShowRecusa(false);
+      // UX-BUG-001 (18/05): toast de confirmação após recusa registrar
+      alert('Recusa registrada. A Trevo foi notificada e entrará em contato se precisar.');
     } catch (err) {
       console.error('[proposta] handleRecusar falhou:', err);
       alert('Não conseguimos registrar sua recusa. Tente recarregar a página.');

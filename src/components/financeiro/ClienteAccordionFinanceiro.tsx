@@ -1782,7 +1782,8 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (!f) return;
-                  if (f.size > 5 * 1024 * 1024) { toast.error('Arquivo muito grande. Máximo: 5MB'); return; }
+                  // BUG-003 documentos (18/05): padronizado pra 10MB (igual ContractDropzone + RecargaModal)
+                  if (f.size > 10 * 1024 * 1024) { toast.error('Arquivo muito grande. Máximo: 10MB'); return; }
                   setContestarAnexo(f);
                   if (f.type.startsWith('image/')) {
                     setContestarAnexoPreview(URL.createObjectURL(f));

@@ -83,6 +83,16 @@ export default function Colaboradores() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // COL-002 (18/05): salário=0 gerava lancamentos VT/VR fantasmas em
+    // /contas-pagar (Number('0')*22=0 entries). Agora valida > 0.
+    const sal = Number(form.salario_base) || 0;
+    if (sal <= 0) {
+      // Permitir 0 só se for regime INDEFINIDO (terceirizado sem CLT)
+      if (form.regime !== 'INDEFINIDO') {
+        toast.error('Salário base deve ser maior que zero (para INDEFINIDO use o regime correto)');
+        return;
+      }
+    }
     const payload = {
       nome: form.nome.trim(),
       email: form.email.trim() || null,

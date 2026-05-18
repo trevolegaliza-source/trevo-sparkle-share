@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ValorProtegido } from '@/components/auth/ValorProtegido';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProfileNames } from '@/hooks/useProfileNames';
+import HistoricoEntidadeModal from '@/components/historico/HistoricoEntidadeModal';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Building2, User, Settings, FileText, DollarSign, Download, Trash2, Edit2, Save, X, Plus, FileBarChart, Receipt, Archive, ArchiveRestore, ExternalLink, Eye, Pencil, List, Check, CheckCircle, ClipboardCheck, Undo2 } from 'lucide-react';
+import { ArrowLeft, Building2, User, Settings, FileText, DollarSign, Download, Trash2, Edit2, Save, X, Plus, FileBarChart, Receipt, Archive, ArchiveRestore, ExternalLink, Eye, Pencil, List, Check, CheckCircle, ClipboardCheck, Undo2, History } from 'lucide-react';
 import { EtiquetasDisplay, EtiquetasEdit } from '@/components/EtiquetasBadges';
 import { useAuditarLancamento, useAuditarTodosCliente, useAlterarValorLancamento } from '@/hooks/useFinanceiroClientes';
 import ValoresAdicionaisModal from '@/components/financeiro/ValoresAdicionaisModal';
@@ -111,6 +112,10 @@ export default function ClienteDetalhe() {
   const [editProcesso, setEditProcesso] = useState<ProcessoFinanceiro | null>(null);
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [configEditProcesso, setConfigEditProcesso] = useState<ProcessoDB | null>(null);
+  // Histórico campo-por-campo (18/05/2026)
+  const [historicoOpen, setHistoricoOpen] = useState(false);
+  const [historicoProcessoId, setHistoricoProcessoId] = useState<string | null>(null);
+  const [historicoLabel, setHistoricoLabel] = useState<string>('');
   // FEAT-001 (11/05/2026): marcar processo como pago depois de criado.
   const [markPaidModalOpen, setMarkPaidModalOpen] = useState(false);
   const [markPaidProcesso, setMarkPaidProcesso] = useState<ProcessoDB | null>(null);
@@ -1233,6 +1238,20 @@ export default function ClienteDetalhe() {
                                     <CheckCircle className="h-3.5 w-3.5" />
                                   </Button>
                                 )}
+                                {/* Histórico (18/05/2026): mostra quem mudou o quê. Sutil. */}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                  title="Histórico de alterações"
+                                  onClick={() => {
+                                    setHistoricoProcessoId(p.id);
+                                    setHistoricoLabel(p.razao_social);
+                                    setHistoricoOpen(true);
+                                  }}
+                                >
+                                  <History className="h-3.5 w-3.5" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -1833,6 +1852,15 @@ export default function ClienteDetalhe() {
         url={previewUrl}
         fileName={previewFileName}
         clienteName={cliente?.nome || ''}
+      />
+
+      {/* Histórico campo-por-campo (18/05/2026) */}
+      <HistoricoEntidadeModal
+        open={historicoOpen}
+        onOpenChange={setHistoricoOpen}
+        entidadeTipo="processo"
+        entidadeId={historicoProcessoId}
+        entidadeLabel={historicoLabel}
       />
 
       <PasswordConfirmDialog

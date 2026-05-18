@@ -342,6 +342,9 @@ export default function CobrancaPublica() {
   const temBoleto = !!cobranca.asaas?.boleto_url;
 
   const onCopyPix = async () => {
+    // BUG-003 fluxo público (18/05): guard contra double-click — antes
+    // disparava 2 toasts sobrepostos.
+    if (pixCopied) return;
     await copy(pixValueToCopy);
     setPixCopied(true);
     showToast(temAsaasPix ? 'Código PIX copiado' : 'Chave PIX copiada');
