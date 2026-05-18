@@ -1121,10 +1121,15 @@ export default function ClienteDetalhe() {
                             <EtiquetasDisplay etiquetas={(p as any).etiquetas || []} size="compact" />
                             <EtiquetasEdit etiquetas={(p as any).etiquetas || []} processoId={p.id} size="compact" triggerVariant="icon" />
                           </div>
-                          {/* 18/05/2026: criado por (preenchido por trigger SQL pos-deploy) */}
-                          {(p as any).created_by && (
+                          {/* 18/05/2026: criado por + última edição (triggers SQL preenchem auto) */}
+                          {((p as any).created_by || (p as any).updated_by) && (
                             <p className="text-[10px] text-muted-foreground mt-0.5">
-                              criado por {profileNames[(p as any).created_by] || 'Usuário'}
+                              {(p as any).created_by && (
+                                <>criado por <span className="font-medium">{profileNames[(p as any).created_by] || 'Usuário'}</span></>
+                              )}
+                              {(p as any).updated_by && (p as any).updated_by !== (p as any).created_by && (
+                                <> · editado por <span className="font-medium">{profileNames[(p as any).updated_by] || 'Usuário'}</span></>
+                              )}
                             </p>
                           )}
                         </TableCell>
