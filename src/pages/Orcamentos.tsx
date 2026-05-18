@@ -380,108 +380,47 @@ export default function Orcamentos() {
 
   const isWhiteLabel = (orc: Orcamento) => (orc as any).destinatario === 'cliente_via_contador';
 
+  // 18/05/2026: menu de 3 pontinhos simplificado.
+  // Antes: 8+ ações duplicadas (Editar, Duplicar, Copiar Link, WhatsApp, Baixar PDF,
+  // Marcar como X, Voltar pra Y, Excluir). Todas as de "mudar status" e "duplicar"
+  // agora vivem dentro do editor (no menu "Mais ações ▾") — click no card já abre.
+  // Aqui mantemos só:
+  //   - Atalhos rapidos (Copiar Link / WhatsApp) — vale nao entrar no editor
+  //   - Ações pós-conversão (Ver cobrança, Abrir cliente, Ver contrato)
+  //   - Converter em processo (aprovado/aguardando sem processo)
+  //   - Excluir (destrutiva — separa do flow normal)
   function renderActions(orc: Orcamento) {
     const status = orc.status || 'rascunho';
+    const isPublishable = status !== 'rascunho' && (orc as any).destinatario !== 'cliente_via_contador';
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Ações do orçamento"><MoreHorizontal className="h-4 w-4" /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {/* Edit — sempre disponível. Pra convertido, abre tela com painel
-              "Resposta do cliente" mostrando itens aprovados/recusados. */}
-          <DropdownMenuItem onClick={() => {
-            if (status === 'aprovado') handleEditApproved(orc);
-            else navigate(`/orcamentos/novo?id=${orc.id}`);
-          }}>
-            <Pencil className="h-3.5 w-3.5 mr-2" />{status === 'convertido' ? 'Ver detalhes' : 'Editar'}
-          </DropdownMenuItem>
+          {/* Atalhos rápidos (não vale entrar no editor pra isso) */}
+          {isPublishable && (
+            <>
+              <DropdownMenuItem onClick={() => handleCopyLink(orc)}>
+                <LinkIcon className="h-3.5 w-3.5 mr-2" />Copiar Link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleWhatsApp(orc)}>
+                <MessageCircle className="h-3.5 w-3.5 mr-2" />Enviar por WhatsApp
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
 
-          <DropdownMenuItem onClick={() => navigate(`/orcamentos/novo?duplicate=${orc.id}`)}>
-            <Copy className="h-3.5 w-3.5 mr-2" />Duplicar
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleCopyLink(orc)}>
-            <LinkIcon className="h-3.5 w-3.5 mr-2" />Copiar Link
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleWhatsApp(orc)}>
-            <MessageCircle className="h-3.5 w-3.5 mr-2" />Enviar por WhatsApp
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleDownloadPDF(orc)}>
-            <Download className="h-3.5 w-3.5 mr-2" />Baixar PDF
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-
-          {/* Status-specific actions */}
-          {status === 'rascunho' && (
-            <DropdownMenuItem onClick={() => marcarComoEnviado(orc.id)}>
-              <Send className="h-3.5 w-3.5 mr-2" />Marcar como enviado
+          {/* Converter em processo (aprovado/aguardando_pagamento sem processo) */}
+          {(status === 'aprovado' || status === 'aguardando_pagamento') && !orc.processo_id && (
+            <DropdownMenuItem onClick={() => handleConverter(orc)} disabled={converterMutation.isPending}>
+              <DollarSign className="h-3.5 w-3.5 mr-2" />Converter em processo
             </DropdownMenuItem>
           )}
 
-          {status === 'enviado' && (
-            <>
-              <DropdownMenuItem onClick={() => marcarComoAprovado(orc.id)}>
-                <CheckCircle className="h-3.5 w-3.5 mr-2" />Marcar como aprovado
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => voltarParaRascunho(orc.id)}>
-                <ArrowLeft className="h-3.5 w-3.5 mr-2" />Voltar para rascunho
-              </DropdownMenuItem>
-            </>
-          )}
-
-          {status === 'aprovado' && (
-            <>
-              {isWhiteLabel(orc) ? (
-                <DropdownMenuItem disabled className="text-muted-foreground text-xs">
-                  Contrato indisponível — orçamento white-label
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => setContratoOrc(orc)}>
-                  <FileCheck className="h-3.5 w-3.5 mr-2" />Gerar contrato
-                </DropdownMenuItem>
-              )}
-              {/* INT-001: converter em processo direto, sem precisar passar
-                  por "marcar como pago". Útil quando cliente já pagou via
-                  outro canal e quer ver no Financeiro. */}
-              {!orc.processo_id && (
-                <DropdownMenuItem onClick={() => handleConverter(orc)} disabled={converterMutation.isPending}>
-                  <DollarSign className="h-3.5 w-3.5 mr-2" />Converter em processo
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={() => voltarParaEnviado(orc.id)}>
-                <ArrowLeft className="h-3.5 w-3.5 mr-2" />Voltar para enviado
-              </DropdownMenuItem>
-            </>
-          )}
-
-          {status === 'aguardando_pagamento' && (
-            <>
-              <DropdownMenuItem onClick={() => marcarComoPago(orc.id)}>
-                <CheckCircle className="h-3.5 w-3.5 mr-2" />Marcar como pago (convertido)
-              </DropdownMenuItem>
-              {/* INT-001: também disponível aqui — flexibiliza ordem. */}
-              {!orc.processo_id && (
-                <DropdownMenuItem onClick={() => handleConverter(orc)} disabled={converterMutation.isPending}>
-                  <DollarSign className="h-3.5 w-3.5 mr-2" />Converter em processo
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={() => voltarParaEnviado(orc.id)}>
-                <ArrowLeft className="h-3.5 w-3.5 mr-2" />Voltar para enviado
-              </DropdownMenuItem>
-            </>
-          )}
-
-          {status === 'recusado' && (
-            <DropdownMenuItem onClick={() => voltarParaEnviado(orc.id)}>
-              <ArrowLeft className="h-3.5 w-3.5 mr-2" />Reenviar proposta
-            </DropdownMenuItem>
-          )}
-
+          {/* Ações pós-conversão */}
           {status === 'convertido' && (
             <>
-              {/* INT-001: se ainda não tem processo vinculado (orçamento
-                  convertido pré-INT-001), oferece converter agora. */}
               {!orc.processo_id && (
                 <DropdownMenuItem onClick={() => handleConverter(orc)} disabled={converterMutation.isPending}>
                   <DollarSign className="h-3.5 w-3.5 mr-2" />Criar processo no Financeiro
@@ -497,17 +436,17 @@ export default function Orcamentos() {
                   <Eye className="h-3.5 w-3.5 mr-2" />Abrir cliente
                 </DropdownMenuItem>
               )}
-              {/* Bug 6: "Ver contrato" só aparece se realmente houver contrato gerado.
-                  Fluxo Sprint 2.A.4 (link público → Asaas) não gera contrato. */}
               {((orc as any).contrato_assinado_url || (orc as any).clicksign_document_key) && (
                 <DropdownMenuItem onClick={() => verContrato(orc.id)}>
                   <Eye className="h-3.5 w-3.5 mr-2" />Ver contrato
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
             </>
           )}
 
-          <DropdownMenuSeparator />
+          {(status === 'aprovado' || status === 'aguardando_pagamento') && <DropdownMenuSeparator />}
+
           <DropdownMenuItem onClick={() => deleteMutation.mutate(orc.id)} className="text-destructive">
             <Trash2 className="h-3.5 w-3.5 mr-2" />Excluir
           </DropdownMenuItem>
