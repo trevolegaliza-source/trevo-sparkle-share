@@ -16,6 +16,7 @@ import { ClipboardCheck, Check, Pencil, Receipt, X, AlertTriangle, Phone, Calend
 import { Switch } from '@/components/ui/switch';
 import type { ClienteFinanceiro, LancamentoFinanceiro } from '@/hooks/useFinanceiroClientes';
 import { useAuditarLancamento, useAuditarTodosCliente, useAlterarValorLancamento, useMarcarPendencia, useResolverPendencia, ETAPAS_PRE_DEFERIMENTO, invalidateFinanceiro } from '@/hooks/useFinanceiroClientes';
+import { useProfileNames } from '@/hooks/useProfileNames';
 // DECISION-001 Fase 3: gerarFaturamentoDeferimento removido — a RPC
 // marcar_deferimento já promove o lancamento dentro da mesma transação.
 import ValoresAdicionaisModal from './ValoresAdicionaisModal';
@@ -74,10 +75,51 @@ function corDiasParado(dias: number): { tone: 'success' | 'warning' | 'danger'; 
   return { tone: 'danger', classes: 'bg-destructive/15 text-destructive border-destructive/30', prefix: '🔥 ' };
 }
 
+// Timer (17/05/2026 noite): pendência só conta como ATIVA se não tem prazo OU
+// se prazo ainda não venceu. Lancamento com timer vencido volta automaticamente
+// pra fila ativa de auditoria.
+function temPendenciaAtiva(l: LancamentoFinanceiro): boolean {
+  if (!l.pendencia_motivo) return false;
+  if (!l.pendencia_expira_em) return true; // sem prazo = sempre ativa
+  return new Date(l.pendencia_expira_em).getTime() > Date.now();
+}
+
+function diasAteExpirar(expiraEm: string | null): number | null {
+  if (!expiraEm) return null;
+  const ms = new Date(expiraEm).getTime() - Date.now();
+  return Math.ceil(ms / 86400000);
+}
+
+// Helper de tooltip "Marcado por X há Yd" — pega nome via mapa de profiles.
+function tooltipPendencia(l: LancamentoFinanceiro, nomes: Record<string, string>): string {
+  const dias = l.pendencia_marcada_em
+    ? Math.floor((Date.now() - new Date(l.pendencia_marcada_em).getTime()) / 86400000)
+    : 0;
+  const tempo = dias === 0 ? 'menos de 1 dia' : dias === 1 ? '1 dia' : `${dias} dias`;
+  const por = l.pendencia_marcada_por ? (nomes[l.pendencia_marcada_por] || 'Usuário') : null;
+  const diasExpira = diasAteExpirar(l.pendencia_expira_em);
+  const expiraLabel = diasExpira === null
+    ? 'sem prazo definido'
+    : diasExpira <= 0
+      ? 'expira hoje'
+      : diasExpira === 1
+        ? 'volta amanhã'
+        : `volta em ${diasExpira}d`;
+  return `${por ? `Marcado por ${por} · ` : ''}há ${tempo} · ${expiraLabel}`;
+}
+
 export function ClientesAuditoria({ clientes }: { clientes: ClienteFinanceiro[] }) {
   // Onda A (17/05/2026): expandido pra incluir 'valor_desc' (maior valor primeiro)
   // e 'dias_parado_desc' (mais parados primeiro — pra atacar fila urgente).
   const [sortMode, setSortMode] = useState<'alpha' | 'deferimento' | 'valor_desc' | 'dias_parado_desc'>('alpha');
+  const { data: profileNames = {} } = useProfileNames();
+
+  // Filtros rápidos (chips) — toggleável, combina AND
+  const [filtroValorMin, setFiltroValorMin] = useState(false);
+  const [filtroParados7d, setFiltroParados7d] = useState(false);
+  const [filtroMensalistas, setFiltroMensalistas] = useState(false);
+  const [filtroDeferimento, setFiltroDeferimento] = useState(false);
+  const filtrosAtivos = filtroValorMin || filtroParados7d || filtroMensalistas || filtroDeferimento;
 
   const sortedClientes = useMemo(() => {
     const arr = [...clientes];
@@ -117,18 +159,50 @@ export function ClientesAuditoria({ clientes }: { clientes: ClienteFinanceiro[] 
   const lancPendentesPorCliente = sortedClientes
     .map(c => ({
       cliente: c,
-      pendentes: c.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && l.pendencia_motivo),
+      pendentes: c.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && temPendenciaAtiva(l)),
     }))
     .filter(x => x.pendentes.length > 0);
   const totalLancPendentes = lancPendentesPorCliente.reduce((s, x) => s + x.pendentes.length, 0);
 
+  // Card sugestão batch — mensalistas prontos pra auditar (sem pendência, sem
+  // aguardando deferimento). Atalho pra Letícia/secretária resolver de uma vez
+  // o que é repetitivo (mensalidade habitual = mesmo valor todo mês, baixo risco).
+  const lancMensalistasElegiveis: { id: string; valor: number; clienteNome: string }[] = [];
+  for (const c of sortedClientes) {
+    if (c.cliente_tipo !== 'MENSALISTA') continue;
+    for (const l of c.lancamentos) {
+      if (l.auditado || l.status === 'pago') continue;
+      if (temPendenciaAtiva(l)) continue;
+      // Bloqueado se cliente no_deferimento e processo não deferido
+      if (c.cliente_momento_faturamento === 'no_deferimento' && !l.processo_data_deferimento) continue;
+      lancMensalistasElegiveis.push({
+        id: l.id,
+        valor: l.valor + (l.total_valores_adicionais || 0),
+        clienteNome: c.cliente_apelido || c.cliente_nome,
+      });
+    }
+  }
+  const totalMens = lancMensalistasElegiveis.reduce((s, x) => s + x.valor, 0);
+  const qtdClientesMens = new Set(lancMensalistasElegiveis.map(x => x.clienteNome)).size;
+
   // Cliente só aparece na fila ATIVA se tiver pelo menos 1 lancamento sem pendência
-  const clientesAtivos = sortedClientes.filter(c =>
-    c.lancamentos.some(l => !l.auditado && l.status !== 'pago' && !l.pendencia_motivo)
+  let clientesAtivos = sortedClientes.filter(c =>
+    c.lancamentos.some(l => !l.auditado && l.status !== 'pago' && !temPendenciaAtiva(l))
   );
 
+  // Filtros rápidos — só aplica nos ATIVOS (a sub-seção Aguardando não filtra)
+  if (filtrosAtivos) {
+    clientesAtivos = clientesAtivos.filter(c => {
+      if (filtroValorMin && valorTotalNaoAuditado(c) < 1000) return false;
+      if (filtroParados7d && diasParadoCliente(c) < 7) return false;
+      if (filtroMensalistas && c.cliente_tipo !== 'MENSALISTA') return false;
+      if (filtroDeferimento && c.cliente_momento_faturamento !== 'no_deferimento') return false;
+      return true;
+    });
+  }
+
   const totalProcessos = clientesAtivos.reduce(
-    (s, c) => s + c.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && !l.pendencia_motivo).length,
+    (s, c) => s + c.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && !temPendenciaAtiva(l)).length,
     0
   );
 
@@ -191,6 +265,84 @@ export function ClientesAuditoria({ clientes }: { clientes: ClienteFinanceiro[] 
         </div>
       </div>
 
+      {/* Filtros rápidos (chips) — Onda 17/05 noite. Combinam AND. */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-[11px] text-muted-foreground mr-1">Filtros:</span>
+        <button
+          type="button"
+          onClick={() => setFiltroValorMin(v => !v)}
+          className={cn(
+            'text-[11px] px-2 py-1 rounded-md border transition-colors',
+            filtroValorMin
+              ? 'bg-emerald-600 text-white border-emerald-600'
+              : 'bg-background border-border text-muted-foreground hover:bg-muted'
+          )}
+        >
+          💰 ≥ R$ 1.000
+        </button>
+        <button
+          type="button"
+          onClick={() => setFiltroParados7d(v => !v)}
+          className={cn(
+            'text-[11px] px-2 py-1 rounded-md border transition-colors',
+            filtroParados7d
+              ? 'bg-destructive text-destructive-foreground border-destructive'
+              : 'bg-background border-border text-muted-foreground hover:bg-muted'
+          )}
+        >
+          🔥 Parados &gt; 7d
+        </button>
+        <button
+          type="button"
+          onClick={() => setFiltroMensalistas(v => !v)}
+          className={cn(
+            'text-[11px] px-2 py-1 rounded-md border transition-colors',
+            filtroMensalistas
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-background border-border text-muted-foreground hover:bg-muted'
+          )}
+        >
+          🔁 Mensalistas
+        </button>
+        <button
+          type="button"
+          onClick={() => setFiltroDeferimento(v => !v)}
+          className={cn(
+            'text-[11px] px-2 py-1 rounded-md border transition-colors',
+            filtroDeferimento
+              ? 'bg-amber-500 text-white border-amber-500'
+              : 'bg-background border-border text-muted-foreground hover:bg-muted'
+          )}
+        >
+          📅 Cobrar no deferimento
+        </button>
+        {filtrosAtivos && (
+          <button
+            type="button"
+            onClick={() => {
+              setFiltroValorMin(false);
+              setFiltroParados7d(false);
+              setFiltroMensalistas(false);
+              setFiltroDeferimento(false);
+            }}
+            className="text-[11px] px-2 py-1 rounded-md text-muted-foreground hover:bg-muted ml-1"
+          >
+            ✕ limpar
+          </button>
+        )}
+      </div>
+
+      {/* Card sugestão batch — mensalistas prontos (17/05/2026 noite).
+          Aparece se houver >= 3 lancamentos de mensalistas elegíveis (baixo
+          ruído pra 1-2). 1 clique audita tudo. */}
+      {lancMensalistasElegiveis.length >= 3 && (
+        <SugestaoBatchMensalistas
+          lancamentos={lancMensalistasElegiveis}
+          totalValor={totalMens}
+          qtdClientes={qtdClientesMens}
+        />
+      )}
+
       {/* Sub-seção "⏳ Aguardando algo" — Onda Aguardando (17/05/2026).
           Aparece se houver QUALQUER lancamento com pendencia_motivo preenchido.
           Default fechado pra não atrapalhar a fila ativa. */}
@@ -227,16 +379,25 @@ export function ClientesAuditoria({ clientes }: { clientes: ClienteFinanceiro[] 
                         : dias >= 3
                         ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
                         : 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400';
+                      const diasExpira = diasAteExpirar(l.pendencia_expira_em);
+                      const expiraLabel = diasExpira === null
+                        ? null
+                        : diasExpira <= 0
+                          ? 'expira hoje'
+                          : diasExpira === 1
+                            ? 'volta amanhã'
+                            : `volta em ${diasExpira}d`;
                       return (
                         <div key={l.id} className="flex items-center gap-2 flex-wrap">
                           <p className="text-xs text-muted-foreground flex-1 min-w-[180px] truncate">
                             {l.processo_razao_social || l.descricao}
                             <span className="ml-1.5 font-mono">· {fmt(l.valor)}</span>
                           </p>
-                          <div className={cn('inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium', cls)}>
+                          <div className={cn('inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium', cls)} title={tooltipPendencia(l, profileNames)}>
                             <Clock className="h-3 w-3" />
                             <span>⏳ {l.pendencia_motivo}</span>
                             <span className="opacity-70">· {dias === 0 ? 'hoje' : `${dias}d`}</span>
+                            {expiraLabel && <span className="opacity-70 font-semibold">· {expiraLabel}</span>}
                           </div>
                           <ResolverButton lancamentoId={l.id} motivo={l.pendencia_motivo || ''} />
                         </div>
@@ -250,10 +411,117 @@ export function ClientesAuditoria({ clientes }: { clientes: ClienteFinanceiro[] 
         </Accordion>
       )}
 
-      <Accordion type="multiple" className="space-y-2">
-        {clientesAtivos.map(c => <AuditoriaItem key={c.cliente_id} cliente={c} />)}
-      </Accordion>
+      {clientesAtivos.length === 0 && filtrosAtivos ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+            <p className="text-sm text-muted-foreground">Nenhum cliente bate os filtros aplicados.</p>
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => {
+                setFiltroValorMin(false);
+                setFiltroParados7d(false);
+                setFiltroMensalistas(false);
+                setFiltroDeferimento(false);
+              }}
+            >
+              Limpar filtros
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Accordion type="multiple" className="space-y-2">
+          {clientesAtivos.map(c => <AuditoriaItem key={c.cliente_id} cliente={c} />)}
+        </Accordion>
+      )}
     </div>
+  );
+}
+
+// Card sugestão batch — atalho pra auditar todos mensalistas elegíveis de uma vez.
+function SugestaoBatchMensalistas({
+  lancamentos,
+  totalValor,
+  qtdClientes,
+}: {
+  lancamentos: { id: string; valor: number; clienteNome: string }[];
+  totalValor: number;
+  qtdClientes: number;
+}) {
+  const auditarTodosMut = useAuditarTodosCliente();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleAuditarTudo = () => {
+    auditarTodosMut.mutate(
+      { lancamentoIds: lancamentos.map(l => l.id) },
+      {
+        onSuccess: () => {
+          toast.success(`✅ ${lancamentos.length} lançamentos de ${qtdClientes} mensalistas auditados — movidos pra Cobrar`);
+          setConfirmOpen(false);
+        },
+        onError: (e: Error) => toast.error('Erro ao auditar em lote: ' + e.message),
+      }
+    );
+  };
+
+  return (
+    <>
+      <Card className="border-emerald-500/40 bg-emerald-500/5 p-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            <span className="text-2xl">💡</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                {qtdClientes} mensalistas prontos pra auditar
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {lancamentos.length} lançamento{lancamentos.length !== 1 ? 's' : ''} ·{' '}
+                <span className="font-mono font-semibold">{fmt(totalValor)}</span>
+                {' '}— mesmo valor habitual, baixo risco. Audita todos pra Cobrar.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+            onClick={() => setConfirmOpen(true)}
+            disabled={auditarTodosMut.isPending}
+          >
+            <Check className="h-3 w-3 mr-1" />
+            Auditar {lancamentos.length} de {qtdClientes} mensalistas
+          </Button>
+        </div>
+      </Card>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Auditar {lancamentos.length} mensalistas em lote?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>Vai marcar como auditado ({fmt(totalValor)} total) os lançamentos de:</p>
+                <ul className="text-xs max-h-40 overflow-y-auto bg-muted/30 rounded p-2 space-y-0.5">
+                  {Array.from(new Set(lancamentos.map(l => l.clienteNome))).map(nome => (
+                    <li key={nome}>· {nome}</li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">Todos vão pra aba "Cobrar". Reversível clicando "Desmarcar" em cada um.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={auditarTodosMut.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleAuditarTudo(); }}
+              disabled={auditarTodosMut.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {auditarTodosMut.isPending ? 'Auditando...' : `Confirmar (${lancamentos.length})`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -292,8 +560,8 @@ function AuditoriaItem({ cliente }: { cliente: ClienteFinanceiro }) {
 
   // Feature "Aguardando" (17/05/2026): pendência tira o lançamento da fila ativa
   // — fica visível na sub-seção dedicada, não no fluxo principal de auditoria.
-  const lancComPendencia = cliente.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && l.pendencia_motivo);
-  const lancNaoAuditados = cliente.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && !l.pendencia_motivo);
+  const lancComPendencia = cliente.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && temPendenciaAtiva(l));
+  const lancNaoAuditados = cliente.lancamentos.filter(l => !l.auditado && l.status !== 'pago' && !temPendenciaAtiva(l));
   const totalNaoAuditado = lancNaoAuditados.reduce((s, l) => s + l.valor, 0);
   const totalTaxasNaoAuditado = lancNaoAuditados.reduce((s, l) => s + (l.total_valores_adicionais || 0), 0);
 
@@ -601,11 +869,29 @@ function AuditoriaFicha({
   const [savingTrevo, setSavingTrevo] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deletingProcesso, setDeletingProcesso] = useState(false);
-  // Feature "Aguardando" (17/05/2026)
+  // Feature "Aguardando" (17/05/2026 + timer 17/05 noite)
   const [pendenciaOpen, setPendenciaOpen] = useState(false);
   const [pendenciaMotivoCustom, setPendenciaMotivoCustom] = useState('');
+  const [prazoChoice, setPrazoChoice] = useState<'3' | '7' | '14' | '30' | 'sem' | 'custom'>('7');
+  const [customDate, setCustomDate] = useState('');
   const marcarPendenciaMut = useMarcarPendencia();
   const resolverPendenciaMut = useResolverPendencia();
+  const { data: profileNamesAuditoria = {} } = useProfileNames();
+
+  // Helper: calcula expiraEm baseado no prazo escolhido (null = sem prazo)
+  const calcularExpiraEm = (): string | null => {
+    if (prazoChoice === 'sem') return null;
+    if (prazoChoice === 'custom') {
+      if (!customDate) return null;
+      // customDate vem como YYYY-MM-DD do input — assume fim do dia
+      return new Date(customDate + 'T23:59:59').toISOString();
+    }
+    const dias = parseInt(prazoChoice);
+    const d = new Date();
+    d.setDate(d.getDate() + dias);
+    d.setHours(23, 59, 59, 0);
+    return d.toISOString();
+  };
 
   const handleExcluirProcesso = async () => {
     if (!l.processo_id) return;
@@ -855,8 +1141,8 @@ function AuditoriaFicha({
             🕒 Aguardando deferimento — cobrança bloqueada até marcar deferido
           </div>
         )}
-        {/* Badge "Aguardando algo" (17/05/2026) — cor evolui por dias parado */}
-        {l.pendencia_motivo && (() => {
+        {/* Badge "Aguardando algo" — cor por idade + info do timer se houver */}
+        {temPendenciaAtiva(l) && (() => {
           const dias = l.pendencia_marcada_em
             ? Math.floor((Date.now() - new Date(l.pendencia_marcada_em).getTime()) / 86400000)
             : 0;
@@ -865,11 +1151,20 @@ function AuditoriaFicha({
             : dias >= 3
             ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
             : 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400';
+          const diasExpira = diasAteExpirar(l.pendencia_expira_em);
+          const expiraLabel = diasExpira === null
+            ? null
+            : diasExpira <= 0
+              ? 'expira hoje'
+              : diasExpira === 1
+                ? 'volta amanhã'
+                : `volta em ${diasExpira}d`;
           return (
-            <div className={cn('mt-1 inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium', cls)}>
+            <div className={cn('mt-1 inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium', cls)} title={tooltipPendencia(l, profileNamesAuditoria)}>
               <Clock className="h-3 w-3" />
               <span>⏳ {l.pendencia_motivo}</span>
               <span className="opacity-70">· {dias === 0 ? 'hoje' : `${dias}d`}</span>
+              {expiraLabel && <span className="opacity-70 font-semibold">· {expiraLabel}</span>}
               <button
                 type="button"
                 className="ml-1 hover:bg-current/10 rounded-sm p-0.5 -m-0.5"
@@ -1120,8 +1415,8 @@ function AuditoriaFicha({
         >
           <Check className="h-3 w-3 mr-1" /> {l.auditado ? 'Auditado ✅' : 'Auditar'}
         </Button>
-        {/* Feature "Aguardando" (17/05/2026) — só aparece se ainda não auditou nem tem pendência */}
-        {!l.auditado && !l.pendencia_motivo && (
+        {/* Feature "Aguardando" — só aparece se ainda não auditou nem tem pendência ATIVA */}
+        {!l.auditado && !temPendenciaAtiva(l) && (
           <Popover open={pendenciaOpen} onOpenChange={setPendenciaOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -1134,32 +1429,84 @@ function AuditoriaFicha({
                 <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-72 p-2" align="start">
-              <p className="text-xs font-semibold text-muted-foreground px-2 py-1.5">Marcar como aguardando:</p>
-              {[
-                'Falta comprovante de taxa',
-                'Falta documento do cliente',
-                'Valor divergente — conferir com cliente',
-                'Cliente pediu desconto, aguardando aprovação',
-                'Cliente devendo, segurar',
-              ].map(preset => (
-                <button
-                  key={preset}
-                  type="button"
-                  className="w-full text-left text-sm px-2 py-2 rounded hover:bg-muted transition-colors"
-                  onClick={() => {
-                    marcarPendenciaMut.mutate({ lancamentoId: l.id, motivo: preset }, {
-                      onSuccess: () => setPendenciaOpen(false),
-                    });
-                  }}
-                  disabled={marcarPendenciaMut.isPending}
-                >
-                  ⏳ {preset}
-                </button>
-              ))}
-              <div className="border-t my-1" />
-              <p className="text-xs font-semibold text-muted-foreground px-2 py-1.5">Outro motivo:</p>
-              <div className="px-2 pb-2 space-y-2">
+            <PopoverContent className="w-80 p-3 space-y-3" align="start">
+              {/* Seletor de prazo (timer auto-volta) */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5">Volta pra fila em:</p>
+                <div className="flex flex-wrap gap-1">
+                  {(['3', '7', '14', '30', 'sem'] as const).map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setPrazoChoice(opt)}
+                      className={cn(
+                        'text-[11px] px-2 py-1 rounded border transition-colors',
+                        prazoChoice === opt
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                      )}
+                    >
+                      {opt === 'sem' ? 'Sem prazo' : `${opt}d`}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPrazoChoice('custom')}
+                    className={cn(
+                      'text-[11px] px-2 py-1 rounded border transition-colors',
+                      prazoChoice === 'custom'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                    )}
+                  >
+                    📅 Data
+                  </button>
+                </div>
+                {prazoChoice === 'custom' && (
+                  <Input
+                    type="date"
+                    value={customDate}
+                    onChange={e => setCustomDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="h-8 text-sm mt-1.5"
+                  />
+                )}
+              </div>
+
+              <div className="border-t" />
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Motivo (clique pra marcar):</p>
+                {[
+                  'Aguardando deferimento',
+                  'Falta comprovante de taxa',
+                  'Falta documento do cliente',
+                  'Valor divergente — conferir com cliente',
+                  'Cliente pediu desconto, aguardando aprovação',
+                  'Cliente devendo, segurar',
+                ].map(preset => (
+                  <button
+                    key={preset}
+                    type="button"
+                    className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted transition-colors"
+                    onClick={() => {
+                      if (prazoChoice === 'custom' && !customDate) { toast.error('Escolha a data'); return; }
+                      marcarPendenciaMut.mutate(
+                        { lancamentoId: l.id, motivo: preset, expiraEm: calcularExpiraEm() },
+                        { onSuccess: () => setPendenciaOpen(false) }
+                      );
+                    }}
+                    disabled={marcarPendenciaMut.isPending}
+                  >
+                    ⏳ {preset}
+                  </button>
+                ))}
+              </div>
+
+              <div className="border-t" />
+
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground">Outro motivo:</p>
                 <Textarea
                   placeholder="Descreva o motivo…"
                   value={pendenciaMotivoCustom}
@@ -1173,16 +1520,20 @@ function AuditoriaFicha({
                   onClick={() => {
                     const motivo = pendenciaMotivoCustom.trim();
                     if (!motivo) { toast.error('Digite o motivo'); return; }
-                    marcarPendenciaMut.mutate({ lancamentoId: l.id, motivo }, {
-                      onSuccess: () => {
-                        setPendenciaOpen(false);
-                        setPendenciaMotivoCustom('');
-                      },
-                    });
+                    if (prazoChoice === 'custom' && !customDate) { toast.error('Escolha a data'); return; }
+                    marcarPendenciaMut.mutate(
+                      { lancamentoId: l.id, motivo, expiraEm: calcularExpiraEm() },
+                      {
+                        onSuccess: () => {
+                          setPendenciaOpen(false);
+                          setPendenciaMotivoCustom('');
+                        },
+                      }
+                    );
                   }}
                   disabled={marcarPendenciaMut.isPending || !pendenciaMotivoCustom.trim()}
                 >
-                  <Clock className="h-3 w-3 mr-1" /> Marcar com este motivo
+                  <Clock className="h-3 w-3 mr-1" /> Marcar
                 </Button>
               </div>
             </PopoverContent>

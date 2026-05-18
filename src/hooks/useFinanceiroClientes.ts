@@ -66,6 +66,9 @@ export interface LancamentoFinanceiro {
   pendencia_motivo: string | null;
   pendencia_marcada_em: string | null;
   pendencia_marcada_por: string | null;
+  // Timer (17/05/2026 noite): quando expira_em < NOW(), front considera sem pendência.
+  // NULL = sem prazo, fica até resolver manual.
+  pendencia_expira_em: string | null;
 }
 
 // DECISION-001 Fase 3 (13/05/2026 noite): ETAPAS_PRE_DEFERIMENTO obsoleto.
@@ -213,7 +216,7 @@ export function useAlterarValorLancamento() {
 export function useMarcarPendencia() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ lancamentoId, motivo }: { lancamentoId: string; motivo: string }) => {
+    mutationFn: async ({ lancamentoId, motivo, expiraEm }: { lancamentoId: string; motivo: string; expiraEm?: string | null }) => {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('lancamentos')
@@ -221,13 +224,14 @@ export function useMarcarPendencia() {
           pendencia_motivo: motivo,
           pendencia_marcada_em: new Date().toISOString(),
           pendencia_marcada_por: user?.id || null,
+          pendencia_expira_em: expiraEm || null,
         } as any)
         .eq('id', lancamentoId);
       if (error) throw error;
     },
     onSuccess: () => {
       invalidateFinanceiro(qc);
-      toast.success('Marcado como aguardando ⏳ — sai da fila ativa até resolver.');
+      toast.success('Marcado como aguardando ⏳ — sai da fila ativa até resolver ou expirar.');
     },
     onError: (e: Error) => toast.error('Erro ao marcar pendência: ' + e.message),
   });
@@ -243,6 +247,7 @@ export function useResolverPendencia() {
           pendencia_motivo: null,
           pendencia_marcada_em: null,
           pendencia_marcada_por: null,
+          pendencia_expira_em: null,
         } as any)
         .eq('id', lancamentoId);
       if (error) throw error;
@@ -263,14 +268,14 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
     queryFn: async () => {
       const pendingQ = supabase
         .from('lancamentos')
-        .select('id, valor, data_vencimento, data_pagamento, status, etapa_financeiro, extrato_id, descricao, processo_id, cliente_id, confirmado_recebimento, observacoes_financeiro, auditado, auditado_por, auditado_em, valor_original, valor_alterado_por, valor_alterado_em, pendencia_motivo, pendencia_marcada_em, pendencia_marcada_por')
+        .select('id, valor, data_vencimento, data_pagamento, status, etapa_financeiro, extrato_id, descricao, processo_id, cliente_id, confirmado_recebimento, observacoes_financeiro, auditado, auditado_por, auditado_em, valor_original, valor_alterado_por, valor_alterado_em, pendencia_motivo, pendencia_marcada_em, pendencia_marcada_por, pendencia_expira_em')
         .eq('tipo', 'receber')
         .neq('status', 'pago')
         .order('created_at', { ascending: false });
 
       let pagosQ = supabase
         .from('lancamentos')
-        .select('id, valor, data_vencimento, data_pagamento, status, etapa_financeiro, extrato_id, descricao, processo_id, cliente_id, confirmado_recebimento, observacoes_financeiro, auditado, auditado_por, auditado_em, valor_original, valor_alterado_por, valor_alterado_em, pendencia_motivo, pendencia_marcada_em, pendencia_marcada_por')
+        .select('id, valor, data_vencimento, data_pagamento, status, etapa_financeiro, extrato_id, descricao, processo_id, cliente_id, confirmado_recebimento, observacoes_financeiro, auditado, auditado_por, auditado_em, valor_original, valor_alterado_por, valor_alterado_em, pendencia_motivo, pendencia_marcada_em, pendencia_marcada_por, pendencia_expira_em')
         .eq('tipo', 'receber')
         .eq('status', 'pago')
         .order('created_at', { ascending: false });
@@ -399,6 +404,7 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
           pendencia_motivo: (l as any).pendencia_motivo || null,
           pendencia_marcada_em: (l as any).pendencia_marcada_em || null,
           pendencia_marcada_por: (l as any).pendencia_marcada_por || null,
+          pendencia_expira_em: (l as any).pendencia_expira_em || null,
         });
 
         c.total_faturado += l.valor;
