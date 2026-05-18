@@ -602,6 +602,9 @@ export default function CobrancaPublica() {
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <p className="detail-name">{l.razao_social || l.descricao}</p>
                           {l.tipo_processo && <span className="detail-tag">{normalizarProcesso(l.tipo_processo)}</span>}
+                          {l.observacoes_financeiro && (
+                            <p className="detail-obs">{l.observacoes_financeiro}</p>
+                          )}
                         </div>
                         <span className="detail-amount">{fmtBRL(l.valor)}</span>
                       </div>
