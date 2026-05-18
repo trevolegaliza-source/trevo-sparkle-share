@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Shield, Loader2, Lock, KeyRound, Eye, EyeOff, History } from 'lucide-react';
 import GestaoUsuarios from '@/components/configuracoes/GestaoUsuarios';
 import AuditoriaPermissoesTab from '@/components/configuracoes/AuditoriaPermissoesTab';
+import { PushNotificationsCard } from '@/components/configuracoes/PushNotificationsCard';
 import { MfaEnroll } from '@/components/auth/MfaEnroll';
 import { RecoveryCodesCard } from '@/components/auth/RecoveryCodesCard';
 import { supabase } from '@/integrations/supabase/client';
@@ -241,6 +242,8 @@ export default function Configuracoes() {
 
           {/* SEC-024 (12/05/2026): recovery codes só pra master. */}
           {isMaster() && mfaEnabled && <RecoveryCodesCard />}
+
+          <PushNotificationsCard />
         </TabsContent>
 
         {isMaster() && (
