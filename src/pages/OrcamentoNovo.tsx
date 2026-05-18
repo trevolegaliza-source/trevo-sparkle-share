@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useSaveOrcamento, type Orcamento } from '@/hooks/useOrcamentos';
@@ -438,6 +438,28 @@ export default function OrcamentoNovo() {
     }
   }
 
+  // 18/05/2026: AUTOSAVE silencioso de rascunho a cada 5s sem digitar.
+  // Sem isso, único botão "Enviar Proposta" forçava user a enviar pra preservar
+  // trabalho. Agora rascunho salva em background — user pode sair e voltar.
+  // Pula se: não tem nome, ja está enviado+, ja tá salvando, ou novo sem nome.
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!form.prospect_nome?.trim()) return;
+    if (orcamentoStatus !== 'rascunho' && !!orcamentoId) return;
+    if (saveMutation.isPending) return;
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      // Salva sem toast (silencioso)
+      const payload: any = buildPayload('rascunho');
+      if (orcamentoId) payload.id = orcamentoId;
+      saveMutation.mutateAsync(payload).then((id) => {
+        if (id && !orcamentoId) setOrcamentoId(id);
+      }).catch(() => { /* silencioso — autosave que falha não atrapalha user */ });
+    }, 5000);
+    return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, orcamentoStatus]);
+
   // Sprint autônoma 13/05 noite: muda status SEM passar pelo flow de buildPayload
   // (que reescreve tudo). Útil pra transições rápidas (rascunho→enviado, etc).
   async function handleChangeStatus(novoStatus: string) {
@@ -741,16 +763,16 @@ export default function OrcamentoNovo() {
               Antes: 3-4 botões + select de status (confuso).
               Agora: 1 botão principal contextual + ações secundárias só quando relevantes. */}
 
+          {/* 18/05/2026 (3ª iteração): 1 BOTÃO ÚNICO contextual. Antes era confuso
+              ter [Salvar Rascunho] + [Salvar e Enviar]. Agora:
+              - Rascunho/novo: 'Enviar Proposta' (verde grande, ação única)
+              - Enviado+:     'Salvar Alterações' (verde, atualiza status atual)
+              Autosave de rascunho roda em background (5s debounce) — não perde trabalho. */}
           {(orcamentoStatus === 'rascunho' || !orcamentoId) ? (
-            <>
-              <Button variant="ghost" size="sm" onClick={() => handleSave('rascunho')} disabled={saveMutation.isPending}>
-                <Save className="h-4 w-4 mr-1" /> Salvar
-              </Button>
-              <Button size="sm" onClick={() => handleSave('enviado')} disabled={saveMutation.isPending}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                <Send className="h-4 w-4 mr-1" /> Enviar Proposta
-              </Button>
-            </>
+            <Button size="sm" onClick={() => handleSave('enviado')} disabled={saveMutation.isPending}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Send className="h-4 w-4 mr-1" /> Enviar Proposta
+            </Button>
           ) : (
             <Button size="sm" onClick={() => handleSave(orcamentoStatus)} disabled={saveMutation.isPending}>
               <Save className="h-4 w-4 mr-1" /> Salvar Alterações
