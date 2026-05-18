@@ -2,12 +2,16 @@
 -- Trigger AFTER INSERT em notificacoes que chama a edge function enviar-push
 -- via pg_net, async (nao bloqueia o INSERT da notif).
 --
--- PRE-REQUISITO (rodar UMA VEZ no SQL editor antes desse arquivo):
---   ALTER DATABASE postgres SET app.service_role_key = 'COLE_AQUI_O_SERVICE_ROLE_KEY';
---   ALTER DATABASE postgres SET app.supabase_url = 'https://aahhauquuicvtwtrxyan.supabase.co';
+-- PRE-REQUISITO: criar 2 secrets no Vault do Supabase (uma vez):
+--   Dashboard → Project Settings → Vault → Add new secret
+--     Name: supabase_url
+--     Secret: https://aahhauquuicvtwtrxyan.supabase.co
+--   Dashboard → Project Settings → Vault → Add new secret
+--     Name: service_role_key
+--     Secret: <COLE_O_SERVICE_ROLE_KEY>
 --
--- Depois precisa fazer reconnect ao banco (rodar `SELECT pg_reload_conf();` OU
--- desligar/ligar a sessao do SQL editor) pra GUC ser lida.
+-- Vault armazena criptografado. Funcoes SECURITY DEFINER conseguem ler
+-- via vault.decrypted_secrets.
 
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
@@ -23,12 +27,12 @@ DECLARE
   v_notif RECORD;
   v_url_destino text;
 BEGIN
-  -- Le GUCs configurados via ALTER DATABASE
-  v_url := current_setting('app.supabase_url', true);
-  v_key := current_setting('app.service_role_key', true);
+  -- Le secrets do vault
+  SELECT decrypted_secret INTO v_url FROM vault.decrypted_secrets WHERE name = 'supabase_url' LIMIT 1;
+  SELECT decrypted_secret INTO v_key FROM vault.decrypted_secrets WHERE name = 'service_role_key' LIMIT 1;
 
   IF v_url IS NULL OR v_key IS NULL THEN
-    RAISE WARNING 'dispatch_push_notif: app.supabase_url / app.service_role_key nao configurados';
+    RAISE WARNING 'dispatch_push_notif: secrets supabase_url/service_role_key nao configurados no Vault';
     RETURN;
   END IF;
 
@@ -39,7 +43,6 @@ BEGIN
 
   IF NOT FOUND THEN RETURN; END IF;
 
-  -- URL de destino baseada no tipo da notif
   v_url_destino := CASE
     WHEN v_notif.orcamento_id IS NOT NULL THEN '/orcamentos/' || v_notif.orcamento_id
     WHEN v_notif.tipo = 'cobranca' THEN '/financeiro'
@@ -64,7 +67,6 @@ BEGIN
     )
   );
 EXCEPTION WHEN OTHERS THEN
-  -- Push e best-effort: erro nao pode propagar e abortar o INSERT da notif
   RAISE WARNING 'dispatch_push_notif falhou: %', SQLERRM;
 END;
 $$;
@@ -85,4 +87,6 @@ CREATE TRIGGER notif_dispatch_push
   FOR EACH ROW
   EXECUTE FUNCTION public.trg_dispatch_push_on_notif();
 
-COMMENT ON FUNCTION public.dispatch_push_notif(uuid) IS 'Dispara web push via edge function enviar-push. Async (pg_net), nao bloqueia.';
+REVOKE EXECUTE ON FUNCTION public.dispatch_push_notif(uuid) FROM PUBLIC, anon, authenticated;
+
+COMMENT ON FUNCTION public.dispatch_push_notif(uuid) IS 'Dispara web push via edge function enviar-push. Le secrets do vault. Async (pg_net).';
