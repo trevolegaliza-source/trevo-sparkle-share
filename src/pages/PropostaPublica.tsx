@@ -72,7 +72,7 @@ function buildStyles(accent: string, accentDark: string) {
     }
     .pp-top-inner { max-width: 920px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     .pp-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .pp-logo-img { height: 38px; width: auto; display: block; flex-shrink: 0; animation: ppPulse 4s ease-in-out infinite; }
+    .pp-logo-img { height: 38px; width: auto; max-width: 140px; object-fit: contain; display: block; flex-shrink: 0; animation: ppPulse 4s ease-in-out infinite; }
     @keyframes ppPulse {
       0%, 100% { filter: drop-shadow(0 0 0 rgba(34,197,94,0)); transform: scale(1); }
       50%      { filter: drop-shadow(0 0 10px rgba(34,197,94,0.40)); transform: scale(1.015); }
@@ -362,7 +362,8 @@ function buildStyles(accent: string, accentDark: string) {
     .pp-foot { border-top: 1px solid var(--pp-border); padding: 22px 24px; background: rgba(255,255,255,0.6); backdrop-filter: blur(10px); margin-top: 8px; }
     .pp-foot-inner { max-width: 920px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
     .pp-foot-brand { display: inline-flex; align-items: center; gap: 12px; }
-    .pp-foot-logo { height: 28px; width: auto; opacity: 0.85; }
+    .pp-foot-logo { height: 28px; width: auto; max-width: 100px; object-fit: contain; opacity: 0.85; }
+    .pp-foot-dani { height: 28px; width: auto; max-width: 60px; object-fit: contain; opacity: 0.85; }
     .pp-foot-text { font-size: 11.5px; color: var(--pp-fg-3); line-height: 1.6; }
     .pp-foot-text b { color: var(--pp-fg-2); font-weight: 600; }
 
@@ -907,6 +908,24 @@ export default function PropostaPublica() {
     );
   }
 
+  // Guard: se chegou aqui sem orc (RPC retornou vazio ou rascunho filtrado),
+  // mostra mensagem amigável em vez de renderizar página zerada com 'PAINEL DO PARCEIRO'.
+  if (!orc) return (
+    <>
+      <style>{fonts}</style>
+      <style>{buildStyles(accent, accentDark)}</style>
+      <div className="pp-center">
+        <div className="pp-center-card">
+          <div className="pp-center-ico danger"><XCircle style={{ height: 32, width: 32 }} /></div>
+          <h2 className="pp-center-title">Proposta indisponível</h2>
+          <p className="pp-center-desc">
+            Esta proposta pode estar em rascunho ou ter sido removida. Entre em contato com a Trevo Legaliza para um novo link.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+
   // ─────────────────────────────────────────────────────────────────────────────
   // PROPOSTA PRINCIPAL
   // ─────────────────────────────────────────────────────────────────────────────
@@ -996,7 +1015,7 @@ export default function PropostaPublica() {
             {!isContador && (
               <section className="pp-card" style={{ background: `linear-gradient(135deg, ${accent}08 0%, #ffffff 60%)`, borderColor: `${accent}33` }}>
                 <div className="pp-card-body" style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                  <img src={daniAvatar} alt="Dani" style={{ width: 56, height: 56, borderRadius: '50%', border: `2px solid ${accent}55`, flexShrink: 0 }} />
+                  <img src={daniAvatar} alt="Dani" style={{ height: 56, width: 'auto', maxWidth: 80, objectFit: 'contain', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--pp-fg-1)' }}>Dani</span>
@@ -1397,7 +1416,7 @@ export default function PropostaPublica() {
             <div className="pp-foot-brand">
               <img src={logoTrevo} alt="Trevo Legaliza" className="pp-foot-logo" />
               <div style={{ width: 1, height: 22, background: 'var(--pp-border)' }} />
-              <img src={daniAvatar} alt="Dani" style={{ height: 24, width: 24, borderRadius: '50%' }} title="Dani — Digital Assistant" />
+              <img src={daniAvatar} alt="Dani" className="pp-foot-dani" title="Dani — Digital Assistant" />
             </div>
             <div className="pp-foot-text" style={{ textAlign: 'right' }}>
               <div><b>{isContador ? 'Trevo Legaliza' : (escritorioNome || 'Trevo Legaliza')}</b></div>
