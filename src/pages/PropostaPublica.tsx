@@ -342,7 +342,7 @@ export default function PropostaPublica() {
     saveTimer.current = setTimeout(async () => {
       const payload = allItens
         .filter(i => sel.has(i.id))
-        .map(i => ({ id: i.id, descricao: i.descricao, valor_contador: vals[i.id] ?? i.honorario_minimo_contador ?? i.honorario }));
+        .map(i => ({ id: i.id, descricao: i.descricao, valor_contador: vals[i.id] || i.honorario_minimo_contador || i.honorario || 0 }));
       await fetch(`${SUPABASE_URL}/rest/v1/rpc/salvar_selecao_proposta`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({ p_token: token, p_itens_selecionados: payload }),
@@ -397,7 +397,7 @@ export default function PropostaPublica() {
   const { subtotalSel, totalTaxaMinSel, totalTaxaMaxSel, descontoSel, totalSel } = useMemo(() => {
     const sel = itensFiltrados.filter(i => selecionados.has(i.id));
     const sub = isClienteFinal
-      ? sel.reduce((s, i) => s + (i.valorVendaDireto ?? i.honorario_minimo_contador ?? i.honorario) * i.quantidade, 0)
+      ? sel.reduce((s, i) => s + ((i.valorVendaDireto || i.honorario_minimo_contador || i.honorario || 0)) * i.quantidade, 0)
       : sel.reduce((s, i) => s + (i.honorario || 0) * i.quantidade, 0);
     const tMin = sel.reduce((s, i) => s + i.taxa_min, 0);
     const tMax = sel.reduce((s, i) => s + i.taxa_max, 0);
@@ -409,7 +409,7 @@ export default function PropostaPublica() {
   const totalContador = useMemo(() => {
     return itensFiltrados
       .filter(i => selecionados.has(i.id))
-      .reduce((s, i) => s + (valoresContador[i.id] ?? i.honorario_minimo_contador ?? i.honorario) * i.quantidade, 0);
+      .reduce((s, i) => s + ((valoresContador[i.id] != null ? valoresContador[i.id] : (i.honorario_minimo_contador || i.honorario || 0))) * i.quantidade, 0);
   }, [itensFiltrados, selecionados, valoresContador]);
 
   const totalStr = (totalTaxaMinSel > 0 || totalTaxaMaxSel > 0)
@@ -518,7 +518,7 @@ export default function PropostaPublica() {
     const itensSel = itensFiltrados.filter(i => selecionados.has(i.id));
 
     const itensHtml = itensSel.map((item, idx) => {
-      const valorExibido = valoresContador[item.id] ?? item.honorario_minimo_contador ?? item.honorario;
+      const valorExibido = (valoresContador[item.id] != null ? valoresContador[item.id] : (item.honorario_minimo_contador || item.honorario || 0));
       const valorTotal = valorExibido * item.quantidade;
       const hasTaxa = item.taxa_min > 0 || item.taxa_max > 0;
       return `
@@ -956,7 +956,7 @@ export default function PropostaPublica() {
                       {itensFiltrados.map(item => {
                         const isObrig = !item.isOptional;
                         const checked = selecionados.has(item.id);
-                        const valorCobra = valoresContador[item.id] ?? item.honorario_minimo_contador ?? item.honorario;
+                        const valorCobra = (valoresContador[item.id] != null ? valoresContador[item.id] : (item.honorario_minimo_contador || item.honorario || 0));
                         return (
                           <tr key={item.id} className="svc-row" style={{ opacity: checked ? 1 : 0.45 }}>
                             <td className="svc-check">
@@ -1014,7 +1014,7 @@ export default function PropostaPublica() {
                   {itensFiltrados.map((item, idx) => {
                     const isObrig = !item.isOptional;
                     const checked = selecionados.has(item.id);
-                    const valorExibido = item.valorVendaDireto ?? item.honorario_minimo_contador ?? item.honorario;
+                    const valorExibido = item.valorVendaDireto || item.honorario_minimo_contador || item.honorario || 0;
                     const hasTaxa = item.taxa_min > 0 || item.taxa_max > 0;
                     return (
                       <div key={item.id} className="svc-item" style={{ opacity: checked ? 1 : 0.5 }}>
