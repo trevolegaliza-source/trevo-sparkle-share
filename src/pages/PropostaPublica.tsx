@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, CheckCircle, XCircle, Download, FileText, Lock as LockIcon } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Download, FileText, Lock as LockIcon, Lightbulb, AlertTriangle, GitBranch, ListChecks, Package, Sparkles, ChevronRight, Send, Hash, Clock, ShieldCheck, ArrowLeft, CreditCard } from 'lucide-react';
 import { normalizeItem, type OrcamentoItem, type CenarioOrcamento } from '@/components/orcamentos/types';
 import DOMPurify from 'dompurify';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY as SUPABASE_KEY } from '@/integrations/supabase/client';
@@ -16,193 +16,421 @@ const anonHeaders = {
 };
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
-const fonts = `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');`;
+const fonts = `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');`;
 
 function buildStyles(accent: string, accentDark: string) {
   return `
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f8fafc; color: #0f172a; -webkit-font-smoothing: antialiased; }
-    .page { min-height: 100vh; background: #f8fafc; padding-bottom: 110px; }
-    .max { max-width: 760px; margin: 0 auto; padding: 0 20px; }
-
-    /* HEADER limpo claro (antes: tema escuro #0f172a) */
-    .header { background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 16px 0; position: sticky; top: 0; z-index: 40; }
-    .header-inner { max-width: 760px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; }
-    .header-logo { display: flex; align-items: center; gap: 12px; }
-    .header-logo-mark { width: 38px; height: 38px; object-fit: contain; flex-shrink: 0; }
-    .header-logo-name { font-size: 14px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; }
-    .header-logo-sub { font-size: 10.5px; color: #64748b; margin-top: 2px; font-weight: 500; }
-    .header-badge { font-size: 11px; font-weight: 600; color: ${accentDark}; background: ${accent}14; border: 1px solid ${accent}33; padding: 5px 12px; border-radius: 999px; letter-spacing: 0.04em; }
-
-    /* HERO claro com gradiente sutil verde (antes: tema escuro #0f172a) */
-    .hero { background: linear-gradient(135deg, #ffffff 0%, ${accent}08 100%); padding: 44px 0 36px; border-bottom: 1px solid #e2e8f0; }
-    .hero-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: ${accentDark}; margin-bottom: 12px; }
-    .hero-name { font-size: 32px; font-weight: 800; color: #0f172a; line-height: 1.1; letter-spacing: -0.025em; margin-bottom: 6px; }
-    .hero-cnpj { font-size: 13px; color: #64748b; margin-bottom: 24px; }
-    .hero-price-box { display: inline-block; background: #ffffff; border: 1px solid ${accent}40; border-radius: 14px; padding: 18px 26px; box-shadow: 0 4px 14px ${accent}1a; }
-    .hero-price-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: ${accentDark}; margin-bottom: 6px; }
-    .hero-price { font-size: 38px; font-weight: 900; color: ${accentDark}; line-height: 1; letter-spacing: -0.02em; }
-    .hero-meta { display: flex; gap: 20px; margin-top: 22px; }
-    .hero-meta-item { font-size: 12.5px; color: #64748b; display: flex; align-items: center; gap: 6px; font-weight: 500; }
-    .hero-dot { width: 4px; height: 4px; border-radius: 50%; background: ${accent}; }
-
-    .content { padding: 28px 0; display: flex; flex-direction: column; gap: 16px; }
-
-    /* Cards estilo admin: branco com sombra suave e accent verde no header */
-    .card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
-    .card-hd { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; background: #fafbfc; }
-    .card-hd-icon { width: 28px; height: 28px; border-radius: 8px; background: ${accent}14; color: ${accentDark}; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-    .card-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; }
-    .card-body { padding: 20px; }
-
-    .card-risk { background: #fff5f5; border-color: #fecaca; }
-    .card-risk .card-hd { background: #fff5f5; border-bottom-color: #fecaca; }
-    .card-risk .card-title { color: #ef4444; }
-
-    /* ── SERVIÇOS (CONTADOR) ── */
-    .svc-table { width: 100%; border-collapse: collapse; }
-    .svc-table th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; padding: 0 0 10px; text-align: left; }
-    .svc-table th:last-child, .svc-table td:last-child { text-align: right; }
-    .svc-row { border-top: 1px solid #f1f5f9; }
-    .svc-row td { padding: 12px 0; vertical-align: top; }
-    .svc-check { width: 36px; padding-right: 10px !important; vertical-align: middle !important; }
-    .svc-checkbox { width: 18px; height: 18px; accent-color: ${accent}; cursor: pointer; }
-    .svc-name { font-size: 14px; font-weight: 600; color: #1e293b; }
-    .svc-detail { font-size: 12px; color: #64748b; margin-top: 3px; line-height: 1.5; }
-    .svc-badge-obrig { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; color: #64748b; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 4px; margin-top: 4px; }
-    .svc-badge-opt { font-size: 10px; font-weight: 600; color: #ca8a04; background: #fef9c3; padding: 2px 7px; border-radius: 4px; margin-top: 4px; display: inline-block; }
-    .svc-price-trevo { font-size: 13px; font-weight: 600; color: #94a3b8; text-align: right; }
-    .svc-price-input { width: 110px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-weight: 600; color: #1e293b; text-align: right; font-family: inherit; outline: none; transition: border-color 0.15s; }
-    .svc-price-input:focus { border-color: ${accent}; box-shadow: 0 0 0 3px ${accent}18; }
-    .svc-price-input:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
-    .col-trevo { min-width: 90px; }
-    .col-cobra { min-width: 120px; }
-
-    /* ── SERVIÇOS (CLIENTE FINAL) — cards numerados estilo admin ── */
-    .svc-item { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s; }
-    .svc-item:hover { border-color: ${accent}55; box-shadow: 0 2px 8px ${accent}1a; }
-    .svc-item + .svc-item { margin-top: 12px; }
-    .svc-item-hd { display: flex; align-items: center; padding: 14px 16px; background: #fafbfc; gap: 12px; }
-    .svc-num { width: 26px; height: 26px; border-radius: 7px; background: ${accent}18; color: ${accentDark}; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: ui-monospace, Menlo, monospace; letter-spacing: 0.04em; }
-    .svc-item-name { font-size: 14px; font-weight: 600; color: #0f172a; flex: 1; letter-spacing: -0.005em; }
-    .svc-item-price { font-size: 15px; font-weight: 700; color: ${accentDark}; font-variant-numeric: tabular-nums; }
-    .svc-item-body { padding: 12px 16px 14px; font-size: 13px; color: #475569; line-height: 1.6; border-top: 1px solid #f1f5f9; background: #fff; }
-    .svc-item-body strong { color: #0f172a; font-weight: 700; }
-    .svc-item-meta { display: flex; justify-content: space-between; padding: 8px 16px; background: #fafbfc; border-top: 1px solid #f1f5f9; font-size: 11px; color: #64748b; font-weight: 500; }
-
-    /* ── TOTALS ── */
-    .total-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; }
-    .total-row .lbl { color: #64748b; }
-    .total-row .val { font-weight: 500; }
-    .total-row.red .val { color: #ef4444; }
-    .total-row.amber .val { color: #f59e0b; }
-    .total-final { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; margin-top: 12px; border-radius: 12px; background: linear-gradient(135deg, ${accent}10 0%, ${accent}06 100%); border: 2px solid ${accent}38; }
-    .total-final-lbl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: ${accentDark}; }
-    .total-final-val { font-size: 28px; font-weight: 900; color: ${accentDark}; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
-
-    /* ── DOWNLOAD BAR ── */
-    .dl-bar { display: flex; gap: 8px; padding: 12px 18px; background: #f8fafc; border-top: 1px solid #f1f5f9; }
-    .btn-dl { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 14px; border: 1px solid #e2e8f0; border-radius: 9px; background: #fff; color: #475569; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
-    .btn-dl:hover { background: #f1f5f9; color: #1e293b; }
-
-    /* ── CONDITIONS ── */
-    .cond-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .cond-item { background: #f8fafc; border-radius: 9px; padding: 12px; }
-    .cond-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 5px; }
-    .cond-val { font-size: 13px; font-weight: 600; color: #1e293b; }
-    .obs-box { margin-top: 10px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 9px; padding: 12px; font-size: 13px; color: #92400e; line-height: 1.6; }
-
-    /* ── FLOW ── */
-    .flow-wrap { display: flex; align-items: flex-start; overflow-x: auto; padding-bottom: 4px; gap: 0; }
-    .flow-step { display: flex; align-items: flex-start; flex-shrink: 0; }
-    .flow-inner { display: flex; flex-direction: column; align-items: center; text-align: center; width: 90px; }
-    .flow-circle { width: 34px; height: 34px; border-radius: 50%; background: ${accent}; color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-    .flow-lbl { font-size: 11px; font-weight: 500; color: #374151; margin-top: 7px; line-height: 1.3; }
-    .flow-sub { font-size: 10px; color: #94a3b8; margin-top: 3px; }
-    .flow-arrow { color: #cbd5e1; margin-top: 16px; padding: 0 4px; font-size: 14px; }
-
-    /* ── BENEFITS ── */
-    .ben-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .ben-item { padding: 14px 10px; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; text-align: center; }
-    .ben-item.feat { background: ${accent}0c; border-color: ${accent}30; }
-    .ben-icon { font-size: 24px; margin-bottom: 8px; }
-    .ben-title { font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 3px; }
-    .ben-desc { font-size: 11px; color: #64748b; line-height: 1.4; }
-
-    /* ── PACKAGES ── */
-    .pkg-item { border-radius: 11px; overflow: hidden; border: 1px solid #e2e8f0; }
-    .pkg-item + .pkg-item { margin-top: 10px; }
-    .pkg-item.feat { border: 2px solid ${accent}; }
-    .pkg-hd { padding: 12px 14px; background: #0f172a; display: flex; justify-content: space-between; align-items: center; }
-    .pkg-name { font-size: 14px; font-weight: 700; color: #f8fafc; }
-    .pkg-disc { font-size: 12px; color: ${accent}; font-weight: 600; background: ${accent}22; padding: 2px 8px; border-radius: 5px; }
-    .pkg-badge { font-size: 10px; font-weight: 700; color: #f8fafc; background: rgba(255,255,255,0.15); padding: 2px 7px; border-radius: 4px; }
-    .pkg-items { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; }
-    .pkg-svc { font-size: 12px; color: #475569; padding: 2px 0; }
-    .pkg-svc::before { content: '✓ '; color: ${accent}; font-weight: 700; }
-    .pkg-pricing { padding: 10px 14px; background: #f8fafc; }
-    .pkg-old { display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; }
-    .pkg-old span:last-child { text-decoration: line-through; }
-    .pkg-new { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: ${accent}; margin-top: 2px; }
-    .pkg-save { text-align: right; font-size: 11px; color: #16a34a; font-weight: 600; margin-top: 2px; }
-
-    /* ── STICKY CTA ── */
-    .sticky-cta { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #fff; border-top: 1px solid #e2e8f0; padding: 12px 16px; display: flex; gap: 10px; box-shadow: 0 -4px 20px rgba(0,0,0,0.08); }
-    .btn-approve { flex: 1; height: 52px; background: linear-gradient(135deg, ${accent} 0%, ${accentDark} 100%); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 6px 20px -4px ${accent}66; font-family: inherit; transition: transform 0.15s, box-shadow 0.15s; letter-spacing: -0.005em; }
-    .btn-approve:hover { transform: translateY(-1px); box-shadow: 0 10px 28px -4px ${accent}88; }
-    .btn-approve:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-    .btn-reject { height: 52px; width: 52px; background: #fff; color: #ef4444; border: 1px solid #fecaca; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; transition: background 0.15s; }
-    .btn-reject:hover { background: #fef2f2; }
-
-    /* ── MODAL ── */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: flex-end; justify-content: center; z-index: 60; }
-    @media (min-width: 480px) { .modal-overlay { align-items: center; padding: 16px; } }
-    .modal { background: #fff; width: 100%; max-width: 440px; border-radius: 18px 18px 0 0; padding: 24px 22px 28px; }
-    @media (min-width: 480px) { .modal { border-radius: 18px; } }
-    .modal-handle { width: 32px; height: 3px; background: #e2e8f0; border-radius: 2px; margin: 0 auto 18px; }
-    .modal-title { font-size: 17px; font-weight: 800; color: #1e293b; margin-bottom: 4px; letter-spacing: -0.01em; }
-    .modal-sub { font-size: 13px; color: #64748b; margin-bottom: 18px; }
-    .modal-val-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 11px; padding: 14px; text-align: center; margin-bottom: 18px; }
-    .modal-val-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #16a34a; margin-bottom: 3px; }
-    .modal-val { font-size: 26px; font-weight: 900; color: #15803d; letter-spacing: -0.02em; }
-    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
-    .btn-cancel { padding: 9px 16px; border: 1px solid #e2e8f0; border-radius: 9px; background: #fff; color: #374151; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; }
-    .btn-confirm { padding: 9px 18px; border: none; border-radius: 9px; background: #16a34a; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 7px; font-family: inherit; }
-    .btn-confirm.red { background: #dc2626; }
-    .btn-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
-    .textarea-field { width: 100%; padding: 9px 11px; border: 1px solid #e2e8f0; border-radius: 9px; font-size: 14px; resize: vertical; outline: none; color: #1e293b; font-family: inherit; line-height: 1.5; margin-bottom: 14px; }
-    .textarea-field:focus { border-color: ${accent}; }
-    .form-lbl { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; display: block; }
-
-    /* ── STATUS / PW PAGES ── */
-    .center-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f1f5f9; padding: 16px; }
-    .center-card { background: #fff; border-radius: 18px; padding: 36px 28px; max-width: 400px; width: 100%; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
-    .center-title { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; margin: 16px 0 8px; }
-    .center-desc { font-size: 14px; color: #64748b; line-height: 1.6; }
-    .pw-input { width: 100%; padding: 11px 13px; border: 1px solid #e2e8f0; border-radius: 9px; font-size: 15px; outline: none; color: #1e293b; margin-bottom: 8px; font-family: inherit; }
-    .pw-input:focus { border-color: ${accent}; }
-    .pw-err { font-size: 12px; color: #ef4444; margin-bottom: 8px; }
-    .btn-pw { width: 100%; padding: 12px; background: ${accent}; color: #fff; border: none; border-radius: 9px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
-    .btn-review { margin-top: 16px; padding: 9px 18px; border: 1px solid #e2e8f0; border-radius: 9px; background: #fff; color: #374151; font-size: 14px; cursor: pointer; font-family: inherit; }
-
-    .footer { text-align: center; padding: 28px 18px 20px; border-top: 1px solid #e2e8f0; }
-    .footer-name { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 5px; }
-    .footer-info { font-size: 11px; color: #94a3b8; line-height: 1.8; }
-
-    .alert-rascunho { background: #fffbeb; border: 1px solid #fde68a; border-radius: 11px; padding: 14px 18px; text-align: center; font-size: 14px; color: #92400e; font-weight: 500; }
-
-    /* ── HINT BOX (contador) ── */
-    .hint-box { background: ${accent}08; border: 1px solid ${accent}22; border-radius: 11px; padding: 12px 16px; font-size: 12px; color: #374151; line-height: 1.6; margin-bottom: 4px; }
-    .hint-box strong { font-weight: 700; color: ${accentDark}; }
-
-    @media (max-width: 480px) {
-      .hero-name { font-size: 24px; }
-      .hero-price { font-size: 28px; }
-      .ben-grid { grid-template-columns: 1fr 1fr; }
-      .cond-grid { grid-template-columns: 1fr; }
-      .total-final-val { font-size: 22px; }
-      .col-trevo { display: none; }
+    :root {
+      --pp-accent: ${accent};
+      --pp-accent-dark: ${accentDark};
+      --pp-accent-soft: ${accent}1a;
+      --pp-fg-1: #0f172a;
+      --pp-fg-2: #475569;
+      --pp-fg-3: #64748b;
+      --pp-fg-4: #94a3b8;
+      --pp-bg: #f4f7fa;
+      --pp-bg-card: #ffffff;
+      --pp-border: rgba(11, 18, 32, 0.08);
+      --pp-border-strong: rgba(11, 18, 32, 0.14);
+      --pp-danger: #ef4444;
+      --pp-radius-md: 10px;
+      --pp-radius-lg: 12px;
+      --pp-radius-xl: 14px;
+      --pp-radius-2xl: 18px;
+      --pp-radius-3xl: 22px;
     }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--pp-bg);
+      color: var(--pp-fg-1);
+      -webkit-font-smoothing: antialiased;
+      background-image: radial-gradient(60% 40% at 50% 0%, ${accent}0a, transparent 70%);
+      background-attachment: fixed;
+    }
+    .pp-shell { min-height: 100vh; display: flex; flex-direction: column; position: relative; padding-bottom: 110px; }
+
+    /* fade-up entrance */
+    .pp-fade > * { animation: ppFade 0.5s cubic-bezier(0.4, 0, 0.2, 1) both; }
+    .pp-fade > *:nth-child(1) { animation-delay: 0ms; }
+    .pp-fade > *:nth-child(2) { animation-delay: 70ms; }
+    .pp-fade > *:nth-child(3) { animation-delay: 140ms; }
+    .pp-fade > *:nth-child(4) { animation-delay: 210ms; }
+    .pp-fade > *:nth-child(5) { animation-delay: 280ms; }
+    .pp-fade > *:nth-child(6) { animation-delay: 350ms; }
+    .pp-fade > *:nth-child(7) { animation-delay: 420ms; }
+    .pp-fade > *:nth-child(8) { animation-delay: 490ms; }
+    @keyframes ppFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* TOP BAR */
+    .pp-top {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px) saturate(150%);
+      -webkit-backdrop-filter: blur(20px) saturate(150%);
+      border-bottom: 1px solid var(--pp-border);
+      padding: 14px 24px; position: sticky; top: 0; z-index: 20;
+    }
+    .pp-top-inner { max-width: 920px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .pp-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .pp-logo-img { height: 38px; width: auto; display: block; flex-shrink: 0; animation: ppPulse 4s ease-in-out infinite; }
+    @keyframes ppPulse {
+      0%, 100% { filter: drop-shadow(0 0 0 rgba(34,197,94,0)); transform: scale(1); }
+      50%      { filter: drop-shadow(0 0 10px rgba(34,197,94,0.40)); transform: scale(1.015); }
+    }
+    .pp-brand-text { min-width: 0; }
+    .pp-brand-name { font-size: 15px; font-weight: 700; color: var(--pp-fg-1); letter-spacing: -0.01em; line-height: 1.15; }
+    .pp-brand-sub { font-size: 10.5px; font-weight: 500; color: var(--pp-fg-3); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+    .pp-prop-id {
+      font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; font-weight: 600;
+      color: ${accentDark}; background: ${accent}14; border: 1px solid ${accent}40;
+      padding: 5px 12px; border-radius: 999px; letter-spacing: 0.04em;
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .pp-prop-id .dot { width: 5px; height: 5px; border-radius: 50%; background: ${accent}; box-shadow: 0 0 6px currentColor; }
+
+    /* HERO */
+    .pp-hero {
+      position: relative; overflow: hidden;
+      background:
+        radial-gradient(120% 80% at 80% -10%, rgba(34,197,94,0.32), transparent 55%),
+        radial-gradient(80% 80% at 0% 100%, rgba(6,182,212,0.12), transparent 50%),
+        linear-gradient(140deg, #0a1a14 0%, #0b3d23 45%, #082617 100%);
+      color: #fafafa; padding: 48px 24px;
+    }
+    .pp-hero::before {
+      content: ""; position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(34,197,94,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,197,94,0.06) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent 80%);
+      pointer-events: none;
+    }
+    .pp-hero-inner { max-width: 920px; margin: 0 auto; position: relative; z-index: 1; }
+    .pp-hero-kicker-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
+    .pp-hero-kicker {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; font-weight: 600;
+      letter-spacing: 0.14em; text-transform: uppercase; color: ${accent};
+      background: rgba(34,197,94,0.10); border: 1px solid rgba(34,197,94,0.32);
+      padding: 5px 12px; border-radius: 999px;
+    }
+    .pp-hero-kicker-num { color: rgba(250,250,250,0.70); background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); letter-spacing: 0.08em; }
+    .pp-hero-kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: ${accent}; box-shadow: 0 0 8px currentColor; animation: ppPulseDot 1.6s ease-in-out infinite; }
+    @keyframes ppPulseDot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .pp-hero-title { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin: 0 0 6px; color: #fafafa; text-wrap: balance; }
+    .pp-hero-sub { font-size: 13.5px; color: rgba(250,250,250,0.55); font-family: ui-monospace, Menlo, monospace; margin-bottom: 28px; }
+    .pp-hero-grid { display: grid; grid-template-columns: 1fr auto; gap: 32px; align-items: end; }
+    @media (max-width: 720px) { .pp-hero-grid { grid-template-columns: 1fr; gap: 22px; } .pp-hero-title { font-size: 28px; } }
+
+    .pp-hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+    .pp-hero-pill {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+      border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10);
+      font-size: 11.5px; color: rgba(250,250,250,0.80); white-space: nowrap;
+    }
+    .pp-hero-pill svg { width: 13px; height: 13px; color: ${accent}; }
+    .pp-hero-pill b { color: #fafafa; font-weight: 600; }
+
+    .pp-hero-value {
+      background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.35);
+      border-radius: var(--pp-radius-2xl); padding: 20px 28px;
+      box-shadow: 0 0 0 1px rgba(34,197,94,0.08) inset, 0 12px 40px -12px rgba(34,197,94,0.35);
+      min-width: 240px; position: relative; overflow: hidden;
+    }
+    .pp-hero-value::before { content: ""; position: absolute; inset: 0; background: radial-gradient(80% 60% at 50% 0%, rgba(34,197,94,0.25), transparent 70%); pointer-events: none; }
+    .pp-hero-value-lbl { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: rgba(255,255,255,0.7); margin-bottom: 6px; position: relative; z-index: 1; }
+    .pp-hero-value-amount { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; color: #fafafa; position: relative; z-index: 1; }
+    .pp-hero-value-meta { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 8px; position: relative; z-index: 1; }
+    .pp-hero-value-meta b { color: ${accent}; font-weight: 600; }
+    @media (max-width: 720px) { .pp-hero-value-amount { font-size: 30px; } }
+
+    /* MAIN BODY */
+    .pp-main { max-width: 920px; margin: 0 auto; padding: 32px 24px; width: 100%; }
+    @media (max-width: 720px) { .pp-main { padding: 22px 16px 32px; } }
+    .pp-stack { display: flex; flex-direction: column; gap: 16px; }
+
+    /* CARDS */
+    .pp-card {
+      background: var(--pp-bg-card); border: 1px solid var(--pp-border);
+      border-radius: var(--pp-radius-2xl); overflow: hidden;
+      box-shadow: 0 1px 2px rgba(11,18,32,0.04), 0 8px 24px -16px rgba(11,18,32,0.08);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .pp-card:hover { border-color: var(--pp-border-strong); }
+    .pp-card-head { display: flex; align-items: center; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--pp-border); }
+    .pp-card-icon {
+      width: 32px; height: 32px; border-radius: var(--pp-radius-md);
+      background: ${accent}1a; color: ${accentDark};
+      display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .pp-card-icon svg { width: 16px; height: 16px; }
+    .pp-card-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--pp-fg-1); }
+    .pp-card-sub { font-size: 11.5px; color: var(--pp-fg-3); margin-top: 1px; }
+    .pp-card-body { padding: 18px 22px; }
+
+    /* DANGER variant */
+    .pp-card.pp-danger { border-color: rgba(239,68,68,0.28); background: linear-gradient(180deg, rgba(239,68,68,0.03), #ffffff); }
+    .pp-card.pp-danger .pp-card-head { border-bottom-color: rgba(239,68,68,0.18); background: rgba(239,68,68,0.045); }
+    .pp-card.pp-danger .pp-card-icon { background: rgba(239,68,68,0.12); color: var(--pp-danger); }
+
+    /* RISK LIST */
+    .pp-risk-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+    .pp-risk-row { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.5; color: var(--pp-fg-1); }
+    .pp-risk-bullet {
+      width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%;
+      background: rgba(239,68,68,0.10); color: var(--pp-danger);
+      display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; font-size: 13px;
+    }
+
+    /* FLOW */
+    .pp-flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; position: relative; }
+    @media (max-width: 720px) { .pp-flow { grid-template-columns: 1fr; gap: 10px; } }
+    .pp-flow-step { text-align: center; padding: 14px 12px; border-radius: var(--pp-radius-md); background: ${accent}0a; border: 1px solid ${accent}30; position: relative; }
+    .pp-flow-step.idle { background: rgba(11,18,32,0.025); border-color: rgba(11,18,32,0.08); }
+    .pp-flow-num {
+      width: 34px; height: 34px; margin: 0 auto 8px; border-radius: 50%;
+      background: ${accent}; color: #ffffff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; font-family: ui-monospace, Menlo, monospace;
+      box-shadow: 0 0 0 4px ${accent}20;
+    }
+    .pp-flow-step.idle .pp-flow-num { background: #ffffff; border: 1.5px solid rgba(11,18,32,0.20); color: var(--pp-fg-2); box-shadow: none; }
+    .pp-flow-name { font-size: 12.5px; font-weight: 600; color: var(--pp-fg-1); line-height: 1.3; }
+    .pp-flow-time { font-size: 10.5px; color: var(--pp-fg-3); margin-top: 4px; font-family: ui-monospace, Menlo, monospace; }
+
+    /* SERVICES — cliente final / cliente_via_contador */
+    .pp-services { display: flex; flex-direction: column; gap: 10px; }
+    .pp-svc {
+      position: relative; border: 1px solid var(--pp-border); border-radius: var(--pp-radius-xl);
+      padding: 14px 16px; background: #ffffff; transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+    .pp-svc.req { border-color: ${accent}3d; background: linear-gradient(180deg, ${accent}07, #ffffff); }
+    .pp-svc.opt-on { border-color: ${accent}55; background: linear-gradient(180deg, ${accent}0a, #ffffff); box-shadow: 0 4px 16px -8px ${accent}3d; }
+    .pp-svc.opt-off { background: rgba(11,18,32,0.012); border-color: var(--pp-border); border-style: dashed; }
+    .pp-svc.opt-off .pp-svc-name, .pp-svc.opt-off .pp-svc-desc, .pp-svc.opt-off .pp-svc-price, .pp-svc.opt-off .pp-svc-meta { opacity: 0.55; }
+    .pp-svc-row { display: flex; align-items: center; gap: 12px; }
+    .pp-svc-toggle {
+      width: 22px; height: 22px; flex-shrink: 0; border-radius: 6px;
+      display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+      background: transparent; border: 2px solid rgba(11,18,32,0.22);
+      padding: 0; font-family: inherit; transition: all 0.18s;
+    }
+    .pp-svc-toggle:hover { border-color: ${accent}; background: ${accent}0f; }
+    .pp-svc-toggle.on { background: ${accent}; border-color: ${accent}; color: #ffffff; box-shadow: 0 4px 12px -4px ${accent}80; }
+    .pp-svc-toggle.on svg { width: 13px; height: 13px; }
+    .pp-svc-toggle.lock { background: ${accent}1a; color: ${accentDark}; cursor: default; border: 1px solid ${accent}33; }
+    .pp-svc-toggle.lock svg { width: 12px; height: 12px; }
+    .pp-svc-num {
+      width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%;
+      background: ${accent}1f; color: ${accentDark};
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10.5px; font-weight: 700; font-family: ui-monospace, Menlo, monospace;
+    }
+    .pp-svc-name { flex: 1; font-size: 14.5px; font-weight: 600; color: var(--pp-fg-1); letter-spacing: -0.005em; min-width: 0; }
+    .pp-svc-price { font-size: 16px; font-weight: 700; color: var(--pp-fg-1); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
+    .pp-svc.opt-on .pp-svc-price { color: ${accentDark}; }
+    .pp-svc-desc { font-size: 12.5px; color: var(--pp-fg-2); line-height: 1.5; margin: 8px 0 0; padding-left: 60px; }
+    .pp-svc-meta { margin: 8px 0 0; padding-left: 60px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .pp-svc-chip {
+      display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 500;
+      color: var(--pp-fg-3); background: rgba(11,18,32,0.04); border: 1px solid rgba(11,18,32,0.06);
+      padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+    }
+    .pp-svc-chip svg { width: 11px; height: 11px; }
+    .pp-svc-chip.taxas { background: rgba(245,158,11,0.08); color: #b45309; border-color: rgba(245,158,11,0.18); }
+    .pp-svc-chip.req { background: ${accent}14; color: ${accentDark}; border-color: ${accent}30; }
+
+    /* OBS / hint visible to client (negociação) */
+    .pp-svc-obs {
+      margin: 8px 0 0; padding-left: 60px;
+      font-size: 12.5px; color: ${accentDark}; font-style: italic; line-height: 1.5;
+    }
+
+    /* CONTADOR table */
+    .pp-svc-table { width: 100%; border-collapse: collapse; }
+    .pp-svc-table th {
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--pp-fg-4); padding: 0 0 12px; text-align: left;
+    }
+    .pp-svc-table th:last-child, .pp-svc-table td:last-child { text-align: right; }
+    .pp-svc-table tbody tr { border-top: 1px solid var(--pp-border); }
+    .pp-svc-table td { padding: 14px 0; vertical-align: top; }
+    .pp-svc-table .ck { width: 36px; padding-right: 10px !important; vertical-align: middle !important; }
+    .pp-svc-table .col-trevo { min-width: 100px; }
+    .pp-svc-table .col-cobra { min-width: 130px; }
+    .pp-cobra-input {
+      width: 120px; padding: 7px 9px; border: 1px solid var(--pp-border);
+      border-radius: 8px; font-size: 13.5px; font-weight: 600; color: var(--pp-fg-1);
+      text-align: right; font-family: inherit; outline: none; transition: border-color 0.15s;
+      font-variant-numeric: tabular-nums;
+    }
+    .pp-cobra-input:focus { border-color: ${accent}; box-shadow: 0 0 0 3px ${accent}1f; }
+    .pp-cobra-input:disabled { background: #f8fafc; color: var(--pp-fg-4); cursor: not-allowed; }
+    .pp-trevo-cell { color: var(--pp-fg-4); font-variant-numeric: tabular-nums; font-weight: 500; }
+    @media (max-width: 720px) { .pp-svc-table .col-trevo { display: none; } }
+
+    /* CONTADOR HINT */
+    .pp-hint {
+      background: ${accent}0a; border: 1px solid ${accent}33; border-radius: var(--pp-radius-xl);
+      padding: 14px 18px; font-size: 13px; color: var(--pp-fg-2); line-height: 1.55;
+    }
+    .pp-hint strong { font-weight: 700; color: ${accentDark}; }
+
+    /* PACOTES (legacy support) */
+    .pp-pkg { border: 1px solid var(--pp-border); border-radius: var(--pp-radius-xl); overflow: hidden; }
+    .pp-pkg + .pp-pkg { margin-top: 10px; }
+    .pp-pkg.feat { border: 2px solid ${accent}; }
+    .pp-pkg-hd { padding: 14px 16px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); display: flex; justify-content: space-between; align-items: center; }
+    .pp-pkg-name { font-size: 14px; font-weight: 700; color: #fafafa; }
+    .pp-pkg-disc { font-size: 12px; color: ${accent}; font-weight: 600; background: ${accent}1f; padding: 2px 8px; border-radius: 5px; }
+    .pp-pkg-badge { font-size: 10px; font-weight: 700; color: #fafafa; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 4px; letter-spacing: 0.04em; }
+    .pp-pkg-items { padding: 12px 16px; border-bottom: 1px solid var(--pp-border); }
+    .pp-pkg-svc { font-size: 12.5px; color: var(--pp-fg-2); padding: 3px 0; }
+    .pp-pkg-svc::before { content: '✓ '; color: ${accent}; font-weight: 700; }
+    .pp-pkg-pricing { padding: 12px 16px; background: #fafbfc; }
+    .pp-pkg-old { display: flex; justify-content: space-between; font-size: 12px; color: var(--pp-fg-4); }
+    .pp-pkg-old span:last-child { text-decoration: line-through; }
+    .pp-pkg-new { display: flex; justify-content: space-between; font-size: 13.5px; font-weight: 700; color: ${accentDark}; margin-top: 3px; }
+    .pp-pkg-save { text-align: right; font-size: 11px; color: ${accentDark}; font-weight: 600; margin-top: 3px; }
+
+    /* SUMMARY */
+    .pp-summary { border: 1px solid ${accent}40; background: linear-gradient(135deg, ${accent}10 0%, #ffffff 60%); }
+    .pp-summary .pp-card-body { padding: 22px; }
+    .pp-summary-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+    .pp-summary-lbl { font-size: 13px; color: var(--pp-fg-2); }
+    .pp-summary-lbl b { color: var(--pp-fg-1); font-weight: 600; }
+    .pp-summary-val { font-size: 32px; font-weight: 800; letter-spacing: -0.025em; color: ${accentDark}; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
+    .pp-summary-detail { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+    .pp-summary-line { display: flex; justify-content: space-between; font-size: 13px; color: var(--pp-fg-2); padding: 4px 0; }
+    .pp-summary-line.red { color: var(--pp-danger); }
+    .pp-summary-line.amber { color: #d97706; }
+    .pp-summary-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .pp-btn {
+      font-family: inherit; height: 48px; padding: 0 22px; border-radius: var(--pp-radius-md);
+      border: 1px solid transparent; font-size: 14.5px; font-weight: 700; letter-spacing: -0.005em;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
+    }
+    .pp-btn svg { width: 16px; height: 16px; }
+    .pp-btn-approve { flex: 1; min-width: 220px; background: ${accent}; color: #ffffff; box-shadow: 0 6px 20px -8px ${accent}88; }
+    .pp-btn-approve:hover { background: ${accentDark}; transform: translateY(-1px); box-shadow: 0 10px 28px -8px ${accent}a8; }
+    .pp-btn-approve:active { transform: translateY(0); }
+    .pp-btn-approve:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .pp-btn-decline { background: #ffffff; color: var(--pp-fg-2); border-color: var(--pp-border-strong); }
+    .pp-btn-decline:hover { background: rgba(239,68,68,0.04); color: var(--pp-danger); border-color: rgba(239,68,68,0.30); }
+    .pp-btn-secondary { background: #ffffff; color: var(--pp-fg-2); border-color: var(--pp-border-strong); height: 40px; padding: 0 16px; font-size: 13px; }
+    .pp-btn-secondary:hover { border-color: ${accent}; color: ${accentDark}; }
+    .pp-summary-hint { font-size: 11.5px; color: var(--pp-fg-3); margin: 14px 0 0; text-align: center; }
+    .pp-summary-hint svg { width: 11px; height: 11px; display: inline-block; vertical-align: -1px; margin-right: 3px; }
+
+    .pp-dl-bar { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+    /* CONDITIONS */
+    .pp-cond-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 480px) { .pp-cond-grid { grid-template-columns: 1fr; } }
+    .pp-cond-item { background: #fafbfc; border: 1px solid var(--pp-border); border-radius: 10px; padding: 12px 14px; }
+    .pp-cond-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--pp-fg-4); margin-bottom: 5px; }
+    .pp-cond-val { font-size: 13.5px; font-weight: 600; color: var(--pp-fg-1); }
+    .pp-obs-box { margin-top: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #92400e; line-height: 1.6; }
+
+    /* STICKY MOBILE BAR */
+    .pp-sticky {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 15;
+      padding: 14px 16px max(14px, env(safe-area-inset-bottom));
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(20px) saturate(150%);
+      -webkit-backdrop-filter: blur(20px) saturate(150%);
+      border-top: 1px solid var(--pp-border);
+      display: flex; gap: 10px; align-items: center;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+    }
+    .pp-sticky-info { display: flex; flex-direction: column; min-width: 0; }
+    .pp-sticky-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--pp-fg-3); }
+    .pp-sticky-val { font-size: 20px; font-weight: 800; color: ${accentDark}; font-variant-numeric: tabular-nums; }
+    .pp-sticky-btn { margin-left: auto; height: 44px; padding: 0 18px; flex: none; min-width: 0; }
+    .pp-sticky-reject {
+      height: 44px; width: 44px; background: #ffffff; color: var(--pp-danger);
+      border: 1px solid #fecaca; border-radius: var(--pp-radius-md); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-family: inherit; transition: background 0.15s;
+    }
+    .pp-sticky-reject:hover { background: #fef2f2; }
+
+    /* FOOTER */
+    .pp-foot { border-top: 1px solid var(--pp-border); padding: 22px 24px; background: rgba(255,255,255,0.6); backdrop-filter: blur(10px); margin-top: 8px; }
+    .pp-foot-inner { max-width: 920px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .pp-foot-brand { display: inline-flex; align-items: center; gap: 12px; }
+    .pp-foot-logo { height: 28px; width: auto; opacity: 0.85; }
+    .pp-foot-text { font-size: 11.5px; color: var(--pp-fg-3); line-height: 1.6; }
+    .pp-foot-text b { color: var(--pp-fg-2); font-weight: 600; }
+
+    .pp-rascunho { background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--pp-radius-xl); padding: 14px 18px; text-align: center; font-size: 13.5px; color: #92400e; font-weight: 500; }
+
+    /* PULSE on total change */
+    .pp-pulse { animation: ppPulseAmt 0.6s cubic-bezier(0.4,0,0.2,1); }
+    @keyframes ppPulseAmt { 0% { transform: scale(1); } 35% { transform: scale(1.04); } 100% { transform: scale(1); } }
+
+    /* ===== TELAS AUXILIARES (loading/error/senha/aprovado/recusado) ===== */
+    .pp-center { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .pp-center-card {
+      background: #ffffff; border-radius: var(--pp-radius-3xl);
+      border: 1px solid var(--pp-border); padding: 40px 32px; max-width: 440px; width: 100%;
+      text-align: center; box-shadow: 0 20px 60px -20px rgba(11,18,32,0.10);
+      position: relative; overflow: hidden;
+    }
+    .pp-center-card.success { border-color: ${accent}40; box-shadow: 0 20px 60px -20px ${accent}33; }
+    .pp-center-card.success::before { content: ""; position: absolute; inset: 0; background: radial-gradient(80% 60% at 50% 0%, ${accent}1a, transparent 60%); pointer-events: none; }
+    .pp-center-ico {
+      width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 18px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: ${accent}1a; color: ${accentDark}; position: relative;
+    }
+    .pp-center-ico.success { animation: ppPop 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+    .pp-center-ico.success::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid ${accent}4d; animation: ppRing 1.5s ease-out infinite; }
+    .pp-center-ico.danger { background: rgba(239,68,68,0.12); color: var(--pp-danger); }
+    @keyframes ppPop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes ppRing { 0% { transform: scale(0.95); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+    .pp-center-title { font-size: 22px; font-weight: 800; color: var(--pp-fg-1); margin: 0 0 8px; letter-spacing: -0.02em; position: relative; }
+    .pp-center-desc { font-size: 14px; color: var(--pp-fg-2); line-height: 1.6; position: relative; margin-bottom: 4px; }
+    .pp-center-box {
+      text-align: left; background: #fafbfc; border: 1px solid var(--pp-border);
+      border-radius: var(--pp-radius-lg); padding: 16px 18px; margin-top: 22px; position: relative;
+    }
+    .pp-center-box-ttl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.10em; color: var(--pp-fg-3); margin-bottom: 12px; }
+    .pp-center-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13.5px; color: var(--pp-fg-1); gap: 12px; }
+    .pp-center-row span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pp-center-row b { font-weight: 600; color: ${accentDark}; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .pp-center-total { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--pp-border); display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; color: var(--pp-fg-1); }
+    .pp-center-total span:last-child { color: ${accentDark}; font-variant-numeric: tabular-nums; }
+    .pp-center-actions { display: flex; gap: 10px; margin-top: 22px; position: relative; flex-wrap: wrap; }
+    .pp-center-actions .pp-btn { flex: 1; height: 44px; font-size: 13.5px; min-width: 0; }
+    .pp-pw-input { width: 100%; padding: 12px 14px; border: 1px solid var(--pp-border); border-radius: var(--pp-radius-md); font-size: 15px; outline: none; color: var(--pp-fg-1); margin-bottom: 10px; font-family: inherit; }
+    .pp-pw-input:focus { border-color: ${accent}; box-shadow: 0 0 0 3px ${accent}1f; }
+    .pp-pw-err { font-size: 12.5px; color: var(--pp-danger); margin-bottom: 10px; }
+
+    /* MODAL */
+    .pp-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: flex-end; justify-content: center; z-index: 60; }
+    @media (min-width: 480px) { .pp-modal-overlay { align-items: center; padding: 16px; } }
+    .pp-modal { background: #ffffff; width: 100%; max-width: 480px; border-radius: 22px 22px 0 0; padding: 26px 24px 28px; }
+    @media (min-width: 480px) { .pp-modal { border-radius: var(--pp-radius-3xl); } }
+    .pp-modal-handle { width: 36px; height: 4px; background: var(--pp-border); border-radius: 2px; margin: 0 auto 20px; }
+    .pp-modal-title { font-size: 18px; font-weight: 800; color: var(--pp-fg-1); margin-bottom: 6px; letter-spacing: -0.015em; }
+    .pp-modal-sub { font-size: 13px; color: var(--pp-fg-2); margin-bottom: 20px; line-height: 1.5; }
+    .pp-modal-val-box { background: ${accent}0a; border: 1px solid ${accent}33; border-radius: var(--pp-radius-lg); padding: 16px; text-align: center; margin-bottom: 20px; }
+    .pp-modal-val-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: ${accentDark}; margin-bottom: 4px; }
+    .pp-modal-val { font-size: 28px; font-weight: 900; color: ${accentDark}; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+    .pp-modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .pp-modal-cancel { padding: 10px 18px; border: 1px solid var(--pp-border-strong); border-radius: var(--pp-radius-md); background: #ffffff; color: var(--pp-fg-2); font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; }
+    .pp-modal-confirm { padding: 10px 20px; border: none; border-radius: var(--pp-radius-md); background: ${accent}; color: #ffffff; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; font-family: inherit; transition: background 0.15s; }
+    .pp-modal-confirm:hover { background: ${accentDark}; }
+    .pp-modal-confirm.red { background: var(--pp-danger); }
+    .pp-modal-confirm.red:hover { background: #dc2626; }
+    .pp-modal-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
+    .pp-textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--pp-border); border-radius: var(--pp-radius-md); font-size: 14px; resize: vertical; outline: none; color: var(--pp-fg-1); font-family: inherit; line-height: 1.5; margin-bottom: 16px; }
+    .pp-textarea:focus { border-color: ${accent}; box-shadow: 0 0 0 3px ${accent}1f; }
+    .pp-form-lbl { font-size: 13px; font-weight: 600; color: var(--pp-fg-2); margin-bottom: 6px; display: block; }
   `;
 }
 
@@ -212,7 +440,6 @@ function fmtInput(v: number): string {
   if (!v) return '';
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-
 function parseInput(s: string): number {
   const cleaned = s.replace(/[^\d,]/g, '').replace(',', '.');
   return parseFloat(cleaned) || 0;
@@ -228,46 +455,32 @@ export default function PropostaPublica() {
   const [orc, setOrc] = useState<any>(null);
   const [itens, setItens] = useState<OrcamentoItem[]>([]);
 
-  // Auth
   const [senhaRequerida, setSenhaRequerida] = useState(false);
   const [senhaInput, setSenhaInput] = useState('');
   const [senhaErro, setSenhaErro] = useState(false);
   const [autenticado, setAutenticado] = useState(false);
 
-  // Seleção de itens (ambos os fluxos)
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
-
-  // Valores que o contador vai cobrar do cliente (apenas fluxo contador)
   const [valoresContador, setValoresContador] = useState<Record<string, number>>({});
 
-  // Aprovação / recusa
   const [showAprovacao, setShowAprovacao] = useState(false);
   const [showRecusa, setShowRecusa] = useState(false);
   const [motivoRecusa, setMotivoRecusa] = useState('');
   const [processando, setProcessando] = useState(false);
   const [statusFinal, setStatusFinal] = useState<'aprovado' | 'recusado' | null>(null);
-  // Cobrança vinculada — buscada via lancamento_id após aprovação.
-  // Usada na tela "Proposta Aprovada" pra dar o link de pagamento/recibo.
   const [cobrancaShareToken, setCobrancaShareToken] = useState<string | null>(null);
 
-  // Save silencioso (debounce)
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Pulse no total quando muda
+  const [pulse, setPulse] = useState(false);
 
-  // PERF-004 (12/05/2026): cleanup do debounce no unmount. Sem isso, se
-  // user navega pra outra rota com setTimeout pendente, o fetch dispara
-  // sem ninguém consumir — inofensivo mas sujo.
-  useEffect(() => () => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-  }, []);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   // Force light theme
   useEffect(() => {
     document.documentElement.classList.remove('dark');
     document.documentElement.classList.add('light');
-    return () => {
-      document.documentElement.classList.remove('light');
-      document.documentElement.classList.add('dark');
-    };
+    return () => { document.documentElement.classList.remove('light'); document.documentElement.classList.add('dark'); };
   }, []);
 
   // Carrega proposta
@@ -284,7 +497,6 @@ export default function PropostaPublica() {
 
         const orcData = results[0];
 
-        // Validade
         if (orcData.validade_dias && orcData.created_at) {
           const expira = new Date(new Date(orcData.created_at).getTime() + orcData.validade_dias * 86400000);
           if (new Date() > expira) { setError('Esta proposta expirou. Entre em contato para solicitar uma nova.'); setLoading(false); return; }
@@ -292,95 +504,85 @@ export default function PropostaPublica() {
 
         if (['aguardando_pagamento', 'convertido'].includes(orcData.status)) {
           setStatusFinal('aprovado');
-          // Busca share_token da cobrança pra dar botão "Ver pagamento" na tela final
           fetch(`${SUPABASE_URL}/rest/v1/rpc/get_cobranca_token_by_proposta`, {
-            method: 'POST', headers: anonHeaders,
-            body: JSON.stringify({ p_proposta_token: token }),
+            method: 'POST', headers: anonHeaders, body: JSON.stringify({ p_proposta_token: token }),
           }).then(r => r.ok ? r.json() : null)
             .then(tok => { if (tok && typeof tok === 'string') setCobrancaShareToken(tok); })
-            .catch(() => { /* silencioso: botão simplesmente não aparece */ });
-        }
-        else if (orcData.status === 'recusado') setStatusFinal('recusado');
+            .catch(() => {});
+        } else if (orcData.status === 'recusado') setStatusFinal('recusado');
 
-        if (orcData.destinatario === 'contador' && orcData.has_password) setSenhaRequerida(true);
-        else setAutenticado(true);
+        if (orcData.senha_link && !autenticado) { setSenhaRequerida(true); setLoading(false); return; }
 
-        const rawItens: OrcamentoItem[] = Array.isArray(orcData.servicos) ? orcData.servicos.map(normalizeItem) : [];
-        setItens(rawItens);
         setOrc(orcData);
+        const rawItens: any[] = Array.isArray(orcData.itens_proposta) ? orcData.itens_proposta : [];
+        const normalizados = rawItens.map(normalizeItem);
+        setItens(normalizados);
 
-        // Inicializa selecionados: todos marcados por padrão
-        // Se houver itens_selecionados salvos, usa eles
-        if (Array.isArray(orcData.itens_selecionados) && orcData.itens_selecionados.length > 0) {
-          const ids = new Set<string>(orcData.itens_selecionados.map((i: any) => i.id));
-          setSelecionados(ids);
-          // Inicializa valores do contador a partir do save anterior
-          const vals: Record<string, number> = {};
-          orcData.itens_selecionados.forEach((i: any) => {
-            if (i.valor_contador != null) vals[i.id] = i.valor_contador;
-          });
-          setValoresContador(vals);
-        } else {
-          // Seleciona todos por padrão
-          setSelecionados(new Set(rawItens.map(i => i.id)));
-          // Inicializa valores sugeridos do contador
-          const vals: Record<string, number> = {};
-          rawItens.forEach(i => { vals[i.id] = i.honorario_minimo_contador || i.honorario; });
-          setValoresContador(vals);
-        }
-
-        // Log view (fire-and-forget)
-        fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
-          method: 'POST', headers: anonHeaders,
-          body: JSON.stringify({ p_orcamento_id: orcData.id, p_tipo: 'visualizou', p_dados: { token } }),
-        }).catch(err => console.warn('[proposta] log visualizou falhou:', err));
+        // Pré-seleção: itens obrigatórios + os já selecionados anteriormente
+        const itensSelecionados = Array.isArray(orcData.itens_selecionados) ? orcData.itens_selecionados : [];
+        const prevSelIds = new Set(itensSelecionados.map((i: any) => i.id));
+        const initSel = new Set<string>();
+        const initVals: Record<string, number> = {};
+        normalizados.forEach(i => {
+          if (!i.isOptional || prevSelIds.has(i.id)) initSel.add(i.id);
+        });
+        itensSelecionados.forEach((i: any) => { if (i.valor_contador != null) initVals[i.id] = Number(i.valor_contador); });
+        setSelecionados(initSel);
+        setValoresContador(initVals);
 
         setLoading(false);
-      } catch { setError('Erro ao carregar proposta.'); setLoading(false); }
+      } catch (err) {
+        console.error('[proposta] load falhou:', err);
+        setError('Erro ao carregar proposta.');
+        setLoading(false);
+      }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // ── Salva seleção silenciosamente (debounce 1.5s)
-  const salvarSelecaoSilencioso = useCallback((sel: Set<string>, vals: Record<string, number>, allItens: OrcamentoItem[]) => {
-    if (!token) return;
+  // Save selection silencioso (debounce)
+  const salvarSelecaoSilencioso = (sel: Set<string>, vals: Record<string, number>) => {
+    if (!orc) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      const payload = allItens
-        .filter(i => sel.has(i.id))
-        .map(i => ({ id: i.id, descricao: i.descricao, valor_contador: vals[i.id] || i.honorario_minimo_contador || i.honorario || 0 }));
-      await fetch(`${SUPABASE_URL}/rest/v1/rpc/salvar_selecao_proposta`, {
+    saveTimer.current = setTimeout(() => {
+      const payload = itens.filter(i => sel.has(i.id)).map(i => ({
+        id: i.id,
+        descricao: i.descricao,
+        valor_contador: vals[i.id] != null ? vals[i.id] : (i.honorario_minimo_contador || i.honorario || 0),
+      }));
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/salvar_selecao_proposta`, {
         method: 'POST', headers: anonHeaders,
-        body: JSON.stringify({ p_token: token, p_itens_selecionados: payload }),
-      }).catch(err => console.warn('[proposta] salvar_selecao falhou:', err));
-    }, 1500);
-  }, [token]);
+        body: JSON.stringify({ p_token: token, p_selecionados: payload }),
+      }).catch(() => {});
+    }, 800);
+  };
 
-  // ── Toggle item selecionado
-  function toggleItem(id: string, isObrigatorio: boolean) {
-    if (isObrigatorio) return; // obrigatórios nunca podem ser desmarcados
+  const toggleItem = (id: string, isObrig: boolean) => {
+    if (isObrig) return;
     setSelecionados(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      salvarSelecaoSilencioso(next, valoresContador, itens);
+      salvarSelecaoSilencioso(next, valoresContador);
       return next;
     });
-  }
+  };
 
-  // ── Atualiza valor que o contador vai cobrar
-  function atualizarValorContador(id: string, valor: number) {
+  const atualizarValorContador = (id: string, v: number) => {
     setValoresContador(prev => {
-      const next = { ...prev, [id]: valor };
-      salvarSelecaoSilencioso(selecionados, next, itens);
+      const next = { ...prev, [id]: v };
+      salvarSelecaoSilencioso(selecionados, next);
       return next;
     });
-  }
+  };
 
+  // Verificar senha
   async function verificarSenha() {
+    if (!senhaInput.trim() || !token) return;
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/verificar_senha_proposta`, {
-        method: 'POST', headers: anonHeaders, body: JSON.stringify({ p_token: token, p_senha: senhaInput }),
+        method: 'POST', headers: anonHeaders,
+        body: JSON.stringify({ p_token: token, p_senha: senhaInput }),
       });
-      if (!res.ok) { setSenhaErro(true); return; }
       const result = await res.json();
       if (result === true) { setAutenticado(true); setSenhaErro(false); } else setSenhaErro(true);
     } catch { setSenhaErro(true); }
@@ -390,8 +592,7 @@ export default function PropostaPublica() {
   const modoPDF = orc?.destinatario === 'cliente_direto' ? 'direto' : orc?.destinatario === 'cliente_via_contador' ? 'cliente' : 'contador';
   const isContador = modoPDF === 'contador';
   const isClienteFinal = orc?.destinatario === 'cliente_direto';
-  // 18/05/2026 redesign: accent SEMPRE verde Trevo (antes era azul pra cliente final).
-  // Mantém branding consistente independente do tipo de destinatário.
+  // Brand sempre verde Trevo (independente do tipo de destinatário)
   const accent = '#16a34a';
   const accentDark = '#15803d';
   const escritorioNome = orc?.escritorio_nome || '';
@@ -400,7 +601,6 @@ export default function PropostaPublica() {
 
   const itensFiltrados = useMemo(() => itens.filter(i => i.descricao.trim()), [itens]);
 
-  // Total considerando apenas itens selecionados
   const { subtotalSel, totalTaxaMinSel, totalTaxaMaxSel, descontoSel, totalSel } = useMemo(() => {
     const sel = itensFiltrados.filter(i => selecionados.has(i.id));
     const sub = isClienteFinal
@@ -412,7 +612,6 @@ export default function PropostaPublica() {
     return { subtotalSel: sub, totalTaxaMinSel: tMin, totalTaxaMaxSel: tMax, descontoSel: desc, totalSel: sub - desc };
   }, [itensFiltrados, selecionados, orc, isClienteFinal]);
 
-  // Total que o contador vai cobrar do cliente (só para o fluxo contador)
   const totalContador = useMemo(() => {
     return itensFiltrados
       .filter(i => selecionados.has(i.id))
@@ -423,20 +622,23 @@ export default function PropostaPublica() {
     ? `${fmt(totalSel + totalTaxaMinSel)} a ${fmt(totalSel + totalTaxaMaxSel)}`
     : fmt(totalSel);
 
+  // Pulse no total quando muda
+  const prevTotalRef = useRef(totalSel);
+  useEffect(() => {
+    if (prevTotalRef.current !== totalSel) {
+      setPulse(true);
+      const t = setTimeout(() => setPulse(false), 600);
+      prevTotalRef.current = totalSel;
+      return () => clearTimeout(t);
+    }
+  }, [totalSel]);
+
   // ── Aprovação
-  // Sprint 2.A.4 (13/05/2026 noite): fluxo automático.
-  //   1. RPC aprovar_orcamento_e_gerar_cobranca → cria processo + lancamento + cobrança em transação
-  //   2. Edge function asaas-gerar-cobranca-publico → gera PIX/boleto Asaas (autentica via share_token)
-  //   3. Redirect pra /cobranca/{cobranca_token} → cliente já vê tela de pagamento
-  // Se Asaas falhar, segue pro /cobranca mesmo (tela mostra fallback PIX manual e
-  // Thales pode regenerar Asaas via Financeiro).
   async function handleAprovar() {
     setProcessando(true);
     try {
-      // 1. Aprovação atômica no banco
       const r1 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/aprovar_orcamento_e_gerar_cobranca`, {
-        method: 'POST', headers: anonHeaders,
-        body: JSON.stringify({ p_token: token }),
+        method: 'POST', headers: anonHeaders, body: JSON.stringify({ p_token: token }),
       });
       if (!r1.ok) {
         const errText = await r1.text().catch(() => '');
@@ -446,31 +648,19 @@ export default function PropostaPublica() {
       if (!result?.ok || !result.cobranca_id || !result.cobranca_token) {
         throw new Error('Resposta inesperada da aprovação');
       }
-
-      // 2. Gerar Asaas via edge PÚBLICA (autentica por share_token — cliente é anônimo).
-      // Assíncrono: se demorar, redirect roda em paralelo e /cobranca mostra fallback até preencher.
       fetch(`${SUPABASE_URL}/functions/v1/asaas-gerar-cobranca-publico`, {
-        method: 'POST', headers: anonHeaders,
-        body: JSON.stringify({ share_token: result.cobranca_token }),
+        method: 'POST', headers: anonHeaders, body: JSON.stringify({ share_token: result.cobranca_token }),
       }).catch(err => console.warn('[proposta] asaas-gerar-publico falhou:', err));
-
-      // 3. Log evento
       fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({
-          p_orcamento_id: orc.id,
-          p_tipo: 'aprovou',
+          p_orcamento_id: orc.id, p_tipo: 'aprovou',
           p_dados: { total: totalSel, itens_count: selecionados.size, cobranca_id: result.cobranca_id },
         }),
       }).catch(err => console.warn('[proposta] log aprovou falhou:', err));
-
-      // 4. Redirect pra tela de pagamento (mesma janela)
       navigate(`/cobranca/${result.cobranca_token}`, { replace: true });
     } catch (err: any) {
       console.error('[proposta] handleAprovar falhou:', err);
-      // BUG-002 fluxo público (18/05/2026): antes mostrava erro bruto do
-      // backend ao cliente final (401, 429, etc). Agora traduz pra msg
-      // friendly que não assusta nem chama suporte por dúvida técnica.
       const rawMsg = String(err?.message || '');
       const friendlyMsg =
         rawMsg.includes('401') || rawMsg.toLowerCase().includes('unauthorized')
@@ -508,7 +698,6 @@ export default function PropostaPublica() {
       }).catch(err => console.warn('[proposta] log recusou falhou:', err));
       setStatusFinal('recusado');
       setShowRecusa(false);
-      // UX-BUG-001 (18/05): toast de confirmação após recusa registrar
       alert('Recusa registrada. A Trevo foi notificada e entrará em contato se precisar.');
     } catch (err) {
       console.error('[proposta] handleRecusar falhou:', err);
@@ -516,127 +705,59 @@ export default function PropostaPublica() {
     } finally { setProcessando(false); }
   }
 
-  // ── Download HTML (proposta para o cliente final — white-label)
+  // Downloads (HTML + PDF)
   function handleDownloadHTML() {
     if (!orc) return;
     const num = String(orc.numero).padStart(3, '0');
     const data = new Date(orc.created_at).toLocaleDateString('pt-BR');
-    const nomeEscritorio = escritorioNome || 'Escritório Contábil';
+    const nomeEscritorio = escritorioNome || 'Trevo Legaliza';
     const itensSel = itensFiltrados.filter(i => selecionados.has(i.id));
-
     const itensHtml = itensSel.map((item, idx) => {
       const valorExibido = (valoresContador[item.id] != null ? valoresContador[item.id] : (item.honorario_minimo_contador || item.honorario || 0));
       const valorTotal = valorExibido * item.quantidade;
-      const hasTaxa = item.taxa_min > 0 || item.taxa_max > 0;
       return `
         <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#f8fafc;">
             <div style="display:flex;align-items:center;gap:8px;">
-              <span style="width:20px;height:20px;border-radius:5px;background:#3b82f618;color:#3b82f6;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">${idx + 1}</span>
+              <span style="width:20px;height:20px;border-radius:5px;background:${accent}18;color:${accentDark};font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">${idx + 1}</span>
               <span style="font-size:14px;font-weight:600;color:#1e293b;">${item.descricao}</span>
               ${item.isOptional ? '<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:#fef9c3;color:#ca8a04;margin-left:6px;">Opcional</span>' : ''}
             </div>
             <span style="font-size:14px;font-weight:700;color:#1e293b;">${fmt(valorTotal)}</span>
           </div>
           ${item.detalhes ? `<div style="padding:8px 14px;font-size:12px;color:#475569;border-top:1px solid #f1f5f9;">${DOMPurify.sanitize(item.detalhes)}</div>` : ''}
-          ${(item.prazo || hasTaxa) ? `<div style="padding:8px 14px;background:#f8fafc;border-top:1px solid #f1f5f9;font-size:12px;color:#94a3b8;display:flex;justify-content:space-between;">${item.prazo ? `<span>Prazo: ${item.prazo}</span>` : ''}${hasTaxa ? `<span style="color:#f59e0b;">Taxas: ${fmt(item.taxa_min)} a ${fmt(item.taxa_max)}</span>` : ''}</div>` : ''}
         </div>`;
     }).join('');
-
     const totalClienteStr = fmt(totalContador);
-
-    const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Proposta — ${orc.prospect_nome}</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
-  .page { max-width: 680px; margin: 40px auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 40px rgba(0,0,0,0.10); }
-  .header { background: #0f172a; padding: 22px 30px; display: flex; justify-content: space-between; align-items: center; }
-  .header-name { font-size: 16px; font-weight: 700; color: #f8fafc; }
-  .header-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
-  .hero { background: #0f172a; padding: 36px 30px; border-bottom: 1px solid #1e293b; }
-  .hero-lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #3b82f6; margin-bottom: 8px; }
-  .hero-name { font-size: 30px; font-weight: 900; color: #f8fafc; letter-spacing: -0.02em; margin-bottom: 6px; }
-  .hero-cnpj { font-size: 13px; color: #475569; margin-bottom: 24px; }
-  .hero-box { display: inline-block; background: #3b82f618; border: 1px solid #3b82f644; border-radius: 12px; padding: 18px 24px; }
-  .hero-box-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #3b82f6; margin-bottom: 4px; }
-  .hero-box-val { font-size: 32px; font-weight: 900; color: #3b82f6; letter-spacing: -0.02em; }
-  .hero-meta { margin-top: 16px; font-size: 12px; color: #475569; display: flex; gap: 20px; }
-  .section { padding: 24px 30px; border-top: 1px solid #f1f5f9; }
-  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 14px; }
-  .total-final { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-radius: 11px; background: #3b82f60c; border: 2px solid #3b82f630; margin-top: 10px; }
-  .total-final-lbl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #3b82f6; }
-  .total-final-val { font-size: 24px; font-weight: 900; color: #2563eb; letter-spacing: -0.02em; }
-  .footer { padding: 24px 30px; border-top: 1px solid #f1f5f9; text-align: center; font-size: 11px; color: #94a3b8; line-height: 1.8; }
-  .footer-name { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 5px; }
-  @media print { body { background: white; } .page { box-shadow: none; margin: 0; border-radius: 0; } }
-</style>
-</head>
-<body>
-<div class="page">
-  <div class="header">
-    <div>
-      <div class="header-name">${nomeEscritorio}</div>
-      <div class="header-sub">Assessoria Empresarial</div>
-    </div>
-    <div style="font-size:11px;font-weight:600;color:#3b82f6;background:#3b82f618;padding:4px 10px;border-radius:20px;">${data}</div>
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Proposta — ${orc.prospect_nome}</title></head><body style="font-family:system-ui,sans-serif;background:#f1f5f9;color:#1e293b;margin:0;padding:0;">
+<div style="max-width:680px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 40px rgba(0,0,0,0.10);">
+  <div style="padding:30px;border-bottom:1px solid #e2e8f0;">
+    <div style="font-size:18px;font-weight:800;color:#0f172a;">${nomeEscritorio}</div>
+    <div style="font-size:11px;color:#64748b;margin-top:4px;">Assessoria Empresarial · ${data} · #${num}</div>
   </div>
-  <div class="hero">
-    <div class="hero-lbl">Proposta Comercial</div>
-    <div class="hero-name">${orc.prospect_nome}</div>
-    ${orc.prospect_cnpj && orc.prospect_cnpj !== '0000000000' && orc.prospect_cnpj !== '00000000000000' ? `<div class="hero-cnpj">CNPJ: ${orc.prospect_cnpj}</div>` : ''}
-    <div class="hero-box">
-      <div class="hero-box-lbl">Investimento</div>
-      <div class="hero-box-val">${totalClienteStr}</div>
-    </div>
-    <div class="hero-meta">
-      <span>📋 ${itensSel.length} serviços</span>
-      <span>⏱️ Válido por ${orc.validade_dias} dias</span>
+  <div style="padding:30px;">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${accentDark};margin-bottom:8px;">Proposta Comercial</div>
+    <div style="font-size:28px;font-weight:900;color:#0f172a;letter-spacing:-0.02em;margin-bottom:24px;">${orc.prospect_nome}</div>
+    <div style="display:inline-block;background:${accent}1a;border:1px solid ${accent}55;border-radius:12px;padding:16px 22px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${accentDark};margin-bottom:4px;">Investimento</div>
+      <div style="font-size:30px;font-weight:900;color:${accentDark};">${totalClienteStr}</div>
     </div>
   </div>
-  ${orc.contexto ? `<div class="section"><div class="section-title">Contexto</div><div style="font-size:14px;line-height:1.6;color:#374151;">${DOMPurify.sanitize(orc.contexto)}</div></div>` : ''}
-  <div class="section">
-    <div class="section-title">Serviços Incluídos</div>
+  <div style="padding:24px 30px;border-top:1px solid #f1f5f9;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:14px;">Serviços Incluídos</div>
     ${itensHtml}
   </div>
-  <div class="section">
-    <div class="section-title">Investimento</div>
-    <div class="total-final">
-      <span class="total-final-lbl">Total</span>
-      <span class="total-final-val">${totalClienteStr}</span>
-    </div>
+  ${orc.observacoes ? `<div style="padding:18px 30px;border-top:1px solid #f1f5f9;background:#fffbeb;font-size:13px;color:#92400e;">${DOMPurify.sanitize(orc.observacoes)}</div>` : ''}
+  <div style="padding:24px 30px;border-top:1px solid #f1f5f9;text-align:center;font-size:11px;color:#94a3b8;">
+    ${nomeEscritorio}${orc.escritorio_cnpj ? ` · CNPJ ${orc.escritorio_cnpj}` : ''}
   </div>
-  <div class="section">
-    <div class="section-title">Condições</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div style="background:#f8fafc;border-radius:9px;padding:12px;"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:5px;">Validade</div><div style="font-size:13px;font-weight:600;">${orc.validade_dias} dias</div></div>
-      <div style="background:#f8fafc;border-radius:9px;padding:12px;"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:5px;">Pagamento</div><div style="font-size:13px;font-weight:600;">${orc.pagamento || 'A combinar'}</div></div>
-    </div>
-    ${orc.observacoes ? `<div style="margin-top:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:12px;font-size:13px;color:#92400e;line-height:1.6;">${DOMPurify.sanitize(orc.observacoes)}</div>` : ''}
-  </div>
-  <div class="footer">
-    <div class="footer-name">${nomeEscritorio}</div>
-    ${orc.escritorio_cnpj ? `<div>CNPJ: ${orc.escritorio_cnpj}</div>` : ''}
-    ${orc.escritorio_email ? `<div>${orc.escritorio_email}</div>` : ''}
-    ${orc.escritorio_telefone ? `<div>${orc.escritorio_telefone}</div>` : ''}
-  </div>
-</div>
-</body>
-</html>`;
-
+</div></body></html>`;
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     const nome = (orc.prospect_nome || 'proposta').replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 40);
-    a.href = url;
-    a.download = `Proposta_${nome}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    a.href = url; a.download = `Proposta_${nome}.html`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
 
@@ -668,7 +789,7 @@ export default function PropostaPublica() {
         riscos: Array.isArray(orc.riscos) ? orc.riscos : [],
         etapas_fluxo: Array.isArray(orc.etapas_fluxo) ? orc.etapas_fluxo : [],
         beneficios_capa: Array.isArray(orc.beneficios_capa) ? orc.beneficios_capa : [],
-        headline_cenario: orc.headline_cenario || '', cenarios: Array.isArray(orc.cenarios) ? orc.cenarios : [],
+        headline_cenario: orc.headline_cenario || '', cenarios,
       });
       const nome = (orc.prospect_nome || 'proposta').replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 40);
       downloadBlob(doc, `Proposta_${nome}_${String(orc.numero).padStart(3, '0')}.pdf`);
@@ -680,46 +801,48 @@ export default function PropostaPublica() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9' }}>
-      <Loader2 style={{ height: 28, width: 28, color: '#94a3b8' }} className="animate-spin" />
-    </div>
+    <>
+      <style>{fonts}</style>
+      <style>{buildStyles(accent, accentDark)}</style>
+      <div className="pp-center"><Loader2 style={{ height: 32, width: 32, color: accent }} className="animate-spin" /></div>
+    </>
   );
 
   if (error) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 18, padding: '36px 28px', maxWidth: 400, width: '100%', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-        <XCircle style={{ height: 44, width: 44, color: '#ef4444', margin: '0 auto 14px' }} />
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>Proposta Indisponível</h2>
-        <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6 }}>{error}</p>
+    <>
+      <style>{fonts}</style>
+      <style>{buildStyles(accent, accentDark)}</style>
+      <div className="pp-center">
+        <div className="pp-center-card">
+          <div className="pp-center-ico danger"><XCircle style={{ height: 32, width: 32 }} /></div>
+          <h2 className="pp-center-title">Proposta Indisponível</h2>
+          <p className="pp-center-desc">{error}</p>
+        </div>
       </div>
-    </div>
+    </>
   );
 
   if (senhaRequerida && !autenticado) return (
     <>
       <style>{fonts}</style>
-      <style>{buildStyles('#22c55e', '#16a34a')}</style>
-      <div className="center-page">
-        <div className="center-card">
-          <div style={{ width: 48, height: 48, background: '#f1f5f9', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
-            <LockIcon style={{ height: 22, width: 22, color: '#64748b' }} />
-          </div>
-          <div className="center-title">Acesso Protegido</div>
-          <div className="center-desc" style={{ marginBottom: 20 }}>Insira a senha para visualizar esta proposta.</div>
+      <style>{buildStyles(accent, accentDark)}</style>
+      <div className="pp-center">
+        <div className="pp-center-card">
+          <div className="pp-center-ico"><LockIcon style={{ height: 28, width: 28 }} /></div>
+          <h2 className="pp-center-title">Acesso Protegido</h2>
+          <p className="pp-center-desc" style={{ marginBottom: 20 }}>Insira a senha para visualizar esta proposta.</p>
           <input type="password" placeholder="Senha" value={senhaInput}
             onChange={e => { setSenhaInput(e.target.value); setSenhaErro(false); }}
             onKeyDown={e => e.key === 'Enter' && verificarSenha()}
-            className="pw-input" />
-          {senhaErro && <div className="pw-err">Senha incorreta. Tente novamente.</div>}
-          <button onClick={verificarSenha} className="btn-pw">Acessar Proposta</button>
+            className="pp-pw-input" autoFocus />
+          {senhaErro && <div className="pp-pw-err">Senha incorreta. Tente novamente.</div>}
+          <button onClick={verificarSenha} className="pp-btn pp-btn-approve" style={{ width: '100%' }}>Acessar Proposta</button>
         </div>
       </div>
     </>
   );
 
   if (statusFinal) {
-    // Resumo dos itens aprovados — só mostra se cliente realmente selecionou
-    // subset (caso contrário fica redundante com a info da página principal).
     const itensAprovados = Array.isArray(orc?.itens_selecionados) ? orc.itens_selecionados : [];
     const totalAprovado = itensAprovados.reduce((s: number, i: any) => s + Number(i.valor_contador || 0), 0);
     const pago = orc?.status === 'convertido';
@@ -727,67 +850,51 @@ export default function PropostaPublica() {
       <>
         <style>{fonts}</style>
         <style>{buildStyles(accent, accentDark)}</style>
-        <div className="center-page">
-          <div className="center-card">
+        <div className="pp-center">
+          <div className={`pp-center-card ${statusFinal === 'aprovado' ? 'success' : ''}`}>
             {statusFinal === 'aprovado' ? (
               <>
-                <CheckCircle style={{ height: 52, width: 52, color: '#22c55e', margin: '0 auto' }} />
-                <div className="center-title" style={{ color: '#15803d' }}>
-                  {pago ? 'Pagamento Confirmado!' : 'Proposta Aprovada!'}
-                </div>
-                <div className="center-desc">
+                <div className="pp-center-ico success"><CheckCircle style={{ height: 36, width: 36 }} /></div>
+                <h2 className="pp-center-title">{pago ? 'Pagamento Confirmado!' : 'Proposta Aprovada!'}</h2>
+                <p className="pp-center-desc">
                   {pago
                     ? 'Recebemos seu pagamento. Nossa equipe iniciará a execução em breve.'
                     : 'Obrigado! Finalize o pagamento para iniciarmos a execução.'}
-                </div>
-
-                {/* Resumo dos itens aprovados */}
+                </p>
                 {itensAprovados.length > 0 && (
-                  <div style={{
-                    marginTop: 24, padding: 16, background: '#f8fafc',
-                    borderRadius: 12, border: '1px solid #e2e8f0', textAlign: 'left',
-                  }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
-                      Itens aprovados ({itensAprovados.length})
-                    </div>
+                  <div className="pp-center-box">
+                    <div className="pp-center-box-ttl">Itens aprovados ({itensAprovados.length})</div>
                     {itensAprovados.map((i: any) => (
-                      <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: 14, color: '#1e293b' }}>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 12 }}>
-                          {i.descricao}
-                        </span>
-                        <span style={{ fontWeight: 600, color: '#15803d', whiteSpace: 'nowrap' }}>
-                          {Number(i.valor_contador).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </span>
+                      <div key={i.id} className="pp-center-row">
+                        <span>{i.descricao}</span>
+                        <b>{Number(i.valor_contador).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</b>
                       </div>
                     ))}
-                    <div style={{
-                      marginTop: 10, paddingTop: 10, borderTop: '1px solid #e2e8f0',
-                      display: 'flex', justifyContent: 'space-between',
-                      fontSize: 15, fontWeight: 700, color: '#0f172a',
-                    }}>
+                    <div className="pp-center-total">
                       <span>Total {pago ? 'pago' : 'a pagar'}</span>
                       <span>{totalAprovado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                     </div>
                   </div>
                 )}
-
-                {cobrancaShareToken && (
-                  <button
-                    className="btn-confirm"
-                    style={{ marginTop: 20 }}
-                    onClick={() => navigate(`/cobranca/${cobrancaShareToken}`)}
-                  >
-                    {pago ? 'Ver comprovante' : 'Ir para pagamento'}
-                  </button>
-                )}
+                <div className="pp-center-actions">
+                  {cobrancaShareToken && (
+                    <button className="pp-btn pp-btn-approve" onClick={() => navigate(`/cobranca/${cobrancaShareToken}`)}>
+                      <CreditCard /> {pago ? 'Ver comprovante' : 'Ir para pagamento'}
+                    </button>
+                  )}
+                </div>
               </>
             ) : (
               <>
-                <XCircle style={{ height: 52, width: 52, color: '#ef4444', margin: '0 auto' }} />
-                <div className="center-title" style={{ color: '#dc2626' }}>Proposta Recusada</div>
-                <div className="center-desc">Recebemos sua resposta. Caso mude de ideia, este link ainda estará disponível.</div>
+                <div className="pp-center-ico danger"><XCircle style={{ height: 32, width: 32 }} /></div>
+                <h2 className="pp-center-title">Proposta Recusada</h2>
+                <p className="pp-center-desc">Recebemos sua resposta. Caso mude de ideia, este link ainda estará disponível.</p>
                 {orc?.status === 'recusado' && (
-                  <button className="btn-review" onClick={() => setStatusFinal(null)}>Revisar proposta novamente</button>
+                  <div className="pp-center-actions">
+                    <button className="pp-btn pp-btn-decline" onClick={() => setStatusFinal(null)}>
+                      <ArrowLeft /> Revisar novamente
+                    </button>
+                  </div>
                 )}
               </>
             )}
@@ -803,157 +910,190 @@ export default function PropostaPublica() {
 
   const riscos = Array.isArray(orc?.riscos) ? orc.riscos : [];
   const etapasFluxo = Array.isArray(orc?.etapas_fluxo) ? orc.etapas_fluxo : [];
-  const beneficios = Array.isArray(orc?.beneficios_capa) ? orc.beneficios_capa : [];
   const pacotes = Array.isArray(orc?.pacotes) ? orc.pacotes.filter((p: any) => p.nome && p.itens_ids?.length > 0) : [];
+  const obrigatorios = itensFiltrados.filter(i => !i.isOptional);
+  const opcionais = itensFiltrados.filter(i => i.isOptional);
+  const opcionaisOn = opcionais.filter(i => selecionados.has(i.id));
+  const ctaLabel = isContador
+    ? (orc?.status === 'recusado' ? 'Mudei de ideia — Aprovar' : 'Aprovar e fechar negócio')
+    : (orc?.status === 'recusado' ? 'Mudei de ideia — Aprovar' : 'Aprovar Proposta');
 
   return (
     <>
       <style>{fonts}</style>
       <style>{buildStyles(accent, accentDark)}</style>
 
-      <div className="page" data-theme="light">
+      <div className="pp-shell">
 
-        {/* HEADER — Fix 3 (13/05/2026 noite): logo Trevo Legaliza real (PNG) em
-            vez do emoji 🍀. Header mais limpo, focado em quem é. */}
-        <div className="header">
-          <div className="header-inner">
-            <div className="header-logo">
-              <img src={logoTrevo} alt={nomeDisplay} className="header-logo-mark" />
-              <div>
-                <div className="header-logo-name">{nomeDisplay}</div>
-                <div className="header-logo-sub">{isContador ? 'Painel do Parceiro' : 'Assessoria Empresarial'}</div>
+        {/* TOP BAR */}
+        <header className="pp-top">
+          <div className="pp-top-inner">
+            <div className="pp-brand">
+              <img src={logoTrevo} alt={nomeDisplay} className="pp-logo-img" />
+              <div className="pp-brand-text">
+                <div className="pp-brand-name">{nomeDisplay}</div>
+                <div className="pp-brand-sub">{isContador ? 'Painel do Parceiro' : 'Assessoria Empresarial'}</div>
               </div>
             </div>
-            <div className="header-badge">Proposta #{String(orc?.numero || 0).padStart(3, '0')}</div>
+            <div className="pp-prop-id">
+              <span className="dot" /> Proposta #{String(orc?.numero || 0).padStart(3, '0')}
+            </div>
           </div>
-        </div>
+        </header>
 
         {/* HERO */}
-        <div className="hero">
-          <div className="max">
-            <div className="hero-label">
-              {isContador ? 'Proposta para o Parceiro · ' : 'Proposta Comercial · '}
-              {orc?.created_at ? new Date(orc.created_at).toLocaleDateString('pt-BR') : ''}
-            </div>
-            <div className="hero-name">{orc?.prospect_nome}</div>
-            {orc?.prospect_cnpj && orc.prospect_cnpj !== '0000000000' && orc.prospect_cnpj !== '00000000000000' && (
-              <div className="hero-cnpj">CNPJ: {orc.prospect_cnpj}</div>
-            )}
-            {/* Fix 3 (13/05/2026 noite): hero invertido pra contador — o que importa
-                pra ele é o VALOR QUE COBRA DO CLIENTE (resultado). Custo Trevo vira
-                subtítulo discreto. Não-contador (cliente direto) mantém Investimento. */}
-            <div className="hero-price-box">
-              <div className="hero-price-label">
-                {isContador ? 'Você cobra do cliente' : 'Investimento Estimado'}
+        <section className="pp-hero">
+          <div className="pp-hero-inner">
+            <div className="pp-hero-kicker-row">
+              <div className="pp-hero-kicker">
+                <span className="dot" />
+                {isContador ? 'Proposta para o Parceiro · ' : 'Proposta Comercial · '}
+                {orc?.created_at ? new Date(orc.created_at).toLocaleDateString('pt-BR') : ''}
               </div>
-              <div className="hero-price">{isContador ? fmt(totalContador) : totalStr}</div>
-            </div>
-            {isContador && (
-              <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
-                Custo Trevo: <strong style={{ color: '#cbd5e1' }}>{totalStr}</strong>
-                <span style={{ margin: '0 8px', opacity: 0.5 }}>·</span>
-                Sua margem: <strong style={{ color: '#4ade80' }}>{fmt(totalContador - totalSel)}</strong>
-                <span style={{ marginLeft: 4, opacity: 0.7 }}>({totalSel > 0 ? Math.round(((totalContador - totalSel) / totalSel) * 100) : 0}%)</span>
+              <div className="pp-hero-kicker pp-hero-kicker-num">
+                <Hash size={11} /> ORC-{String(orc?.numero || 0).padStart(3, '0')}
               </div>
-            )}
-            <div className="hero-meta">
-              <span className="hero-meta-item"><span className="hero-dot" />📋 {itensFiltrados.length} serviços</span>
-              <span className="hero-meta-item"><span className="hero-dot" />⏱️ Válido por {orc?.validade_dias} dias</span>
-              {isContador && selecionados.size < itensFiltrados.length && (
-                <span className="hero-meta-item"><span className="hero-dot" />✅ {selecionados.size} selecionados</span>
-              )}
+            </div>
+
+            <div className="pp-hero-grid">
+              <div>
+                <h1 className="pp-hero-title">{orc?.prospect_nome}</h1>
+                {orc?.prospect_cnpj && orc.prospect_cnpj !== '0000000000' && orc.prospect_cnpj !== '00000000000000' && (
+                  <div className="pp-hero-sub">CNPJ {orc.prospect_cnpj}</div>
+                )}
+                <div className="pp-hero-meta">
+                  <span className="pp-hero-pill"><Package /> <b>{itensFiltrados.length}</b> serviços</span>
+                  <span className="pp-hero-pill"><Clock /> Válida por <b>{orc?.validade_dias} dias</b></span>
+                  <span className="pp-hero-pill"><ShieldCheck /> Pagamento via <b>Asaas</b></span>
+                </div>
+              </div>
+
+              <div className="pp-hero-value">
+                <div className="pp-hero-value-lbl">{isContador ? 'Você cobra do cliente' : 'Investimento estimado'}</div>
+                <div className={`pp-hero-value-amount ${pulse ? 'pp-pulse' : ''}`}>
+                  {isContador ? fmt(totalContador) : fmt(totalSel)}
+                </div>
+                <div className="pp-hero-value-meta">
+                  {isContador
+                    ? <>Custo Trevo: <b>{fmt(totalSel)}</b> · Sua margem <b>{fmt(totalContador - totalSel)}</b></>
+                    : opcionaisOn.length > 0
+                      ? <>incluindo <b>{opcionaisOn.length}</b> opcional{opcionaisOn.length > 1 ? 'is' : ''}</>
+                      : (opcionais.length > 0 ? 'apenas obrigatórios — você pode adicionar opcionais abaixo' : 'todos os serviços inclusos')}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="max">
-          <div className="content">
+        {/* MAIN */}
+        <main className="pp-main">
+          <div className="pp-stack pp-fade">
 
-            {/* HINT contador — Fix 3 (13/05/2026 noite): texto enxuto, foco
-                em ação. Antes era um parágrafo verboso explicando demais. */}
+            {/* DANI intro */}
+            {!isContador && (
+              <section className="pp-card" style={{ background: `linear-gradient(135deg, ${accent}08 0%, #ffffff 60%)`, borderColor: `${accent}33` }}>
+                <div className="pp-card-body" style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                  <img src={daniAvatar} alt="Dani" style={{ width: 56, height: 56, borderRadius: '50%', border: `2px solid ${accent}55`, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--pp-fg-1)' }}>Dani</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', padding: '3px 9px', borderRadius: 999, background: `${accent}1a`, color: accentDark, border: `1px solid ${accent}40`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Sparkles size={10} /> IA da Trevo Legaliza
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--pp-fg-1)', margin: 0 }}>
+                      Oi! Preparei essa proposta com base no que conversamos. Os obrigatórios são pra regularização — os opcionais você escolhe. <b style={{ color: accentDark }}>Qualquer dúvida, é só chamar.</b>
+                    </p>
+                  </div>
+                </div>
+              </section>
+            )}
+
             {isContador && (
-              <div className="hint-box">
+              <div className="pp-hint">
                 <strong>Como usar:</strong> Marque os serviços, ajuste a coluna "Você cobra", baixe o PDF do cliente. Quando ele aprovar, volte e clique <strong>Aprovar e fechar negócio</strong>.
               </div>
             )}
 
-            {/* CONTEXTO E APRESENTAÇÃO — texto que o Thales escreve no form
-                vai aparecer aqui. Label padronizada (antes "Cenário e Oportunidade"
-                não batia com o nome no form "Contexto e Apresentação"). */}
+            {/* CONTEXTO */}
             {orc?.contexto && (
-              <div className="card">
-                <div className="card-hd"><div className="card-hd-icon">💡</div><div className="card-title">Contexto e Apresentação</div></div>
-                <div className="card-body">
-                  {orc.headline_cenario && <p style={{ fontSize: 15, fontWeight: 600, color: '#1e293b', marginBottom: 10 }}>{orc.headline_cenario}</p>}
-                  <div style={{ fontSize: 14, lineHeight: 1.7, color: '#374151' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(orc.contexto || '') }} />
+              <section className="pp-card">
+                <div className="pp-card-head">
+                  <div className="pp-card-icon"><Lightbulb /></div>
+                  <div>
+                    <div className="pp-card-title">Contexto e apresentação</div>
+                    <div className="pp-card-sub">Por que essa regularização é prioridade agora</div>
+                  </div>
                 </div>
-              </div>
+                <div className="pp-card-body">
+                  {orc.headline_cenario && <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--pp-fg-1)', marginBottom: 10 }}>{orc.headline_cenario}</p>}
+                  <div style={{ fontSize: 14, lineHeight: 1.65, color: 'var(--pp-fg-1)' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(orc.contexto || '') }} />
+                </div>
+              </section>
             )}
 
             {/* RISCOS */}
             {riscos.length > 0 && (
-              <div className="card card-risk">
-                <div className="card-hd"><div className="card-hd-icon">⛔</div><div className="card-title">Riscos Sem Regularização</div></div>
-                <div className="card-body">
-                  <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <section className="pp-card pp-danger">
+                <div className="pp-card-head">
+                  <div className="pp-card-icon"><AlertTriangle /></div>
+                  <div>
+                    <div className="pp-card-title">Riscos sem regularização</div>
+                    <div className="pp-card-sub">O que pode acontecer se a empresa não regularizar</div>
+                  </div>
+                </div>
+                <div className="pp-card-body">
+                  <ul className="pp-risk-list">
                     {riscos.map((r: any) => (
-                      <li key={r.id} style={{ fontSize: 14, color: '#b91c1c', paddingLeft: 14, position: 'relative' }}>
-                        <span style={{ position: 'absolute', left: 0 }}>•</span>
-                        {r.penalidade}{r.condicao ? `: ${r.condicao}` : ''}
+                      <li key={r.id} className="pp-risk-row">
+                        <span className="pp-risk-bullet">✕</span>
+                        <span><b style={{ color: 'var(--pp-danger)' }}>{r.penalidade}</b>{r.condicao ? `: ${r.condicao}` : ''}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-              </div>
-            )}
-
-            {/* BENEFÍCIOS */}
-            {beneficios.length > 0 && (
-              <div className="card">
-                <div className="card-body" style={{ padding: 14 }}>
-                  <div className="ben-grid">
-                    {beneficios.map((ben: any, idx: number) => (
-                      <div key={ben.id} className={`ben-item${idx === 1 ? ' feat' : ''}`}>
-                        <div className="ben-icon">{['🛡️', '📋', '⏱️'][idx % 3]}</div>
-                        <div className="ben-title">{ben.titulo}</div>
-                        <div className="ben-desc">{ben.descricao}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              </section>
             )}
 
             {/* FLUXO */}
             {etapasFluxo.length > 0 && (
-              <div className="card">
-                <div className="card-hd"><div className="card-hd-icon">🔄</div><div className="card-title">Fluxo de Execução</div></div>
-                <div className="card-body">
-                  <div className="flow-wrap">
+              <section className="pp-card">
+                <div className="pp-card-head">
+                  <div className="pp-card-icon"><GitBranch /></div>
+                  <div>
+                    <div className="pp-card-title">Fluxo de execução</div>
+                    <div className="pp-card-sub">{etapasFluxo.length} etapas do recebimento ao deferimento</div>
+                  </div>
+                </div>
+                <div className="pp-card-body">
+                  <div className="pp-flow">
                     {etapasFluxo.map((e: any, i: number) => (
-                      <div key={e.id} className="flow-step">
-                        <div className="flow-inner">
-                          <div className="flow-circle">{i === etapasFluxo.length - 1 ? '✓' : i + 1}</div>
-                          <div className="flow-lbl">{e.nome}</div>
-                          {e.prazo && <div className="flow-sub">{e.prazo}</div>}
-                        </div>
-                        {i < etapasFluxo.length - 1 && <div className="flow-arrow">→</div>}
+                      <div key={e.id} className={`pp-flow-step ${i > 0 ? 'idle' : ''}`}>
+                        <div className="pp-flow-num">{i + 1}</div>
+                        <div className="pp-flow-name">{e.nome}</div>
+                        {e.prazo && <div className="pp-flow-time">{e.prazo}</div>}
                       </div>
                     ))}
                   </div>
                 </div>
-              </div>
+              </section>
             )}
 
-            {/* ── SERVIÇOS — FLUXO CONTADOR */}
+            {/* SERVIÇOS — CONTADOR */}
             {isContador && (
-              <div className="card">
-                <div className="card-hd"><div className="card-hd-icon">📋</div><div className="card-title">Selecione os Serviços</div></div>
-                <div className="card-body" style={{ overflowX: 'auto' }}>
-                  <table className="svc-table">
+              <section className="pp-card">
+                <div className="pp-card-head">
+                  <div className="pp-card-icon"><ListChecks /></div>
+                  <div>
+                    <div className="pp-card-title">Selecione os serviços</div>
+                    <div className="pp-card-sub">Marque o que vai oferecer e ajuste o valor cobrado do cliente</div>
+                  </div>
+                </div>
+                <div className="pp-card-body" style={{ overflowX: 'auto' }}>
+                  <table className="pp-svc-table">
                     <thead>
                       <tr>
-                        <th className="svc-check"></th>
+                        <th className="ck"></th>
                         <th>Serviço</th>
                         <th className="col-trevo" style={{ textAlign: 'right' }}>Custo Trevo</th>
                         <th className="col-cobra" style={{ textAlign: 'right' }}>Você cobra</th>
@@ -965,44 +1105,36 @@ export default function PropostaPublica() {
                         const checked = selecionados.has(item.id);
                         const valorCobra = (valoresContador[item.id] != null ? valoresContador[item.id] : (item.honorario_minimo_contador || item.honorario || 0));
                         return (
-                          <tr key={item.id} className="svc-row" style={{ opacity: checked ? 1 : 0.45 }}>
-                            <td className="svc-check">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                disabled={isObrig}
+                          <tr key={item.id} style={{ opacity: checked ? 1 : 0.45 }}>
+                            <td className="ck">
+                              <input type="checkbox" checked={checked} disabled={isObrig}
                                 onChange={() => toggleItem(item.id, isObrig)}
-                                className="svc-checkbox"
-                              />
+                                style={{ width: 18, height: 18, accentColor: accent, cursor: isObrig ? 'not-allowed' : 'pointer' }} />
                             </td>
                             <td>
-                              <div className="svc-name">{item.descricao}</div>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--pp-fg-1)', marginBottom: 4 }}>{item.descricao}</div>
                               {item.detalhes && (
-                                <div className="svc-detail" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.detalhes) }} />
+                                <div style={{ fontSize: 12, color: 'var(--pp-fg-2)', lineHeight: 1.5, marginBottom: 6 }}
+                                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.detalhes) }} />
                               )}
-                              {isObrig
-                                ? <span className="svc-badge-obrig">🔒 Obrigatório</span>
-                                : <span className="svc-badge-opt">Opcional</span>
-                              }
-                              {(item.prazo || item.taxa_min > 0 || item.taxa_max > 0) && (
-                                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                                  {item.prazo && <span>Prazo: {item.prazo}</span>}
-                                  {item.taxa_min > 0 && <span style={{ marginLeft: item.prazo ? 8 : 0, color: '#f59e0b' }}>Taxas: {fmt(item.taxa_min)} – {fmt(item.taxa_max)}</span>}
-                                </div>
-                              )}
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                {isObrig
+                                  ? <span className="pp-svc-chip req">Obrigatório</span>
+                                  : <span className="pp-svc-chip">Opcional</span>}
+                                {item.prazo && <span className="pp-svc-chip"><Clock /> {item.prazo}</span>}
+                                {(item.taxa_min > 0 || item.taxa_max > 0) && (
+                                  <span className="pp-svc-chip taxas">Taxas: {fmt(item.taxa_min)}{item.taxa_max > item.taxa_min ? ` – ${fmt(item.taxa_max)}` : ''}</span>
+                                )}
+                              </div>
                             </td>
                             <td className="col-trevo" style={{ textAlign: 'right', verticalAlign: 'middle' }}>
-                              <div className="svc-price-trevo">{fmt(item.honorario * item.quantidade)}</div>
+                              <div className="pp-trevo-cell">{fmt(item.honorario * item.quantidade)}</div>
                             </td>
                             <td className="col-cobra" style={{ textAlign: 'right', verticalAlign: 'middle' }}>
-                              <input
-                                type="text"
-                                className="svc-price-input"
-                                value={fmtInput(valorCobra)}
-                                disabled={!checked}
+                              <input type="text" className="pp-cobra-input"
+                                value={fmtInput(valorCobra)} disabled={!checked}
                                 onChange={e => atualizarValorContador(item.id, parseInput(e.target.value))}
-                                onFocus={e => e.target.select()}
-                              />
+                                onFocus={e => e.target.select()} />
                             </td>
                           </tr>
                         );
@@ -1010,83 +1142,127 @@ export default function PropostaPublica() {
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </section>
             )}
 
-            {/* ── SERVIÇOS — FLUXO CLIENTE FINAL */}
+            {/* SERVIÇOS — CLIENTE FINAL */}
             {isClienteFinal && (
-              <div className="card">
-                <div className="card-hd"><div className="card-hd-icon">📋</div><div className="card-title">Serviços</div></div>
-                <div className="card-body">
-                  {itensFiltrados.map((item, idx) => {
-                    const isObrig = !item.isOptional;
-                    const checked = selecionados.has(item.id);
-                    const valorExibido = item.valorVendaDireto || item.honorario_minimo_contador || item.honorario || 0;
-                    const hasTaxa = item.taxa_min > 0 || item.taxa_max > 0;
-                    return (
-                      <div key={item.id} className="svc-item" style={{ opacity: checked ? 1 : 0.5 }}>
-                        <div className="svc-item-hd">
-                          {!isObrig && (
-                            <input type="checkbox" checked={checked} onChange={() => toggleItem(item.id, false)}
-                              className="svc-checkbox" style={{ flexShrink: 0 }} />
+              <section className="pp-card">
+                <div className="pp-card-head">
+                  <div className="pp-card-icon"><ListChecks /></div>
+                  <div>
+                    <div className="pp-card-title">Serviços incluídos</div>
+                    <div className="pp-card-sub">
+                      <b>{obrigatorios.length}</b> obrigatório{obrigatorios.length === 1 ? '' : 's'}
+                      {opcionais.length > 0 && <> · <b>{opcionais.length}</b> opcional{opcionais.length === 1 ? '' : 'is'} — você escolhe</>}
+                    </div>
+                  </div>
+                </div>
+                <div className="pp-card-body">
+                  <div className="pp-services">
+                    {itensFiltrados.map((item, idx) => {
+                      const isObrig = !item.isOptional;
+                      const checked = selecionados.has(item.id);
+                      const isReq = isObrig;
+                      const isOptOn = !isObrig && checked;
+                      const isOptOff = !isObrig && !checked;
+                      const valorExibido = item.valorVendaDireto || item.honorario_minimo_contador || item.honorario || 0;
+                      const hasTaxa = item.taxa_min > 0 || item.taxa_max > 0;
+                      const cls = ['pp-svc'];
+                      if (isReq) cls.push('req'); else if (isOptOn) cls.push('opt-on'); else cls.push('opt-off');
+                      return (
+                        <div key={item.id} className={cls.join(' ')}>
+                          <div className="pp-svc-row">
+                            {isReq ? (
+                              <span className="pp-svc-toggle lock" title="Item obrigatório"><LockIcon /></span>
+                            ) : (
+                              <button type="button" className={`pp-svc-toggle ${checked ? 'on' : ''}`}
+                                onClick={() => toggleItem(item.id, false)}
+                                aria-pressed={checked}
+                                aria-label={checked ? 'Remover item' : 'Adicionar item'}>
+                                {checked && <CheckCircle />}
+                              </button>
+                            )}
+                            <span className="pp-svc-num">{String(idx + 1).padStart(2, '0')}</span>
+                            <span className="pp-svc-name">{item.descricao}</span>
+                            <span className="pp-svc-price">{fmt(valorExibido * item.quantidade)}</span>
+                          </div>
+                          {item.detalhes && (
+                            <div className="pp-svc-desc" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.detalhes) }} />
                           )}
-                          {isObrig && <span style={{ fontSize: 14 }}>🔒</span>}
-                          <span className="svc-num">{idx + 1}</span>
-                          <span className="svc-item-name">{item.descricao}</span>
-                          <span className="svc-item-price">{fmt(valorExibido * item.quantidade)}</span>
+                          {item.observacoes_financeiro && (
+                            <p className="pp-svc-obs">{item.observacoes_financeiro}</p>
+                          )}
+                          {((isReq || hasTaxa || item.prazo) && !isOptOff) && (
+                            <div className="pp-svc-meta">
+                              {isReq && <span className="pp-svc-chip req"><LockIcon /> Obrigatório</span>}
+                              {item.prazo && <span className="pp-svc-chip"><Clock /> {item.prazo}</span>}
+                              {hasTaxa && (
+                                <span className="pp-svc-chip taxas">
+                                  Taxas: {fmt(item.taxa_min)}{item.taxa_max > item.taxa_min ? ` – ${fmt(item.taxa_max)}` : ''}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        {item.detalhes && (
-                          <div className="svc-item-body" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.detalhes) }} />
-                        )}
-                        {(item.prazo || hasTaxa) && (
-                          <div className="svc-item-meta">
-                            {item.prazo && <span>Prazo: {item.prazo}</span>}
-                            {hasTaxa && <span style={{ color: '#f59e0b' }}>Taxas: {fmt(item.taxa_min)} a {fmt(item.taxa_max)}</span>}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </section>
             )}
 
-            {/* ── SERVIÇOS — MODO PADRÃO (cliente_via_contador — sem seleção) */}
+            {/* SERVIÇOS — MODO PADRÃO (cliente_via_contador, sem seleção) */}
             {!isContador && !isClienteFinal && (
-              <div className="card">
-                <div className="card-hd"><div className="card-hd-icon">📋</div><div className="card-title">Escopo dos Serviços</div></div>
-                <div className="card-body">
-                  {itensFiltrados.map((item, idx) => {
-                    const valorExibido = item.honorario_minimo_contador || item.honorario;
-                    const hasTaxa = item.taxa_min > 0 || item.taxa_max > 0;
-                    return (
-                      <div key={item.id} className="svc-item">
-                        <div className="svc-item-hd">
-                          <span className="svc-num">{idx + 1}</span>
-                          <span className="svc-item-name">{item.descricao}</span>
-                          <span className="svc-item-price">{fmt(valorExibido * item.quantidade)}</span>
-                        </div>
-                        {item.detalhes && (
-                          <div className="svc-item-body" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.detalhes) }} />
-                        )}
-                        {(item.prazo || hasTaxa) && (
-                          <div className="svc-item-meta">
-                            {item.prazo && <span>Prazo: {item.prazo}</span>}
-                            {hasTaxa && <span style={{ color: '#f59e0b' }}>Taxas: {fmt(item.taxa_min)} a {fmt(item.taxa_max)}</span>}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+              <section className="pp-card">
+                <div className="pp-card-head">
+                  <div className="pp-card-icon"><ListChecks /></div>
+                  <div>
+                    <div className="pp-card-title">Escopo dos serviços</div>
+                    <div className="pp-card-sub">{itensFiltrados.length} serviço{itensFiltrados.length === 1 ? '' : 's'} inclusos</div>
+                  </div>
                 </div>
-              </div>
+                <div className="pp-card-body">
+                  <div className="pp-services">
+                    {itensFiltrados.map((item, idx) => {
+                      const valorExibido = item.honorario_minimo_contador || item.honorario;
+                      const hasTaxa = item.taxa_min > 0 || item.taxa_max > 0;
+                      return (
+                        <div key={item.id} className="pp-svc req">
+                          <div className="pp-svc-row">
+                            <span className="pp-svc-num">{String(idx + 1).padStart(2, '0')}</span>
+                            <span className="pp-svc-name">{item.descricao}</span>
+                            <span className="pp-svc-price">{fmt(valorExibido * item.quantidade)}</span>
+                          </div>
+                          {item.detalhes && (
+                            <div className="pp-svc-desc" style={{ paddingLeft: 30 }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.detalhes) }} />
+                          )}
+                          {(item.prazo || hasTaxa) && (
+                            <div className="pp-svc-meta" style={{ paddingLeft: 30 }}>
+                              {item.prazo && <span className="pp-svc-chip"><Clock /> {item.prazo}</span>}
+                              {hasTaxa && (
+                                <span className="pp-svc-chip taxas">
+                                  Taxas: {fmt(item.taxa_min)}{item.taxa_max > item.taxa_min ? ` – ${fmt(item.taxa_max)}` : ''}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
             )}
 
-            {/* PACOTES */}
+            {/* PACOTES (legacy) */}
             {pacotes.length > 0 && (
-              <div className="card">
-                <div className="card-hd"><div className="card-hd-icon">📦</div><div className="card-title">Pacotes Disponíveis</div></div>
-                <div className="card-body">
+              <section className="pp-card">
+                <div className="pp-card-head">
+                  <div className="pp-card-icon"><Package /></div>
+                  <div><div className="pp-card-title">Pacotes Disponíveis</div></div>
+                </div>
+                <div className="pp-card-body">
                   {pacotes.map((pac: any) => {
                     const selected = itens.filter(i => pac.itens_ids.includes(i.id));
                     const valorKey = isContador ? 'honorario' : 'honorario_minimo_contador';
@@ -1094,146 +1270,152 @@ export default function PropostaPublica() {
                     const preco = precoSem * (1 - (pac.desconto_pct || 0) / 100);
                     const featured = pac.nome.toLowerCase().includes('completo');
                     return (
-                      <div key={pac.id} className={`pkg-item${featured ? ' feat' : ''}`}>
-                        <div className="pkg-hd">
-                          <span className="pkg-name">{pac.nome}</span>
+                      <div key={pac.id} className={`pp-pkg${featured ? ' feat' : ''}`}>
+                        <div className="pp-pkg-hd">
+                          <span className="pp-pkg-name">{pac.nome}</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {featured && <span className="pkg-badge">★ RECOMENDADO</span>}
-                            <span className="pkg-disc">-{pac.desconto_pct}%</span>
+                            {featured && <span className="pp-pkg-badge">★ RECOMENDADO</span>}
+                            <span className="pp-pkg-disc">-{pac.desconto_pct}%</span>
                           </div>
                         </div>
-                        <div className="pkg-items">{selected.map((i: any) => <div key={i.id} className="pkg-svc">{i.descricao}</div>)}</div>
-                        <div className="pkg-pricing">
-                          <div className="pkg-old"><span>Sem desconto</span><span>{fmt(precoSem)}</span></div>
-                          <div className="pkg-new"><span>Com -{pac.desconto_pct}%</span><span>{fmt(preco)}</span></div>
-                          <div className="pkg-save">↓ Economia de {fmt(precoSem - preco)}</div>
+                        <div className="pp-pkg-items">{selected.map((i: any) => <div key={i.id} className="pp-pkg-svc">{i.descricao}</div>)}</div>
+                        <div className="pp-pkg-pricing">
+                          <div className="pp-pkg-old"><span>Sem desconto</span><span>{fmt(precoSem)}</span></div>
+                          <div className="pp-pkg-new"><span>Com -{pac.desconto_pct}%</span><span>{fmt(preco)}</span></div>
+                          <div className="pp-pkg-save">↓ Economia de {fmt(precoSem - preco)}</div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
+              </section>
             )}
 
-            {/* RESUMO — Fix 3 (13/05/2026 noite): pro contador, foco no valor que
-                ele COBRA do cliente (resultado). Custo Trevo + margem viram
-                detalhamento embaixo, mais discreto. Pra cliente direto, mantém. */}
-            <div className="card">
-              <div className="card-hd"><div className="card-hd-icon">💰</div><div className="card-title">
-                {isContador ? 'Resumo' : 'Resumo do Investimento'}
-              </div></div>
-              <div className="card-body">
-                {isContador ? (
-                  <>
-                    <div style={{ padding: '14px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#16a34a', marginBottom: 4 }}>Você cobra do cliente</div>
-                      <div style={{ fontSize: 28, fontWeight: 900, color: '#15803d', lineHeight: 1 }}>{fmt(totalContador)}</div>
+            {/* RESUMO + AÇÕES */}
+            <section className="pp-card pp-summary">
+              <div className="pp-card-body">
+                <div className="pp-summary-row">
+                  <div>
+                    <div className="pp-summary-lbl">
+                      Total selecionado · <b>{selecionados.size}</b> de <b>{itensFiltrados.length}</b> itens
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', padding: '8px 4px' }}>
-                      <span>Custo Trevo (seus honorários)</span>
-                      <span style={{ fontWeight: 600, color: '#475569' }}>{totalStr}</span>
+                    <div style={{ fontSize: 11.5, color: 'var(--pp-fg-3)', marginTop: 4 }}>
+                      Pagamento via PIX ou boleto bancário (Asaas)
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#16a34a', padding: '8px 4px', borderTop: '1px dashed #e2e8f0' }}>
-                      <span>Sua margem</span>
-                      <span style={{ fontWeight: 700 }}>{fmt(totalContador - totalSel)} ({totalSel > 0 ? Math.round(((totalContador - totalSel) / totalSel) * 100) : 0}%)</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {(descontoSel > 0 || totalTaxaMinSel > 0 || totalTaxaMaxSel > 0) && (
-                      <>
-                        <div className="total-row"><span className="lbl">Honorários</span><span className="val">{fmt(subtotalSel)}</span></div>
-                        {descontoSel > 0 && <div className="total-row red"><span className="lbl">Desconto ({orc.desconto_pct}%)</span><span className="val">- {fmt(descontoSel)}</span></div>}
-                        {(totalTaxaMinSel > 0 || totalTaxaMaxSel > 0) && <div className="total-row amber"><span className="lbl">Taxas estimadas</span><span className="val">{fmt(totalTaxaMinSel)} a {fmt(totalTaxaMaxSel)}</span></div>}
-                      </>
+                  </div>
+                  <div className={`pp-summary-val ${pulse ? 'pp-pulse' : ''}`}>
+                    {isContador ? fmt(totalContador) : totalStr}
+                  </div>
+                </div>
+
+                {!isContador && (descontoSel > 0 || totalTaxaMinSel > 0 || totalTaxaMaxSel > 0) && (
+                  <div className="pp-summary-detail">
+                    <div className="pp-summary-line"><span>Honorários</span><span>{fmt(subtotalSel)}</span></div>
+                    {descontoSel > 0 && <div className="pp-summary-line red"><span>Desconto ({orc.desconto_pct}%)</span><span>- {fmt(descontoSel)}</span></div>}
+                    {(totalTaxaMinSel > 0 || totalTaxaMaxSel > 0) && (
+                      <div className="pp-summary-line amber"><span>Taxas estimadas</span><span>{fmt(totalTaxaMinSel)} a {fmt(totalTaxaMaxSel)}</span></div>
                     )}
-                    <div className="total-final">
-                      <span className="total-final-lbl">Total</span>
-                      <span className="total-final-val">{totalStr}</span>
-                    </div>
-                  </>
+                  </div>
                 )}
-              </div>
-              {/* DOWNLOAD BAR */}
-              <div className="dl-bar">
+
                 {isContador && (
-                  <button className="btn-dl" onClick={handleDownloadHTML}>
-                    <Download style={{ width: 13, height: 13 }} />
-                    Gerar PDF pro cliente
-                  </button>
+                  <div className="pp-summary-detail">
+                    <div className="pp-summary-line"><span>Custo Trevo (seus honorários)</span><span>{totalStr}</span></div>
+                    <div className="pp-summary-line" style={{ color: accentDark, borderTop: '1px dashed var(--pp-border)', paddingTop: 8, marginTop: 4 }}>
+                      <span><b>Sua margem</b></span>
+                      <span><b>{fmt(totalContador - totalSel)}</b> ({totalSel > 0 ? Math.round(((totalContador - totalSel) / totalSel) * 100) : 0}%)</span>
+                    </div>
+                  </div>
                 )}
-                {!isContador && (
-                  <>
-                    <button className="btn-dl" onClick={handleDownloadHTML}>
-                      <Download style={{ width: 13, height: 13 }} />
-                      Salvar HTML
+
+                {(orc?.status === 'enviado' || orc?.status === 'recusado') && (
+                  <div className="pp-summary-actions">
+                    <button className="pp-btn pp-btn-approve" onClick={() => setShowAprovacao(true)}>
+                      <CheckCircle /> {ctaLabel}
                     </button>
-                    <button className="btn-dl" onClick={handleDownloadPDF}>
-                      <FileText style={{ width: 13, height: 13 }} />
-                      Baixar PDF
-                    </button>
-                  </>
+                    {orc?.status === 'enviado' && (
+                      <button className="pp-btn pp-btn-decline" onClick={() => setShowRecusa(true)}>
+                        <XCircle /> Recusar
+                      </button>
+                    )}
+                  </div>
                 )}
+
+                <p className="pp-summary-hint">
+                  <Send /> Você poderá revisar os itens uma última vez na tela de pagamento.
+                </p>
+
+                <div className="pp-dl-bar">
+                  {isContador ? (
+                    <button className="pp-btn pp-btn-secondary" onClick={handleDownloadHTML}>
+                      <Download /> Gerar PDF pro cliente
+                    </button>
+                  ) : (
+                    <>
+                      <button className="pp-btn pp-btn-secondary" onClick={handleDownloadHTML}>
+                        <Download /> Salvar HTML
+                      </button>
+                      <button className="pp-btn pp-btn-secondary" onClick={handleDownloadPDF}>
+                        <FileText /> Baixar PDF
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            </section>
 
             {/* CONDIÇÕES */}
-            <div className="card">
-              <div className="card-hd"><div className="card-hd-icon">📄</div><div className="card-title">Condições</div></div>
-              <div className="card-body">
-                <div className="cond-grid">
-                  <div className="cond-item"><div className="cond-lbl">Validade</div><div className="cond-val">{orc?.validade_dias} dias</div></div>
-                  <div className="cond-item"><div className="cond-lbl">Pagamento</div><div className="cond-val">{orc?.pagamento || 'A combinar'}</div></div>
+            <section className="pp-card">
+              <div className="pp-card-head">
+                <div className="pp-card-icon"><FileText /></div>
+                <div><div className="pp-card-title">Condições</div></div>
+              </div>
+              <div className="pp-card-body">
+                <div className="pp-cond-grid">
+                  <div className="pp-cond-item"><div className="pp-cond-lbl">Validade</div><div className="pp-cond-val">{orc?.validade_dias} dias</div></div>
+                  <div className="pp-cond-item"><div className="pp-cond-lbl">Pagamento</div><div className="pp-cond-val">{orc?.pagamento || 'A combinar'}</div></div>
                 </div>
                 {orc?.observacoes && (
-                  <div className="obs-box" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(orc.observacoes || '') }} />
+                  <div className="pp-obs-box" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(orc.observacoes || '') }} />
                 )}
               </div>
-            </div>
+            </section>
 
             {orc?.status === 'rascunho' && (
-              <div className="alert-rascunho">Esta proposta ainda está sendo preparada. Você será notificado quando estiver pronta.</div>
+              <div className="pp-rascunho">Esta proposta ainda está sendo preparada. Você será notificado quando estiver pronta.</div>
             )}
 
-            {/* FOOTER — Fix 3 (13/05/2026 noite): adicionada Dani como assistente
-                visual (mesmo padrão CobrancaPublica). Logo Trevo + Dani juntos
-                reforçam a marca. */}
-            <div className="footer">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 12 }}>
-                <img src={logoTrevo} alt="Trevo Legaliza" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-                <div style={{ width: 1, height: 28, background: '#cbd5e1' }} />
-                <img src={daniAvatar} alt="Dani" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: '50%' }} title="Dani · Digital Assistant" />
-              </div>
-              <div className="footer-name">{isContador ? 'Trevo Legaliza' : (escritorioNome || 'Trevo Legaliza')}</div>
-              {isContador ? (
-                <div className="footer-info">
-                  <div>CNPJ 39.969.412/0001-70 · Rua Brasil, nº 1170, Rudge Ramos, SBC/SP</div>
-                  <div>(11) 93492-7001 · administrativo@trevolegaliza.com.br · trevolegaliza.com.br</div>
-                  <div style={{ marginTop: 6, fontStyle: 'italic', fontSize: 10 }}>Desde 2018 · Referência nacional em regularização empresarial · 27 estados</div>
-                </div>
-              ) : (
-                <div className="footer-info">
-                  <div>CNPJ 39.969.412/0001-70</div>
-                  <div>(11) 93492-7001 · administrativo@trevolegaliza.com.br</div>
-                </div>
-              )}
-            </div>
-
           </div>
-        </div>
+        </main>
 
-        {/* STICKY CTA */}
+        {/* FOOTER */}
+        <footer className="pp-foot">
+          <div className="pp-foot-inner">
+            <div className="pp-foot-brand">
+              <img src={logoTrevo} alt="Trevo Legaliza" className="pp-foot-logo" />
+              <div style={{ width: 1, height: 22, background: 'var(--pp-border)' }} />
+              <img src={daniAvatar} alt="Dani" style={{ height: 24, width: 24, borderRadius: '50%' }} title="Dani — Digital Assistant" />
+            </div>
+            <div className="pp-foot-text" style={{ textAlign: 'right' }}>
+              <div><b>{isContador ? 'Trevo Legaliza' : (escritorioNome || 'Trevo Legaliza')}</b></div>
+              <div>CNPJ 39.969.412/0001-70 · (11) 93492-7001</div>
+            </div>
+          </div>
+        </footer>
+
+        {/* STICKY MOBILE BAR */}
         {(orc?.status === 'enviado' || orc?.status === 'recusado') && (
-          <div className="sticky-cta">
-            <button className="btn-approve" onClick={() => setShowAprovacao(true)}>
-              <CheckCircle style={{ height: 17, width: 17 }} />
-              {isContador
-                ? (orc?.status === 'recusado' ? 'Mudei de ideia — Aprovar' : 'Aprovar e fechar negócio')
-                : (orc?.status === 'recusado' ? 'Mudei de ideia — Aprovar' : 'Aprovar Proposta')}
+          <div className="pp-sticky">
+            <div className="pp-sticky-info">
+              <span className="pp-sticky-lbl">Total</span>
+              <span className={`pp-sticky-val ${pulse ? 'pp-pulse' : ''}`}>{isContador ? fmt(totalContador) : fmt(totalSel)}</span>
+            </div>
+            <button className="pp-btn pp-btn-approve pp-sticky-btn" onClick={() => setShowAprovacao(true)}>
+              <CheckCircle /> Aprovar
             </button>
             {orc?.status === 'enviado' && (
-              <button className="btn-reject" onClick={() => setShowRecusa(true)} title="Recusar proposta">
-                <XCircle style={{ height: 19, width: 19 }} />
+              <button className="pp-sticky-reject" onClick={() => setShowRecusa(true)} title="Recusar proposta">
+                <XCircle style={{ height: 18, width: 18 }} />
               </button>
             )}
           </div>
@@ -1243,29 +1425,28 @@ export default function PropostaPublica() {
 
       {/* MODAL APROVAÇÃO */}
       {showAprovacao && (
-        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowAprovacao(false); }}>
-          <div className="modal">
-            <div className="modal-handle" />
-            <div className="modal-title">{isContador ? 'Confirmar e fechar negócio' : 'Confirmar Aprovação'}</div>
-            <div className="modal-sub">
+        <div className="pp-modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowAprovacao(false); }}>
+          <div className="pp-modal">
+            <div className="pp-modal-handle" />
+            <div className="pp-modal-title">{isContador ? 'Confirmar e fechar negócio' : 'Confirmar Aprovação'}</div>
+            <div className="pp-modal-sub">
               {isContador
                 ? 'Ao aprovar, nossa equipe será notificada e emitirá a cobrança.'
-                : 'Ao aprovar, nossa equipe será notificada imediatamente.'}
+                : 'Ao aprovar, você será direcionado para o pagamento via PIX ou boleto.'}
             </div>
-            <div className="modal-val-box">
-              <div className="modal-val-lbl">{isContador ? 'Seus honorários (Trevo)' : 'Valor total'}</div>
-              <div className="modal-val">{totalStr}</div>
+            <div className="pp-modal-val-box">
+              <div className="pp-modal-val-lbl">{isContador ? 'Você cobra do cliente' : 'Valor total'}</div>
+              <div className="pp-modal-val">{isContador ? fmt(totalContador) : totalStr}</div>
             </div>
             {isContador && (
-              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 12, marginBottom: 16, textAlign: 'center' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', marginBottom: 3 }}>Você cobra do cliente</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: '#15803d' }}>{fmt(totalContador)}</div>
+              <div style={{ background: '#fafbfc', border: '1px solid var(--pp-border)', borderRadius: 'var(--pp-radius-lg)', padding: 12, marginBottom: 18, fontSize: 12.5, color: 'var(--pp-fg-2)' }}>
+                Seus honorários (Trevo): <b style={{ color: 'var(--pp-fg-1)' }}>{totalStr}</b> · Margem: <b style={{ color: accentDark }}>{fmt(totalContador - totalSel)}</b>
               </div>
             )}
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowAprovacao(false)} disabled={processando}>Cancelar</button>
-              <button className="btn-confirm" onClick={handleAprovar} disabled={processando}>
-                {processando ? <Loader2 style={{ height: 13, width: 13 }} className="animate-spin" /> : <CheckCircle style={{ height: 13, width: 13 }} />}
+            <div className="pp-modal-actions">
+              <button className="pp-modal-cancel" onClick={() => setShowAprovacao(false)} disabled={processando}>Cancelar</button>
+              <button className="pp-modal-confirm" onClick={handleAprovar} disabled={processando}>
+                {processando ? <Loader2 style={{ height: 14, width: 14 }} className="animate-spin" /> : <CheckCircle style={{ height: 14, width: 14 }} />}
                 Confirmar
               </button>
             </div>
@@ -1275,19 +1456,19 @@ export default function PropostaPublica() {
 
       {/* MODAL RECUSA */}
       {showRecusa && (
-        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowRecusa(false); }}>
-          <div className="modal">
-            <div className="modal-handle" />
-            <div className="modal-title">Recusar Proposta</div>
-            <div className="modal-sub">Informe o motivo para que possamos melhorar.</div>
-            <label className="form-lbl">Motivo da recusa *</label>
+        <div className="pp-modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowRecusa(false); }}>
+          <div className="pp-modal">
+            <div className="pp-modal-handle" />
+            <div className="pp-modal-title">Recusar Proposta</div>
+            <div className="pp-modal-sub">Informe o motivo para que possamos melhorar.</div>
+            <label className="pp-form-lbl">Motivo da recusa *</label>
             <textarea value={motivoRecusa} onChange={e => setMotivoRecusa(e.target.value)}
               placeholder="Ex: Valor acima do orçamento, optamos por outro fornecedor…"
-              rows={3} className="textarea-field" />
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowRecusa(false)} disabled={processando}>Cancelar</button>
-              <button className="btn-confirm red" onClick={handleRecusar} disabled={processando || !motivoRecusa.trim()}>
-                {processando ? <Loader2 style={{ height: 13, width: 13 }} className="animate-spin" /> : <XCircle style={{ height: 13, width: 13 }} />}
+              rows={3} className="pp-textarea" />
+            <div className="pp-modal-actions">
+              <button className="pp-modal-cancel" onClick={() => setShowRecusa(false)} disabled={processando}>Cancelar</button>
+              <button className="pp-modal-confirm red" onClick={handleRecusar} disabled={processando || !motivoRecusa.trim()}>
+                {processando ? <Loader2 style={{ height: 14, width: 14 }} className="animate-spin" /> : <XCircle style={{ height: 14, width: 14 }} />}
                 Confirmar
               </button>
             </div>
