@@ -69,6 +69,10 @@ export interface LancamentoFinanceiro {
   // Timer (17/05/2026 noite): quando expira_em < NOW(), front considera sem pendência.
   // NULL = sem prazo, fica até resolver manual.
   pendencia_expira_em: string | null;
+  // 18/05/2026: share_token da cobrança que liquidou esse lançamento.
+  // Permite renderizar link "Ver cobrança" no histórico de pagos.
+  // NULL = lançamento ainda não tem cobrança gerada (ou cobrança foi removida).
+  cobranca_share_token: string | null;
 }
 
 // DECISION-001 Fase 3 (13/05/2026 noite): ETAPAS_PRE_DEFERIMENTO obsoleto.
@@ -317,7 +321,7 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
       const processoIds = [...new Set(lancamentos.map(l => l.processo_id).filter(Boolean))] as string[];
       const clienteIds = [...new Set(lancamentos.map(l => l.cliente_id).filter(Boolean))] as string[];
 
-      const [processosRes, clientesRes, valoresAdicionaisRes] = await Promise.all([
+      const [processosRes, clientesRes, valoresAdicionaisRes, cobrancaTokensRes] = await Promise.all([
         processoIds.length > 0
           ? supabase.from('processos').select('id, razao_social, tipo, etapa, notas, valor, created_at, etiquetas, data_deferimento').in('id', processoIds)
           : { data: [], error: null },
@@ -327,6 +331,13 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
         processoIds.length > 0
           ? supabase.from('valores_adicionais').select('processo_id, valor').in('processo_id', processoIds)
           : { data: [], error: null },
+        // Share token da cobrança vinculada a cada lançamento (pra link "Ver cobrança" no histórico)
+        lancamentos.length > 0
+          ? supabase
+              .from('cobrancas_lancamentos')
+              .select('lancamento_id, cobrancas!inner(share_token)')
+              .in('lancamento_id', lancamentos.map(l => l.id))
+          : { data: [], error: null },
       ]);
 
       const processoMap = new Map((processosRes.data || []).map((p: any) => [p.id, p]));
@@ -335,6 +346,12 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
       const vaMap = new Map<string, number>();
       for (const va of (valoresAdicionaisRes.data || [])) {
         vaMap.set(va.processo_id, (vaMap.get(va.processo_id) || 0) + Number(va.valor));
+      }
+
+      const tokenMap = new Map<string, string>();
+      for (const row of ((cobrancaTokensRes as any).data || [])) {
+        const tok = row.cobrancas?.share_token;
+        if (tok) tokenMap.set(row.lancamento_id, tok);
       }
 
       const result = new Map<string, ClienteFinanceiro>();
@@ -416,6 +433,7 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
           pendencia_marcada_em: (l as any).pendencia_marcada_em || null,
           pendencia_marcada_por: (l as any).pendencia_marcada_por || null,
           pendencia_expira_em: (l as any).pendencia_expira_em || null,
+          cobranca_share_token: tokenMap.get(l.id) || null,
         });
 
         c.total_faturado += l.valor;

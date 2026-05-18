@@ -260,6 +260,15 @@ export function buildMensagemFromLancamentos({ lancamentos, vaMap, vaDetalhadoMa
 
 function fmtDate(d: string | null | undefined) {
   if (!d) return '-';
+  // BUG 18/05/2026: new Date('2026-05-18') interpreta UTC midnight; toLocaleDateString
+  // converte pra timezone local (BR=UTC-3) e renderiza 1 dia antes (17/05).
+  // Fix: se for YYYY-MM-DD puro (sem hora), parseia componentes manualmente
+  // pra criar Date na timezone local sem shift. Strings com timestamp/tz seguem o
+  // caminho normal (já corretas).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const [y, m, dd] = d.split('-').map(Number);
+    return new Date(y, m - 1, dd).toLocaleDateString('pt-BR');
+  }
   return new Date(d).toLocaleDateString('pt-BR');
 }
 
@@ -2344,6 +2353,20 @@ function LancamentoRow({ lancamento: l, checked, onToggle }: { lancamento: Lanca
           {l.data_vencimento && ` · Vence ${fmtDate(l.data_vencimento)}`}
           {l.status === 'pago' && l.data_pagamento && (
             <span className="text-emerald-500 font-medium"> · Pago em {fmtDate(l.data_pagamento)}</span>
+          )}
+          {l.status === 'pago' && l.cobranca_share_token && (
+            <>
+              {' · '}
+              <a
+                href={`/cobranca/${l.cobranca_share_token}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Ver cobrança ↗
+              </a>
+            </>
           )}
           {l.extrato_id && <span className="text-emerald-500 font-medium"> · Extrato ✓</span>}
           {l.valor_alterado_em && <span className="text-amber-600 font-medium"> · ✏️ Alterado</span>}
