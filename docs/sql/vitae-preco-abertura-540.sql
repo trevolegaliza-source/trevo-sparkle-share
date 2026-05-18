@@ -15,11 +15,12 @@ UPDATE public.processos
  WHERE cliente_id = '9f5a0a4b-93b4-45b8-801b-3e29b431dd6d'
    AND tipo = 'abertura';
 
--- 3. Atualiza os lancamentos vinculados (a receber) pra mesmo valor
+-- 3. Atualiza os lancamentos vinculados (a receber) que ainda nao foram pagos
+-- status_financeiro enum: pendente, pago, atrasado, cancelado
 UPDATE public.lancamentos
    SET valor = 540
  WHERE tipo = 'receber'
-   AND status IN ('pendente','cobranca_enviada')
+   AND status IN ('pendente','atrasado')
    AND processo_id IN (
      SELECT id FROM public.processos
       WHERE cliente_id = '9f5a0a4b-93b4-45b8-801b-3e29b431dd6d'
