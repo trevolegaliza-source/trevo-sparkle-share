@@ -315,14 +315,25 @@ export default function OrcamentoNovo() {
   function handleSelectEscritorio(clienteId: string) {
     const c = clientes?.find(cl => cl.id === clienteId);
     if (!c) return;
-    setForm(f => ({
-      ...f,
-      cliente_id: c.id,
-      escritorio_nome: c.apelido || c.nome,
-      escritorio_cnpj: c.cnpj || '',
-      escritorio_email: c.email || '',
-      escritorio_telefone: c.telefone || '',
-    }));
+    setForm(f => {
+      const escritorioNome = c.apelido || c.nome;
+      // No fluxo "Trevo→Cliente Final + contador é o próprio cliente", o card
+      // "Empresa a ser regularizada" é escondido — usamos o nome do contador
+      // como prospect_nome pra todas as referências (PDF, link, mensagens) ficarem consistentes.
+      const ehFluxoContadorClienteFinal = f.destinatario === 'cliente_direto' && contadorEhClienteFinal === true;
+      return {
+        ...f,
+        cliente_id: c.id,
+        escritorio_nome: escritorioNome,
+        escritorio_cnpj: c.cnpj || '',
+        escritorio_email: c.email || '',
+        escritorio_telefone: c.telefone || '',
+        prospect_nome: ehFluxoContadorClienteFinal ? escritorioNome : f.prospect_nome,
+        prospect_cnpj: ehFluxoContadorClienteFinal ? (c.cnpj || '') : f.prospect_cnpj,
+        prospect_email: ehFluxoContadorClienteFinal ? (c.email || '') : f.prospect_email,
+        prospect_telefone: ehFluxoContadorClienteFinal ? (c.telefone || '') : f.prospect_telefone,
+      };
+    });
   }
 
   function handleAddSecao() {
@@ -378,8 +389,13 @@ export default function OrcamentoNovo() {
   }
 
   async function handleSave(status: string = 'rascunho') {
-    if (!form.prospect_nome?.trim()) {
+    const ehFluxoContadorClienteFinal = form.destinatario === 'cliente_direto' && contadorEhClienteFinal === true;
+    if (!form.prospect_nome?.trim() && !ehFluxoContadorClienteFinal) {
       toast.error('Informe o nome da empresa a regularizar');
+      return;
+    }
+    if (ehFluxoContadorClienteFinal && !form.cliente_id) {
+      toast.error('Selecione o contador');
       return;
     }
     // UX-140 (17/05/2026): "Salvar e Enviar" sem itens criava proposta vazia
@@ -519,7 +535,8 @@ export default function OrcamentoNovo() {
   }
 
   async function salvarOrcamento(): Promise<string> {
-    if (!form.prospect_nome?.trim()) throw new Error('Informe o nome da empresa');
+    const ehFluxoContadorClienteFinal = form.destinatario === 'cliente_direto' && contadorEhClienteFinal === true;
+    if (!form.prospect_nome?.trim() && !ehFluxoContadorClienteFinal) throw new Error('Informe o nome da empresa');
     const payload: any = buildPayload('rascunho');
     if (orcamentoId) {
       payload.id = orcamentoId;
@@ -531,7 +548,8 @@ export default function OrcamentoNovo() {
   }
 
   async function handleGerarPDF() {
-    if (!form.prospect_nome.trim()) { toast.error('Preencha o nome da empresa'); return; }
+    const ehFluxoContadorClienteFinal = form.destinatario === 'cliente_direto' && contadorEhClienteFinal === true;
+    if (!form.prospect_nome.trim() && !ehFluxoContadorClienteFinal) { toast.error('Preencha o nome da empresa'); return; }
     const itensValidos = form.itens.filter(i => i.descricao.trim());
     if (itensValidos.length === 0) { toast.error('Adicione pelo menos um item'); return; }
 
@@ -832,8 +850,12 @@ export default function OrcamentoNovo() {
                     className={`on-chip ${contadorEhClienteFinal === false ? 'active' : ''}`}
                     onClick={() => {
                       setContadorEhClienteFinal(false);
-                      // Limpa dados do escritório quando "Não"
-                      setForm(f => ({ ...f, cliente_id: null, escritorio_nome: '', escritorio_cnpj: '', escritorio_email: '', escritorio_telefone: '' }));
+                      // Limpa dados do escritório e do prospect (auto-preenchidos no fluxo anterior)
+                      setForm(f => ({
+                        ...f, cliente_id: null,
+                        escritorio_nome: '', escritorio_cnpj: '', escritorio_email: '', escritorio_telefone: '',
+                        prospect_nome: '', prospect_cnpj: '', prospect_email: '', prospect_telefone: '',
+                      }));
                     }}
                   >
                     ✕ Não, é uma empresa diferente
