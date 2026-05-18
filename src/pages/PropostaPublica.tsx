@@ -512,9 +512,11 @@ export default function PropostaPublica() {
             .catch(() => {});
         } else if (orcData.status === 'recusado') setStatusFinal('recusado');
 
-        // RPC retorna has_password (bool), não senha_link (string). Bug 18/05 do
-        // redesign que confundiu nome do campo.
-        if (orcData.has_password && !autenticado) { setSenhaRequerida(true); setLoading(false); return; }
+        // RPC retorna has_password (bool), não senha_link (string).
+        // Marca senha como requerida, MAS continua setando orc abaixo — senão depois
+        // de autenticar o componente cai no guard !orc e mostra 'Proposta indisponível'.
+        // (A RPC já retorna o conteúdo independente de senha — proteção é só visual.)
+        if (orcData.has_password) setSenhaRequerida(true);
 
         setOrc(orcData);
         // RPC retorna os itens em `servicos` (jsonb), não `itens_proposta`.
