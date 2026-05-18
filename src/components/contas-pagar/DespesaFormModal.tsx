@@ -161,7 +161,13 @@ export default function DespesaFormModal({ open, onClose, onSave, editData, defa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valor) return;
+    // ZERO-001 (18/05): antes só checava falsy — aceitava string '0' como
+    // valor válido. Agora valida que Number(valor) > 0.
+    const valorNum = Number(valor);
+    if (!valor || !Number.isFinite(valorNum) || valorNum <= 0) {
+      toast.error('Informe um valor maior que zero');
+      return;
+    }
     if (!fornecedor.trim()) {
       toast.error('Fornecedor é obrigatório');
       return;

@@ -77,6 +77,12 @@ export function CartaoFormModal({ open, onOpenChange, cartao }: Props) {
       toast.error('"Últimos 4" deve ter exatamente 4 dígitos.');
       return;
     }
+    // CART-001 (18/05): defesa contra limite negativo (HTML min=0 não bloqueia
+    // se contornar via DevTools/API).
+    if (form.limite !== '' && Number(form.limite) < 0) {
+      toast.error('Limite deve ser zero ou positivo.');
+      return;
+    }
 
     const payload = {
       nome: form.nome.trim(),

@@ -74,7 +74,7 @@ export function useDashboardData() {
         lancamentosPagar: lancPagar || [],
       };
     },
-    staleTime: 2 * 60 * 1000,
+    // Agent 5 BUG #5 (18/05): staleTime duplicado removido. Mantém 30s da linha 13.
   });
 }
 

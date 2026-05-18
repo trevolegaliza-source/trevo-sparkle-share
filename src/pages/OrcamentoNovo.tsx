@@ -370,7 +370,9 @@ export default function OrcamentoNovo() {
       cenarios: form.cenarios as any,
       senha_link: (form as any).senha_link || null,
       status,
-      created_by: null,
+      // Agent 1 BUG-002 (18/05): NÃO passar created_by — trigger SQL preenche
+      // com auth.uid() automaticamente. Antes passava null explícito, mas
+      // trigger só dispara se NEW.created_by IS NULL — ok mas inútil. Remove.
       pdf_url: null,
     };
   }
@@ -396,10 +398,13 @@ export default function OrcamentoNovo() {
       const id = await saveMutation.mutateAsync(payload);
       setOrcamentoId(id);
       setOrcamentoStatus(status);
-      // Buscar share_token se acabou de criar (insert)
-      if (!shareToken) {
-        const { data } = await supabase.from('orcamentos').select('share_token').eq('id', id).single();
+      // Agent 1 BUG-001 (18/05): buscar `numero` ao criar novo orçamento
+      // (antes ficava 0 → "ORC-0000" no header + PDF). Editar já carregava
+      // certo. Combinado com share_token numa query só.
+      if (!shareToken || !orcamentoNumero) {
+        const { data } = await supabase.from('orcamentos').select('share_token, numero').eq('id', id).single();
         if (data?.share_token) setShareToken(data.share_token);
+        if ((data as any)?.numero) setOrcamentoNumero((data as any).numero);
       }
       const msg: Record<string, string> = {
         rascunho: 'Rascunho salvo!',

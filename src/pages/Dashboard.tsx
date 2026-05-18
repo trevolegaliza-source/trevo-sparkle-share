@@ -409,8 +409,29 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* SEÇÃO 1.4: Previsão "vai bater o mês?" — Onda 9 pré-viagem (17/05/2026) */}
-      {podeVer('financeiro') && previsao && previsao.meta_historica > 0 && (() => {
+      {/* SEÇÃO 1.4: Previsão "vai bater o mês?" — Onda 9 pré-viagem (17/05/2026).
+          Agent 5 BUG #3 (18/05): antes só mostrava se meta_historica > 0.
+          Quando empresa nova / sem histórico, card sumia sem aviso. Agora mostra
+          card info explicando, em vez de esconder. */}
+      {podeVer('financeiro') && previsao && (() => {
+        const semHistorico = !previsao.meta_historica || previsao.meta_historica <= 0;
+        if (semHistorico) {
+          return (
+            <div className="dashboard-section">
+              <AttentionCard
+                tone="info"
+                title="Sem histórico pra prever ainda"
+                description={
+                  <>
+                    Recebido este mês: <strong>{fmt(previsao.recebido_mes)}</strong>
+                    {' '}· A receber: <strong>{fmt(previsao.pendente_mes)}</strong>
+                    {' '}· {previsao.dias_restantes_mes} dias até o fim. A previsão aparece após 1+ mês fechado de operação.
+                  </>
+                }
+              />
+            </div>
+          );
+        }
         const tone =
           previsao.veredito === 'vai_bater_folgado' || previsao.veredito === 'vai_bater' ? 'success'
           : previsao.veredito === 'no_limite' ? 'warning'
@@ -444,18 +465,30 @@ export default function Dashboard() {
           Só pra quem vê financeiro (sem fazer alarde pra operacional). */}
       {podeVer('financeiro') && dsoData && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 dashboard-section">
-          <KPICard
-            variant={
-              dsoData.dso.dso_geral > 30 ? 'danger'
-              : dsoData.dso.dso_geral > 15 ? 'warning'
-              : 'success'
-            }
-            icon={Hourglass}
-            label="DSO (dias médios pra receber)"
-            value={`${Number(dsoData.dso.dso_geral).toFixed(1)} dias`}
-            hint={`${dsoData.dso.total_lancamentos} lançamentos últimos ${dsoData.dso.dias_lookback}d · ${Number(dsoData.dso.dso_em_aberto || 0).toFixed(0)}d atraso médio em aberto`}
-            onClick={() => navigate('/financeiro', { state: { tab: 'em_andamento' } })}
-          />
+          {/* Agent 5 BUG #2 (18/05): se total_lancamentos=0, DSO=0 enganoso
+              ("ótimo!"). Mostra "—" + hint claro. */}
+          {(() => {
+            const semDados = !dsoData.dso.total_lancamentos || dsoData.dso.total_lancamentos === 0;
+            return (
+              <KPICard
+                variant={
+                  semDados ? 'default'
+                  : dsoData.dso.dso_geral > 30 ? 'danger'
+                  : dsoData.dso.dso_geral > 15 ? 'warning'
+                  : 'success'
+                }
+                icon={Hourglass}
+                label="DSO (dias médios pra receber)"
+                value={semDados ? '—' : `${Number(dsoData.dso.dso_geral).toFixed(1)} dias`}
+                hint={
+                  semDados
+                    ? `Sem movimento nos últimos ${dsoData.dso.dias_lookback}d`
+                    : `${dsoData.dso.total_lancamentos} lançamentos últimos ${dsoData.dso.dias_lookback}d · ${Number(dsoData.dso.dso_em_aberto || 0).toFixed(0)}d atraso médio em aberto`
+                }
+                onClick={() => navigate('/financeiro', { state: { tab: 'em_andamento' } })}
+              />
+            );
+          })()}
           <KPICard
             variant={dsoData.top.length > 0 ? 'danger' : 'success'}
             icon={UserX}

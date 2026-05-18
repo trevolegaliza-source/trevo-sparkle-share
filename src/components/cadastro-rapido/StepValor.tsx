@@ -206,9 +206,30 @@ export default function StepValor({ form, onChange, isFirstProcess, isAvulso, cl
         <Button variant="outline" onClick={onBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Voltar
         </Button>
-        <Button onClick={onNext} className="gap-2" disabled={isPrePago && (saldoInsuficiente || !form.servicoPreAcordadoId)}>
-          Próximo <ArrowRight className="h-4 w-4" />
-        </Button>
+        {/* BUG-001 (18/05): antes desabilitado só pra PRE_PAGO. Avulso/manual
+            podia salvar com valor 0 sem aviso. Agora bloqueia se preço manual
+            ou avulso não tem valor > 0. Title hint pra Michele entender. */}
+        {(() => {
+          const precisaValor = (form.metodoPreco === 'manual' || isAvulso) && !isPrePago;
+          const valorOk = !precisaValor || (form.valorManual && Number(form.valorManual) > 0);
+          const prePagoOk = !isPrePago || (!saldoInsuficiente && !!form.servicoPreAcordadoId);
+          const disabled = !valorOk || !prePagoOk;
+          const motivo = !valorOk
+            ? 'Informe o valor (maior que zero)'
+            : !prePagoOk
+              ? (saldoInsuficiente ? 'Saldo pré-pago insuficiente' : 'Selecione o serviço pré-acordado')
+              : undefined;
+          return (
+            <Button
+              onClick={onNext}
+              className="gap-2"
+              disabled={disabled}
+              title={motivo}
+            >
+              Próximo <ArrowRight className="h-4 w-4" />
+            </Button>
+          );
+        })()}
       </div>
     </div>
   );
