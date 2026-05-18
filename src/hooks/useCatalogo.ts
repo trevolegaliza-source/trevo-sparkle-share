@@ -97,8 +97,9 @@ export function useDeleteServico() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('catalogo_servicos').delete().eq('id', id);
+      const { data, error } = await supabase.from('catalogo_servicos').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Sem permissão para excluir esse serviço. Apenas o master pode excluir.');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['catalogo_servicos'] });
@@ -132,8 +133,9 @@ export function useDeletePrecoUF() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, servicoId }: { id: string; servicoId: string }) => {
-      const { error } = await supabase.from('catalogo_precos_uf').delete().eq('id', id);
+      const { data, error } = await supabase.from('catalogo_precos_uf').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Sem permissão para remover esse preço. Apenas o master pode.');
       return servicoId;
     },
     onSuccess: (servicoId) => {

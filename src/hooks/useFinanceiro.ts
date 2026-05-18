@@ -166,7 +166,7 @@ export function usePurgeClienteForce() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('clientes').delete().eq('id', id);
+      const { data, error } = await supabase.from('clientes').delete().eq('id', id).select('id');
       if (error) {
         if (error.code === '23503') {
           throw new Error(
@@ -176,6 +176,7 @@ export function usePurgeClienteForce() {
         }
         throw error;
       }
+      if (!data || data.length === 0) throw new Error('Sem permissão para excluir esse cliente. Apenas o master pode excluir.');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clientes'] });
@@ -794,8 +795,9 @@ export function useDeleteLancamento() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('lancamentos').delete().eq('id', id);
+      const { data, error } = await supabase.from('lancamentos').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Sem permissão para excluir esse lançamento. Apenas o master pode excluir.');
     },
     onSuccess: () => {
       // C49 — mesmo motivo do useCreateLancamento.

@@ -101,11 +101,13 @@ export function useDeleteColaborador() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from('colaboradores')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Sem permissão para excluir esse colaborador. Apenas o master pode excluir.');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['colaboradores'] });

@@ -152,8 +152,9 @@ export function useDeleteOrcamento() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('orcamentos').delete().eq('id', id);
+      const { data, error } = await supabase.from('orcamentos').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Sem permissão para excluir esse orçamento. Apenas o master pode excluir.');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['orcamentos'] });

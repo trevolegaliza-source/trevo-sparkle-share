@@ -315,9 +315,11 @@ export default function ContasPagar() {
     setBulkDeleting(true);
     try {
       const ids = Array.from(selectedIds);
-      const { error } = await supabase.from('lancamentos').delete().in('id', ids);
+      const { data, error } = await supabase.from('lancamentos').delete().in('id', ids).select('id');
       if (error) throw error;
-      toast.success(`${ids.length} lançamento(s) excluído(s) com sucesso!`);
+      const deletados = data?.length ?? 0;
+      if (deletados === 0) throw new Error('Sem permissão para excluir lançamentos. Apenas o master pode excluir.');
+      toast.success(`${deletados} lançamento(s) excluído(s) com sucesso!${deletados < ids.length ? ` (${ids.length - deletados} bloqueado(s) por permissão)` : ''}`);
       queryClient.invalidateQueries({ queryKey: ['lancamentos_pagar'] });
       queryClient.invalidateQueries({ queryKey: ['lancamentos_pagar_date'] });
       exitSelectionMode();
