@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { KPICard } from '@/components/ui/kpi-card';
 import { Badge } from '@/components/ui/badge';
 import { FileDown, TrendingUp, TrendingDown, Minus, Loader2, BarChart3 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useDRE, type ComparativoTipo, type DRELinha } from '@/hooks/useDRE';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
@@ -204,24 +207,34 @@ export default function RelatoriosDRE() {
         </Select>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards — Onda 6 (18/05/2026): trocado pra KPICard padrão (variants
+          coloridos automaticos baseado em sinal positivo/negativo). */}
       {dre && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Receita Líquida', valor: dre.receitaLiquida, cor: 'text-emerald-400' },
-            { label: 'EBITDA', valor: dre.ebitda, cor: dre.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400' },
-            { label: 'Margem EBITDA', valor: dre.margemEbitda, pct: true, cor: 'text-blue-400' },
-            { label: 'Resultado Líquido', valor: dre.resultadoLiquido, cor: dre.resultadoLiquido >= 0 ? 'text-emerald-400' : 'text-red-400' },
-          ].map((kpi, i) => (
-            <Card key={i} className="glass-card">
-              <CardContent className="pt-4 pb-3 px-4">
-                <p className="text-xs text-muted-foreground">{kpi.label}</p>
-                <p className={cn('text-xl font-bold tabular-nums mt-1', kpi.cor)}>
-                  {kpi.pct ? fmtPct(kpi.valor) : fmt(kpi.valor)}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+          <KPICard
+            variant="success"
+            icon={TrendingUp}
+            label="Receita Líquida"
+            value={fmt(dre.receitaLiquida)}
+          />
+          <KPICard
+            variant={dre.ebitda >= 0 ? 'success' : 'danger'}
+            icon={dre.ebitda >= 0 ? TrendingUp : TrendingDown}
+            label="EBITDA"
+            value={fmt(dre.ebitda)}
+          />
+          <KPICard
+            variant="default"
+            icon={BarChart3}
+            label="Margem EBITDA"
+            value={fmtPct(dre.margemEbitda)}
+          />
+          <KPICard
+            variant={dre.resultadoLiquido >= 0 ? 'hero' : 'danger'}
+            icon={dre.resultadoLiquido >= 0 ? TrendingUp : TrendingDown}
+            label="Resultado Líquido"
+            value={fmt(dre.resultadoLiquido)}
+          />
         </div>
       )}
 
@@ -244,13 +257,23 @@ export default function RelatoriosDRE() {
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="space-y-2 py-4">
+              {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                <div key={i} className="flex gap-3 items-center px-3">
+                  <Skeleton className="h-3 w-1/3" />
+                  <Skeleton className="h-3 w-20 ml-auto" />
+                  {comparativo && <Skeleton className="h-3 w-20" />}
+                </div>
+              ))}
             </div>
           ) : !dre ? (
-            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-              <Minus className="h-8 w-8 mb-2" />
-              <p className="text-sm">Nenhum dado para o período selecionado</p>
+            <div className="py-12">
+              <EmptyState
+                variant="inline"
+                icon={Minus}
+                title="Sem dados pro período selecionado"
+                description="Mude o mês/ano nos filtros acima ou cadastre lançamentos pagos."
+              />
             </div>
           ) : (
             <div className="divide-y divide-border/30">

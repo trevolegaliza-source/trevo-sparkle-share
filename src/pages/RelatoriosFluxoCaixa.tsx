@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useFluxoCaixa } from '@/hooks/useFluxoCaixa';
 import { GlassCard } from '@/components/ui/glass-card';
+import { KPICard } from '@/components/ui/kpi-card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -8,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SkeletonKPIs } from '@/components/ui/skeleton-patterns';
 import { ptBR } from 'date-fns/locale';
 
 const fmt = (v: number) =>
@@ -58,58 +61,33 @@ export default function RelatoriosFluxoCaixa() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards — Onda 6 (18/05/2026): KPICard padrão com variants automáticos */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <GlassCard className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-500/20">
-              <TrendingUp className="h-5 w-5 text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Entradas Projetadas</p>
-              <p className="text-xl font-bold text-emerald-500">{fmt(data?.totalEntradas || 0)}</p>
-            </div>
-          </div>
-        </GlassCard>
-        <GlassCard className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-red-500/20">
-              <TrendingDown className="h-5 w-5 text-red-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Saídas Projetadas</p>
-              <p className="text-xl font-bold text-red-500">{fmt(data?.totalSaidas || 0)}</p>
-            </div>
-          </div>
-        </GlassCard>
-        <GlassCard className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{
-              backgroundColor: (data?.saldoFinal || 0) >= 0 ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'
-            }}>
-              <DollarSign className="h-5 w-5" style={{
-                color: (data?.saldoFinal || 0) >= 0 ? '#10b981' : '#ef4444'
-              }} />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Saldo Projetado</p>
-              <p className="text-xl font-bold" style={{
-                color: (data?.saldoFinal || 0) >= 0 ? '#10b981' : '#ef4444'
-              }}>
-                {fmt(data?.saldoFinal || 0)}
-              </p>
-            </div>
-          </div>
-        </GlassCard>
+        <KPICard
+          variant="success"
+          icon={TrendingUp}
+          label="Entradas Projetadas"
+          value={fmt(data?.totalEntradas || 0)}
+        />
+        <KPICard
+          variant="danger"
+          icon={TrendingDown}
+          label="Saídas Projetadas"
+          value={fmt(data?.totalSaidas || 0)}
+        />
+        <KPICard
+          variant={(data?.saldoFinal || 0) >= 0 ? 'hero' : 'danger'}
+          icon={DollarSign}
+          label="Saldo Projetado"
+          value={fmt(data?.saldoFinal || 0)}
+        />
       </div>
 
       {/* Chart */}
       <GlassCard className="p-4">
         <h2 className="text-sm font-semibold mb-4">Evolução Acumulada</h2>
         {isLoading ? (
-          <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">
-            Carregando...
-          </div>
+          <Skeleton className="h-[300px] w-full rounded-md" />
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
