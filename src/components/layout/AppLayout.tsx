@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
-import { Search, Moon, Sun, Menu } from 'lucide-react';
+import { Search, Menu } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { NotificationPopover } from '@/components/NotificationPopover';
@@ -9,22 +9,6 @@ import { CommandPalette } from '@/components/CommandPalette';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useTheme } from 'next-themes';
-
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="h-9 w-9 relative"
-    >
-      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-    </Button>
-  );
-}
 
 export function AppLayout() {
   const { user } = useAuth();
@@ -116,7 +100,6 @@ export function AppLayout() {
 
           {/* Actions */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            <ThemeToggle />
             <NotificationPopover />
             <div className="flex items-center gap-2 ml-1 sm:ml-2">
               <Avatar className="h-8 w-8">
