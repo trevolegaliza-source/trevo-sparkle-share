@@ -590,7 +590,9 @@ export default function Orcamentos() {
                 const st = STATUS_MAP[orc.status] || STATUS_MAP.rascunho;
                 const itemCount = Array.isArray(orc.servicos) ? orc.servicos.length : 0;
                 return (
-                  <Card key={orc.id} className="p-4 hover:border-primary/30 transition-colors cursor-pointer" onClick={() => {
+                  <Card key={orc.id}
+                    className="p-4 border-border/40 shadow-sm hover:border-primary/40 hover:shadow-md hover:-translate-y-px transition-all cursor-pointer"
+                    onClick={() => {
                     if (orc.status === 'aprovado') handleEditApproved(orc);
                     else navigate(`/orcamentos/novo?id=${orc.id}`);
                   }}>
