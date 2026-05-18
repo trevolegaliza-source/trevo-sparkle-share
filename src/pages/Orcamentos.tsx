@@ -37,7 +37,9 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 export default function Orcamentos() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [tab, setTab] = useState('rascunho');
+  // 18/05/2026: 3 abas funcionais em vez de 6 (rascunho/enviado/aguardando/convertido/recusado/todos).
+  // Default 'em_andamento' = fila ativa que o user precisa olhar.
+  const [tab, setTab] = useState('em_andamento');
   const { data: orcamentos, isLoading } = useOrcamentos(tab);
   const { data: kpis } = useOrcamentoKPIs();
   const deleteMutation = useDeleteOrcamento();
@@ -54,6 +56,9 @@ export default function Orcamentos() {
       if (error) throw error;
       const acc: Record<string, number> = {};
       (data || []).forEach((r: any) => { acc[r.status] = (acc[r.status] || 0) + 1; });
+      // Categorias agregadas (18/05/2026): 3 abas funcionais
+      acc.em_andamento = (acc.rascunho || 0) + (acc.enviado || 0) + (acc.aguardando_pagamento || 0);
+      acc.finalizadas = (acc.convertido || 0) + (acc.recusado || 0);
       return acc;
     },
     staleTime: 60_000,
@@ -547,13 +552,12 @@ export default function Orcamentos() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="rascunho">Rascunhos {counts.rascunho ? `(${counts.rascunho})` : ''}</TabsTrigger>
-          <TabsTrigger value="enviado">Enviados {counts.enviado ? `(${counts.enviado})` : ''}</TabsTrigger>
-          <TabsTrigger value="aguardando_pagamento">
-            Aguardando Pgto {counts.aguardando_pagamento ? `(${counts.aguardando_pagamento})` : ''}
+          <TabsTrigger value="em_andamento">
+            Em andamento {counts.em_andamento ? `(${counts.em_andamento})` : ''}
           </TabsTrigger>
-          <TabsTrigger value="convertido">Convertidos {counts.convertido ? `(${counts.convertido})` : ''}</TabsTrigger>
-          <TabsTrigger value="recusado">Recusados {counts.recusado ? `(${counts.recusado})` : ''}</TabsTrigger>
+          <TabsTrigger value="finalizadas">
+            Finalizadas {counts.finalizadas ? `(${counts.finalizadas})` : ''}
+          </TabsTrigger>
           <TabsTrigger value="todos">Todos</TabsTrigger>
         </TabsList>
 
@@ -563,13 +567,13 @@ export default function Orcamentos() {
           ) : !orcamentos?.length ? (
             <EmptyState
               icon={FileText}
-              title={tab === 'rascunho' ? 'Nenhum rascunho' : tab === 'convertido' ? 'Nenhuma conversão ainda' : 'Nenhum orçamento nesta aba'}
+              title={tab === 'em_andamento' ? 'Nenhum orçamento em andamento' : tab === 'finalizadas' ? 'Nenhuma proposta finalizada ainda' : 'Nenhum orçamento'}
               description={
-                tab === 'rascunho'
-                  ? 'Crie seu primeiro orçamento — quando enviar pro cliente vira "Enviado".'
-                  : tab === 'convertido'
-                  ? 'Aqui vão aparecer orçamentos que viraram processo. Vamos fechar o primeiro!'
-                  : 'Quando houver orçamentos nesse status, eles aparecem aqui.'
+                tab === 'em_andamento'
+                  ? 'Crie seu primeiro orçamento — quando enviar pro cliente, ele aparece aqui esperando resposta.'
+                  : tab === 'finalizadas'
+                  ? 'Aqui vão aparecer propostas pagas (convertidas) ou recusadas. Vamos fechar a primeira!'
+                  : 'Crie seu primeiro orçamento clicando em "Novo Orçamento".'
               }
               action={
                 podeCriar('orcamentos') && (

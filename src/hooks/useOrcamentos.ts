@@ -59,13 +59,33 @@ export interface Orcamento {
 
 export type OrcamentoInsert = Omit<Orcamento, 'id' | 'numero' | 'share_token' | 'created_at' | 'updated_at'>;
 
-export function useOrcamentos(statusFilter?: string) {
+// 18/05/2026: simplificacao de tabs de 6 → 3 categorias funcionais.
+// Cada categoria mapeia pra um array de status reais do banco.
+export const CATEGORIA_STATUS: Record<string, string[]> = {
+  em_andamento: ['rascunho', 'enviado', 'aguardando_pagamento'],
+  finalizadas: ['convertido', 'recusado'],
+  todos: [], // [] = não filtra = traz tudo
+};
+
+export function useOrcamentos(filter?: string | string[]) {
   return useQuery({
-    queryKey: ['orcamentos', statusFilter],
+    queryKey: ['orcamentos', filter],
     queryFn: async () => {
       let q = supabase.from('orcamentos').select('*').order('created_at', { ascending: false });
-      if (statusFilter && statusFilter !== 'todos') {
-        q = q.eq('status', statusFilter);
+      // Suporta tanto string (legado: status único) quanto string[] (categorias)
+      // ou nome de categoria (mapeia via CATEGORIA_STATUS).
+      let statuses: string[] | null = null;
+      if (Array.isArray(filter)) {
+        statuses = filter;
+      } else if (typeof filter === 'string') {
+        if (CATEGORIA_STATUS[filter]) {
+          statuses = CATEGORIA_STATUS[filter];
+        } else if (filter !== 'todos') {
+          statuses = [filter]; // legado: status único
+        }
+      }
+      if (statuses && statuses.length > 0) {
+        q = q.in('status', statuses);
       }
       const { data, error } = await q;
       if (error) throw error;
