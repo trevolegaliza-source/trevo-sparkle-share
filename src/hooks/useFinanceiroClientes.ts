@@ -269,6 +269,12 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
 
   const query = useQuery({
     queryKey: ['financeiro_clientes', dataInicio, dataFim],
+    // 18/05/2026: dados financeiros NÃO podem ficar stale. Cache stale gerou
+    // bug de display sério (lançamento aparecia "Pago" depois de Desfazer).
+    // staleTime=0 + refetchOnWindowFocus forca dado fresco sempre.
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
     // L (17/05/2026 noite): refetch automático a cada 60s se houver pendência com
     // pendencia_expira_em — pra que o lancamento volte sozinho pra fila ativa quando
     // o timer expirar sem precisar F5. Quando não há timer, refetch fica em off.
