@@ -26,6 +26,17 @@ interface Notificacao {
 
 // SEC-019 / SEC-025 filtro extraído pra @/lib/notificacao-filter (testável).
 
+// Badge no ícone do app (iOS 16.4+ PWA, Android Chrome, macOS Safari 16.4+).
+function updateAppBadge(count: number) {
+  if (typeof navigator === 'undefined' || !('setAppBadge' in navigator)) return;
+  const nav = navigator as Navigator & {
+    setAppBadge?: (n?: number) => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
+  if (count > 0) nav.setAppBadge?.(count).catch(() => {});
+  else nav.clearAppBadge?.().catch(() => {});
+}
+
 const iconMap = {
   aprovacao: CheckCircle,
   recusa: XCircle,
@@ -86,6 +97,11 @@ export function NotificationPopover() {
 
   const notificacoes = notificacoesRaw.filter(n => canSeeNotificacao(n, permCtx));
   const naoLidas = notificacoes.filter(n => !n.lida);
+
+  // Sincroniza badge do icone com unread count atual (cobre push perdido, abertura do app, etc).
+  useEffect(() => {
+    updateAppBadge(naoLidas.length);
+  }, [naoLidas.length]);
 
   // Realtime — escuta INSERTs em notificacoes da empresa atual.
   // REL-013 (11/05/2026): antes filtrava só por RLS no SELECT. Realtime
@@ -149,6 +165,7 @@ export function NotificationPopover() {
   async function marcarComoLida(id: string) {
     await supabase.from('notificacoes').update({ lida: true } as any).eq('id', id);
     qc.invalidateQueries({ queryKey: ['notificacoes'] });
+    updateAppBadge(Math.max(naoLidas.length - 1, 0));
   }
 
   async function marcarTodasComoLidas() {
@@ -156,6 +173,7 @@ export function NotificationPopover() {
     if (ids.length === 0) return;
     await supabase.from('notificacoes').update({ lida: true } as any).in('id', ids);
     qc.invalidateQueries({ queryKey: ['notificacoes'] });
+    updateAppBadge(0);
   }
 
   function handleClick(n: Notificacao) {

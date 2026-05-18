@@ -18,6 +18,7 @@ DECLARE
   v_url_destino text;
   v_user_ids uuid[];
   v_subs jsonb;
+  v_unread int;
 BEGIN
   SELECT decrypted_secret INTO v_url FROM vault.decrypted_secrets WHERE name = 'supabase_url' LIMIT 1;
   SELECT decrypted_secret INTO v_key FROM vault.decrypted_secrets WHERE name = 'service_role_key' LIMIT 1;
@@ -60,6 +61,12 @@ BEGIN
     RETURN; -- sem dispositivos cadastrados, nada a enviar
   END IF;
 
+  -- Conta nao-lidas pro destinatario (badge no icone do app)
+  SELECT COUNT(*) INTO v_unread
+    FROM public.notificacoes
+   WHERE destinatario_id = ANY(v_user_ids)
+     AND COALESCE(lida, false) = false;
+
   v_url_destino := CASE
     WHEN v_notif.orcamento_id IS NOT NULL THEN '/orcamentos/' || v_notif.orcamento_id
     WHEN v_notif.tipo = 'cobranca' THEN '/financeiro'
@@ -79,6 +86,7 @@ BEGIN
       'body', v_notif.mensagem,
       'url', v_url_destino,
       'tag', 'notif-' || v_notif.id::text,
+      'unread_count', v_unread,
       'subscriptions', v_subs
     )
   );

@@ -28,7 +28,16 @@ self.addEventListener('push', (event) => {
     data: { url: payload.url || '/' },
     requireInteraction: false,
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  const tasks = [self.registration.showNotification(title, options)];
+  // Badge no icone do app (iOS 16.4+ PWA, Android Chrome, macOS Safari 16.4+)
+  if (typeof payload.unread_count === 'number' && self.navigator && 'setAppBadge' in self.navigator) {
+    tasks.push(
+      payload.unread_count > 0
+        ? self.navigator.setAppBadge(payload.unread_count).catch(() => {})
+        : self.navigator.clearAppBadge().catch(() => {})
+    );
+  }
+  event.waitUntil(Promise.all(tasks));
 });
 
 // Click na notification — foca aba existente ou abre nova
