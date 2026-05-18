@@ -21,36 +21,39 @@ const fonts = `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@
 function buildStyles(accent: string, accentDark: string) {
   return `
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; -webkit-font-smoothing: antialiased; }
-    .page { min-height: 100vh; background: #f1f5f9; padding-bottom: 110px; }
-    .max { max-width: 700px; margin: 0 auto; padding: 0 16px; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f8fafc; color: #0f172a; -webkit-font-smoothing: antialiased; }
+    .page { min-height: 100vh; background: #f8fafc; padding-bottom: 110px; }
+    .max { max-width: 760px; margin: 0 auto; padding: 0 20px; }
 
-    .header { background: #0f172a; padding: 14px 0; position: sticky; top: 0; z-index: 40; box-shadow: 0 1px 0 rgba(255,255,255,0.06); }
-    .header-inner { max-width: 700px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; }
+    /* HEADER limpo claro (antes: tema escuro #0f172a) */
+    .header { background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 16px 0; position: sticky; top: 0; z-index: 40; }
+    .header-inner { max-width: 760px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; }
     .header-logo { display: flex; align-items: center; gap: 12px; }
-    .header-logo-mark { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0; }
-    .header-logo-name { font-size: 15px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em; }
-    .header-logo-sub { font-size: 10px; color: #94a3b8; margin-top: 1px; font-weight: 500; }
-    .header-badge { font-size: 11px; font-weight: 600; color: ${accent}; background: ${accent}18; padding: 5px 12px; border-radius: 20px; letter-spacing: 0.04em; }
+    .header-logo-mark { width: 38px; height: 38px; object-fit: contain; flex-shrink: 0; }
+    .header-logo-name { font-size: 14px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; }
+    .header-logo-sub { font-size: 10.5px; color: #64748b; margin-top: 2px; font-weight: 500; }
+    .header-badge { font-size: 11px; font-weight: 600; color: ${accentDark}; background: ${accent}14; border: 1px solid ${accent}33; padding: 5px 12px; border-radius: 999px; letter-spacing: 0.04em; }
 
-    .hero { background: #0f172a; padding: 44px 0 36px; border-bottom: 1px solid #1e293b; }
-    .hero-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: ${accent}; margin-bottom: 10px; }
-    .hero-name { font-size: 34px; font-weight: 900; color: #f8fafc; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 6px; }
-    .hero-cnpj { font-size: 13px; color: #475569; margin-bottom: 28px; }
-    .hero-price-box { display: inline-block; background: ${accent}18; border: 1px solid ${accent}44; border-radius: 14px; padding: 20px 28px; }
-    .hero-price-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: ${accent}; margin-bottom: 6px; }
-    .hero-price { font-size: 38px; font-weight: 900; color: ${accent}; line-height: 1; letter-spacing: -0.02em; }
-    .hero-meta { display: flex; gap: 20px; margin-top: 20px; }
-    .hero-meta-item { font-size: 12px; color: #475569; display: flex; align-items: center; gap: 5px; }
-    .hero-dot { width: 3px; height: 3px; border-radius: 50%; background: ${accent}; }
+    /* HERO claro com gradiente sutil verde (antes: tema escuro #0f172a) */
+    .hero { background: linear-gradient(135deg, #ffffff 0%, ${accent}08 100%); padding: 44px 0 36px; border-bottom: 1px solid #e2e8f0; }
+    .hero-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: ${accentDark}; margin-bottom: 12px; }
+    .hero-name { font-size: 32px; font-weight: 800; color: #0f172a; line-height: 1.1; letter-spacing: -0.025em; margin-bottom: 6px; }
+    .hero-cnpj { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+    .hero-price-box { display: inline-block; background: #ffffff; border: 1px solid ${accent}40; border-radius: 14px; padding: 18px 26px; box-shadow: 0 4px 14px ${accent}1a; }
+    .hero-price-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: ${accentDark}; margin-bottom: 6px; }
+    .hero-price { font-size: 38px; font-weight: 900; color: ${accentDark}; line-height: 1; letter-spacing: -0.02em; }
+    .hero-meta { display: flex; gap: 20px; margin-top: 22px; }
+    .hero-meta-item { font-size: 12.5px; color: #64748b; display: flex; align-items: center; gap: 6px; font-weight: 500; }
+    .hero-dot { width: 4px; height: 4px; border-radius: 50%; background: ${accent}; }
 
     .content { padding: 28px 0; display: flex; flex-direction: column; gap: 16px; }
 
-    .card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; }
-    .card-hd { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; }
-    .card-hd-icon { width: 26px; height: 26px; border-radius: 7px; background: ${accent}14; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
-    .card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; }
-    .card-body { padding: 18px; }
+    /* Cards estilo admin: branco com sombra suave e accent verde no header */
+    .card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+    .card-hd { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; background: #fafbfc; }
+    .card-hd-icon { width: 28px; height: 28px; border-radius: 8px; background: ${accent}14; color: ${accentDark}; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .card-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; }
+    .card-body { padding: 20px; }
 
     .card-risk { background: #fff5f5; border-color: #fecaca; }
     .card-risk .card-hd { background: #fff5f5; border-bottom-color: #fecaca; }
@@ -75,15 +78,17 @@ function buildStyles(accent: string, accentDark: string) {
     .col-trevo { min-width: 90px; }
     .col-cobra { min-width: 120px; }
 
-    /* ── SERVIÇOS (CLIENTE FINAL) ── */
-    .svc-item { border: 1px solid #e2e8f0; border-radius: 11px; overflow: hidden; }
-    .svc-item + .svc-item { margin-top: 10px; }
-    .svc-item-hd { display: flex; align-items: center; padding: 12px 14px; background: #f8fafc; gap: 10px; }
-    .svc-num { width: 20px; height: 20px; border-radius: 5px; background: ${accent}18; color: ${accent}; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .svc-item-name { font-size: 14px; font-weight: 600; color: #1e293b; flex: 1; }
-    .svc-item-price { font-size: 14px; font-weight: 700; color: #1e293b; }
-    .svc-item-body { padding: 8px 14px 10px; font-size: 12px; color: #64748b; line-height: 1.6; border-top: 1px solid #f1f5f9; }
-    .svc-item-meta { display: flex; justify-content: space-between; padding: 7px 14px; background: #f8fafc; border-top: 1px solid #f1f5f9; font-size: 11px; color: #94a3b8; }
+    /* ── SERVIÇOS (CLIENTE FINAL) — cards numerados estilo admin ── */
+    .svc-item { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s; }
+    .svc-item:hover { border-color: ${accent}55; box-shadow: 0 2px 8px ${accent}1a; }
+    .svc-item + .svc-item { margin-top: 12px; }
+    .svc-item-hd { display: flex; align-items: center; padding: 14px 16px; background: #fafbfc; gap: 12px; }
+    .svc-num { width: 26px; height: 26px; border-radius: 7px; background: ${accent}18; color: ${accentDark}; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: ui-monospace, Menlo, monospace; letter-spacing: 0.04em; }
+    .svc-item-name { font-size: 14px; font-weight: 600; color: #0f172a; flex: 1; letter-spacing: -0.005em; }
+    .svc-item-price { font-size: 15px; font-weight: 700; color: ${accentDark}; font-variant-numeric: tabular-nums; }
+    .svc-item-body { padding: 12px 16px 14px; font-size: 13px; color: #475569; line-height: 1.6; border-top: 1px solid #f1f5f9; background: #fff; }
+    .svc-item-body strong { color: #0f172a; font-weight: 700; }
+    .svc-item-meta { display: flex; justify-content: space-between; padding: 8px 16px; background: #fafbfc; border-top: 1px solid #f1f5f9; font-size: 11px; color: #64748b; font-weight: 500; }
 
     /* ── TOTALS ── */
     .total-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; }
@@ -91,9 +96,9 @@ function buildStyles(accent: string, accentDark: string) {
     .total-row .val { font-weight: 500; }
     .total-row.red .val { color: #ef4444; }
     .total-row.amber .val { color: #f59e0b; }
-    .total-final { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; margin-top: 10px; border-radius: 11px; background: ${accent}0c; border: 2px solid ${accent}30; }
-    .total-final-lbl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: ${accent}; }
-    .total-final-val { font-size: 26px; font-weight: 900; color: ${accentDark}; letter-spacing: -0.02em; }
+    .total-final { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; margin-top: 12px; border-radius: 12px; background: linear-gradient(135deg, ${accent}10 0%, ${accent}06 100%); border: 2px solid ${accent}38; }
+    .total-final-lbl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: ${accentDark}; }
+    .total-final-val { font-size: 28px; font-weight: 900; color: ${accentDark}; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
 
     /* ── DOWNLOAD BAR ── */
     .dl-bar { display: flex; gap: 8px; padding: 12px 18px; background: #f8fafc; border-top: 1px solid #f1f5f9; }
@@ -143,10 +148,10 @@ function buildStyles(accent: string, accentDark: string) {
 
     /* ── STICKY CTA ── */
     .sticky-cta { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #fff; border-top: 1px solid #e2e8f0; padding: 12px 16px; display: flex; gap: 10px; box-shadow: 0 -4px 20px rgba(0,0,0,0.08); }
-    .btn-approve { flex: 1; height: 50px; background: linear-gradient(135deg, ${accent} 0%, ${accentDark} 100%); color: #fff; border: none; border-radius: 11px; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px ${accent}44; font-family: inherit; transition: opacity 0.15s; }
-    .btn-approve:hover { opacity: 0.92; }
-    .btn-approve:disabled { opacity: 0.6; cursor: not-allowed; }
-    .btn-reject { height: 50px; width: 50px; background: #fff; color: #ef4444; border: 1px solid #fecaca; border-radius: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; transition: background 0.15s; }
+    .btn-approve { flex: 1; height: 52px; background: linear-gradient(135deg, ${accent} 0%, ${accentDark} 100%); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 6px 20px -4px ${accent}66; font-family: inherit; transition: transform 0.15s, box-shadow 0.15s; letter-spacing: -0.005em; }
+    .btn-approve:hover { transform: translateY(-1px); box-shadow: 0 10px 28px -4px ${accent}88; }
+    .btn-approve:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-reject { height: 52px; width: 52px; background: #fff; color: #ef4444; border: 1px solid #fecaca; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; transition: background 0.15s; }
     .btn-reject:hover { background: #fef2f2; }
 
     /* ── MODAL ── */
@@ -385,8 +390,10 @@ export default function PropostaPublica() {
   const modoPDF = orc?.destinatario === 'cliente_direto' ? 'direto' : orc?.destinatario === 'cliente_via_contador' ? 'cliente' : 'contador';
   const isContador = modoPDF === 'contador';
   const isClienteFinal = orc?.destinatario === 'cliente_direto';
-  const accent = isContador ? '#22c55e' : '#3b82f6';
-  const accentDark = isContador ? '#16a34a' : '#2563eb';
+  // 18/05/2026 redesign: accent SEMPRE verde Trevo (antes era azul pra cliente final).
+  // Mantém branding consistente independente do tipo de destinatário.
+  const accent = '#16a34a';
+  const accentDark = '#15803d';
   const escritorioNome = orc?.escritorio_nome || '';
   const nomeDisplay = isContador ? 'Trevo Legaliza' : (escritorioNome || 'Trevo Legaliza');
   const cenarios: CenarioOrcamento[] = Array.isArray(orc?.cenarios) ? orc.cenarios : [];
