@@ -4,6 +4,12 @@ import { ArrowRight, History } from 'lucide-react';
 import { useHistoricoEntidade, CAMPO_LABELS, fmtValor } from '@/hooks/useHistoricoEntidade';
 import { SkeletonList } from '@/components/ui/skeleton-patterns';
 import { EmptyState } from '@/components/ui/empty-state';
+import { usePermissions } from '@/hooks/usePermissions';
+
+// PERM-015 (25/05/2026): campos financeiros mascarados pra quem não tem
+// podeVerValores. Bate com SEC-029 (Clientes) — operacional/visualizador
+// não vê R$ em lugar nenhum. Antes histórico vazava tudo.
+const CAMPOS_FINANCEIROS = new Set(['valor', 'valor_final', 'valor_avulso', 'valor_base', 'desconto_pct', 'desconto_progressivo_pct']);
 
 interface Props {
   open: boolean;
@@ -19,6 +25,12 @@ function fmtDataHora(iso: string): string {
 
 export default function HistoricoEntidadeModal({ open, onOpenChange, entidadeTipo, entidadeId, entidadeLabel }: Props) {
   const { data: entries = [], isLoading } = useHistoricoEntidade(entidadeTipo, entidadeId);
+  const { podeVerValores } = usePermissions();
+
+  const mascarar = (campo: string, valor: any): string => {
+    if (!podeVerValores() && CAMPOS_FINANCEIROS.has(campo)) return '•••••';
+    return fmtValor(campo, valor);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -57,11 +69,11 @@ export default function HistoricoEntidadeModal({ open, onOpenChange, entidadeTip
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap text-sm font-mono">
                     <span className="text-muted-foreground line-through">
-                      {fmtValor(entry.campo, entry.valor_antigo)}
+                      {mascarar(entry.campo, entry.valor_antigo)}
                     </span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                     <span className="font-semibold">
-                      {fmtValor(entry.campo, entry.valor_novo)}
+                      {mascarar(entry.campo, entry.valor_novo)}
                     </span>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1">

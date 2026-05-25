@@ -56,53 +56,6 @@ export function useGerarAsaasCobranca() {
   });
 }
 
-interface AtualizarVencimentoResponse {
-  ok?: boolean;
-  cobranca_id?: string;
-  nova_data_vencimento?: string;
-  lancamentos_atualizados?: number;
-  asaas_payment?: any;
-  error?: string;
-  message?: string;
-  detalhe?: string;
-}
-
-/**
- * Edita vencimento de uma cobrança Asaas (PUT /payments/:id no Asaas + UPDATE
- * em cobrancas.data_vencimento + lancamentos vinculados). Round-trip vai
- * disparar PAYMENT_UPDATED de volta — webhook detecta idempotência.
- *
- * Caso real: cliente UCONT (18/05) pediu mudar 19/05 → 21/05. Antes era SQL
- * manual + edição no painel Asaas; agora vira um clique.
- */
-export function useAtualizarVencimentoAsaas() {
-  const qc = useQueryClient();
-  return useMutation<
-    AtualizarVencimentoResponse,
-    Error,
-    { cobrancaId: string; novaDataVencimento: string }
-  >({
-    mutationFn: async ({ cobrancaId, novaDataVencimento }) => {
-      const { data, error } = await supabase.functions.invoke<AtualizarVencimentoResponse>(
-        'asaas-atualizar-vencimento',
-        { body: { cobranca_id: cobrancaId, nova_data_vencimento: novaDataVencimento } }
-      );
-      if (error) throw new Error(error.message || 'Erro inesperado.');
-      if (!data) throw new Error('Resposta vazia da função.');
-      if (data.error) throw new Error(data.detalhe || data.message || data.error);
-      return data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cobranca-asaas'] });
-      qc.invalidateQueries({ queryKey: ['financeiro_clientes'] });
-      toast.success('Vencimento atualizado no Asaas e no ERP.');
-    },
-    onError: (e) => {
-      toast.error(e.message);
-    },
-  });
-}
-
 /**
  * Busca dados Asaas (boleto/PIX/status) de uma cobrança específica.
  * Usado para exibir badge "Asaas ✓" nos itens e dentro do modal.

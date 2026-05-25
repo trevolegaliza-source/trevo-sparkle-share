@@ -25,15 +25,14 @@ import {
   ExternalLink,
   Loader2,
   RotateCcw,
-  CalendarCog,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getCobrancaPublicUrl } from '@/lib/cobranca-url';
 import { copyToClipboard } from '@/lib/clipboard';
-import { useCobrancaAsaas, useGerarAsaasCobranca, useAtualizarVencimentoAsaas } from '@/hooks/useAsaas';
+import { useCobrancaAsaas } from '@/hooks/useAsaas';
 import GerarAsaasModal from './GerarAsaasModal';
-import { Input } from '@/components/ui/input';
+import { EditarVencimentoButton } from './EditarVencimentoButton';
 
 interface Props {
   open: boolean;
@@ -59,11 +58,6 @@ export default function DetalhesCobrancaModal({
   // C19/C20 — confirm() nativo bloqueia main thread + UX inconsistente
   const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
   const { data: asaasInfo, isLoading: loadingAsaas } = useCobrancaAsaas(cobrancaId);
-
-  // 25/05/2026 (caso UCONT 18/05): editar vencimento direto da modal.
-  const [editVencOpen, setEditVencOpen] = useState(false);
-  const [novaDataVenc, setNovaDataVenc] = useState('');
-  const atualizarVenc = useAtualizarVencimentoAsaas();
 
   useEffect(() => {
     if (!open || !cobrancaId) {
@@ -237,8 +231,10 @@ export default function DetalhesCobrancaModal({
                     </span>
                   </div>
 
-                  {/* Vencimento + editar. Só editável se status do Asaas
-                      permitir (PENDING/OVERDUE). Se já pago/cancelado, só mostra. */}
+                  {/* Vencimento + botão editar.
+                      Usa o componente canônico EditarVencimentoButton (commit 92bd1a2)
+                      em vez de dialog próprio — single source of truth pro fluxo.
+                      O botão se esconde sozinho se podeEditar('financeiro')=false. */}
                   {asaasInfo.data_vencimento && (
                     <div className="flex items-center justify-between px-3 py-2 rounded-md border border-zinc-800 bg-zinc-900/40">
                       <div className="flex flex-col">
@@ -252,16 +248,11 @@ export default function DetalhesCobrancaModal({
                         </span>
                       </div>
                       {(asaasInfo.status === 'PENDING' || asaasInfo.status === 'OVERDUE' || asaasInfo.status === null) && (
-                        <button
-                          onClick={() => {
-                            setNovaDataVenc(asaasInfo.data_vencimento || '');
-                            setEditVencOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-zinc-700 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-200 text-xs font-medium"
-                          title="Editar vencimento (atualiza no Asaas e no ERP)"
-                        >
-                          <CalendarCog className="h-3.5 w-3.5" /> Editar
-                        </button>
+                        <EditarVencimentoButton
+                          cobrancaId={cobrancaId}
+                          dataAtual={asaasInfo.data_vencimento}
+                          size="sm"
+                        />
                       )}
                     </div>
                   )}
@@ -366,67 +357,6 @@ export default function DetalhesCobrancaModal({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Editar vencimento: PUT no Asaas + UPDATE cobrancas/lancamentos.
-          O webhook PAYMENT_UPDATED chega depois mas é no-op idempotente
-          (banco já tá com a nova data). Estado: setNovaDataVenc pré-preenche
-          com o vencimento atual pra Thales só ajustar. */}
-      <AlertDialog open={editVencOpen} onOpenChange={setEditVencOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Editar vencimento da cobrança</AlertDialogTitle>
-            <AlertDialogDescription>
-              Vai atualizar o vencimento no Asaas e no ERP. O link da cobrança
-              continua o mesmo — cliente vê automaticamente a nova data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-2">
-            <label className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold block mb-1">
-              Novo vencimento
-            </label>
-            <Input
-              type="date"
-              value={novaDataVenc}
-              onChange={(e) => setNovaDataVenc(e.target.value)}
-              disabled={atualizarVenc.isPending}
-              min={new Date().toISOString().split('T')[0]}
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={atualizarVenc.isPending}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async (e) => {
-                e.preventDefault(); // não fecha sozinho — só fecha em sucesso
-                if (!cobrancaId || !novaDataVenc) {
-                  toast.error('Selecione uma data válida.');
-                  return;
-                }
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(novaDataVenc)) {
-                  toast.error('Formato inválido.');
-                  return;
-                }
-                try {
-                  await atualizarVenc.mutateAsync({
-                    cobrancaId,
-                    novaDataVencimento: novaDataVenc,
-                  });
-                  setEditVencOpen(false);
-                } catch {
-                  // toast.error já disparado pelo hook
-                }
-              }}
-              disabled={atualizarVenc.isPending}
-            >
-              {atualizarVenc.isPending ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Atualizando...
-                </span>
-              ) : 'Atualizar vencimento'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

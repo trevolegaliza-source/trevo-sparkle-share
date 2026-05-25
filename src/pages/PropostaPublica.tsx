@@ -541,58 +541,74 @@ export default function PropostaPublica() {
     return () => { document.documentElement.classList.remove('light'); document.documentElement.classList.add('dark'); };
   }, []);
 
-  // Carrega proposta
+  // Helper: aplica dados da RPC completa ao estado (extraído pra usar em
+  // 2 caminhos — sem senha e após autenticação).
+  const aplicarOrcCompleto = (orcData: any) => {
+    if (['aguardando_pagamento', 'convertido'].includes(orcData.status)) {
+      setStatusFinal('aprovado');
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/get_cobranca_token_by_proposta`, {
+        method: 'POST', headers: anonHeaders, body: JSON.stringify({ p_proposta_token: token }),
+      }).then(r => r.ok ? r.json() : null)
+        .then(tok => { if (tok && typeof tok === 'string') setCobrancaShareToken(tok); })
+        .catch(() => {});
+    } else if (orcData.status === 'recusado') setStatusFinal('recusado');
+
+    setOrc(orcData);
+    const rawItens: any[] = Array.isArray(orcData.servicos) ? orcData.servicos : [];
+    const normalizados = rawItens.map(normalizeItem);
+    setItens(normalizados);
+
+    const itensSelecionados = Array.isArray(orcData.itens_selecionados) ? orcData.itens_selecionados : [];
+    const prevSelIds = new Set(itensSelecionados.map((i: any) => i.id));
+    const initSel = new Set<string>();
+    const initVals: Record<string, number> = {};
+    normalizados.forEach(i => {
+      if (!i.isOptional || prevSelIds.has(i.id)) initSel.add(i.id);
+    });
+    itensSelecionados.forEach((i: any) => { if (i.valor_contador != null) initVals[i.id] = Number(i.valor_contador); });
+    setSelecionados(initSel);
+    setValoresContador(initVals);
+  };
+
+  // SEC-033 (25/05/2026): Carga inicial usa RPC MÍNIMA que retorna só
+  // {has_password, numero, status, escritorio_nome}. Sem dados financeiros.
+  // Só chama RPC completa após autenticação (ou se proposta sem senha).
+  // Antes: RPC completa retornava tudo + has_password — atacante via DevTools
+  // via dados sem digitar senha.
   useEffect(() => {
     if (!token) { setError('Link inválido'); setLoading(false); return; }
     (async () => {
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_proposta_por_token`, {
+        const minRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_proposta_publica_minima`, {
           method: 'POST', headers: anonHeaders, body: JSON.stringify({ p_token: token }),
         });
-        if (!res.ok) { setError('Erro ao carregar proposta.'); setLoading(false); return; }
-        const results = await res.json();
-        if (!results?.length) { setError('Proposta não encontrada ou link expirado.'); setLoading(false); return; }
+        if (!minRes.ok) { setError('Erro ao carregar proposta.'); setLoading(false); return; }
+        const minResults = await minRes.json();
+        if (!minResults?.length) { setError('Proposta não encontrada ou link expirado.'); setLoading(false); return; }
 
-        const orcData = results[0];
+        const minData = minResults[0];
 
-        if (orcData.validade_dias && orcData.created_at) {
-          const expira = new Date(new Date(orcData.created_at).getTime() + orcData.validade_dias * 86400000);
+        if (minData.validade_dias && minData.created_at) {
+          const expira = new Date(new Date(minData.created_at).getTime() + minData.validade_dias * 86400000);
           if (new Date() > expira) { setError('Esta proposta expirou. Entre em contato para solicitar uma nova.'); setLoading(false); return; }
         }
 
-        if (['aguardando_pagamento', 'convertido'].includes(orcData.status)) {
-          setStatusFinal('aprovado');
-          fetch(`${SUPABASE_URL}/rest/v1/rpc/get_cobranca_token_by_proposta`, {
-            method: 'POST', headers: anonHeaders, body: JSON.stringify({ p_proposta_token: token }),
-          }).then(r => r.ok ? r.json() : null)
-            .then(tok => { if (tok && typeof tok === 'string') setCobrancaShareToken(tok); })
-            .catch(() => {});
-        } else if (orcData.status === 'recusado') setStatusFinal('recusado');
+        // Se tem senha, mostra tela de senha; dados completos só após autenticar
+        if (minData.has_password) {
+          setSenhaRequerida(true);
+          setLoading(false);
+          return;
+        }
 
-        // RPC retorna has_password (bool), não senha_link (string).
-        // Marca senha como requerida, MAS continua setando orc abaixo — senão depois
-        // de autenticar o componente cai no guard !orc e mostra 'Proposta indisponível'.
-        // (A RPC já retorna o conteúdo independente de senha — proteção é só visual.)
-        if (orcData.has_password) setSenhaRequerida(true);
-
-        setOrc(orcData);
-        // RPC retorna os itens em `servicos` (jsonb), não `itens_proposta`.
-        const rawItens: any[] = Array.isArray(orcData.servicos) ? orcData.servicos : [];
-        const normalizados = rawItens.map(normalizeItem);
-        setItens(normalizados);
-
-        // Pré-seleção: itens obrigatórios + os já selecionados anteriormente
-        const itensSelecionados = Array.isArray(orcData.itens_selecionados) ? orcData.itens_selecionados : [];
-        const prevSelIds = new Set(itensSelecionados.map((i: any) => i.id));
-        const initSel = new Set<string>();
-        const initVals: Record<string, number> = {};
-        normalizados.forEach(i => {
-          if (!i.isOptional || prevSelIds.has(i.id)) initSel.add(i.id);
+        // Sem senha: chama RPC completa direto (sem p_senha)
+        const fullRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_proposta_por_token`, {
+          method: 'POST', headers: anonHeaders, body: JSON.stringify({ p_token: token, p_senha: '' }),
         });
-        itensSelecionados.forEach((i: any) => { if (i.valor_contador != null) initVals[i.id] = Number(i.valor_contador); });
-        setSelecionados(initSel);
-        setValoresContador(initVals);
+        if (!fullRes.ok) { setError('Erro ao carregar proposta.'); setLoading(false); return; }
+        const fullResults = await fullRes.json();
+        if (!fullResults?.length) { setError('Proposta não encontrada ou link expirado.'); setLoading(false); return; }
 
+        aplicarOrcCompleto(fullResults[0]);
         setLoading(false);
       } catch (err) {
         console.error('[proposta] load falhou:', err);
@@ -638,17 +654,30 @@ export default function PropostaPublica() {
     });
   };
 
-  // Verificar senha
+  // SEC-033 (25/05/2026): Verifica senha + carrega RPC completa só se ela bate.
+  // Antes: RPC completa já tinha sido chamada no useEffect inicial; senha era
+  // só visual. Agora: a RPC completa retorna 0 rows se p_senha não bate, então
+  // chamamos diretamente com a senha digitada — se vier resultado, está correta.
   async function verificarSenha() {
     if (!senhaInput.trim() || !token) return;
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/verificar_senha_proposta`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_proposta_por_token`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({ p_token: token, p_senha: senhaInput }),
       });
-      const result = await res.json();
-      if (result === true) { setAutenticado(true); setSenhaErro(false); } else setSenhaErro(true);
-    } catch { setSenhaErro(true); }
+      if (!res.ok) { setSenhaErro(true); return; }
+      const results = await res.json();
+      if (!results?.length) {
+        setSenhaErro(true);
+        return;
+      }
+      // Senha correta: carrega dados completos + libera renderização
+      aplicarOrcCompleto(results[0]);
+      setAutenticado(true);
+      setSenhaErro(false);
+    } catch {
+      setSenhaErro(true);
+    }
   }
 
   // ── Derivados

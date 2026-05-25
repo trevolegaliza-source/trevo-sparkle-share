@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CalendarClock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { invalidateFinanceiro } from '@/hooks/useFinanceiroClientes';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface Props {
   cobrancaId: string | null | undefined;
@@ -21,6 +22,18 @@ export function EditarVencimentoButton({ cobrancaId, dataAtual, size = 'sm', cla
   const [busy, setBusy] = useState(false);
   const [novaData, setNovaData] = useState<string>(dataAtual?.slice(0, 10) || '');
   const qc = useQueryClient();
+  const { podeEditar } = usePermissions();
+  const canEdit = podeEditar('financeiro');
+
+  // UX-149 (25/05/2026): max = hoje+180d previne typo tipo 2076.
+  const maxDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 180);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const fmtBR = (iso?: string | null) =>
+    iso ? new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR') : '';
 
   async function handleSubmit() {
     if (!cobrancaId) return;
@@ -50,6 +63,11 @@ export function EditarVencimentoButton({ cobrancaId, dataAtual, size = 'sm', cla
       setBusy(false);
     }
   }
+
+  // FIN-009 (25/05/2026): gate de permissão. Visualizador/operacional sem
+  // pode_editar('financeiro') não vê nem clica. Antes qualquer perfil com
+  // módulo financeiro mudava data no Asaas + ERP sem trilha.
+  if (!canEdit) return null;
 
   return (
     <>
@@ -84,10 +102,11 @@ export function EditarVencimentoButton({ cobrancaId, dataAtual, size = 'sm', cla
               value={novaData}
               onChange={(e) => setNovaData(e.target.value)}
               min={new Date().toISOString().slice(0, 10)}
+              max={maxDate}
             />
-            {dataAtual && (
+            {dataAtual && novaData && (
               <p className="text-xs text-muted-foreground">
-                Atual: {new Date(dataAtual + 'T12:00:00').toLocaleDateString('pt-BR')}
+                {fmtBR(dataAtual.slice(0, 10))} → <strong>{fmtBR(novaData)}</strong>
               </p>
             )}
           </div>
