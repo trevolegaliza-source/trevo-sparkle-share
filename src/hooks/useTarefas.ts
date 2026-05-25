@@ -5,7 +5,7 @@
  * Claude popula via MCP do Supabase ao finalizar auditoria/sessão.
  * Thales marca como feito inline na UI. Real-time via Realtime subscription.
  */
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -40,9 +40,15 @@ export function useTarefas() {
   const qc = useQueryClient();
 
   // Realtime: Claude insere via MCP → frontend reage na hora.
+  // Bug fix 25/05: useTarefas é chamado em 2 lugares (página + sidebar via
+  // useTarefasUrgentesCount). Nome estático gerava erro "cannot add
+  // postgres_changes callbacks for realtime:tarefas-realtime" no segundo
+  // mount. Solução: sufixo único por instância do hook.
+  const channelSuffix = useMemo(() => crypto.randomUUID().slice(0, 8), []);
+
   useEffect(() => {
     const channel = supabase
-      .channel('tarefas-realtime')
+      .channel(`tarefas-realtime-${channelSuffix}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tarefas' },
@@ -50,7 +56,7 @@ export function useTarefas() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [qc]);
+  }, [qc, channelSuffix]);
 
   return useQuery({
     queryKey: QUERY_KEY,
