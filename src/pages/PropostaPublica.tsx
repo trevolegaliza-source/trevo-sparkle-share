@@ -6,6 +6,7 @@ import DOMPurify from 'dompurify';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY as SUPABASE_KEY } from '@/integrations/supabase/client';
 import logoTrevo from '@/assets/logo-trevo-legaliza.png';
 import daniAvatar from '@/assets/dani-avatar.png';
+import { TerceirizacaoPublicaView } from '@/components/orcamentos/publico/TerceirizacaoPublicaView';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -993,6 +994,12 @@ export default function PropostaPublica() {
         </div>
       </>
     );
+  }
+
+  // 25/05/2026 (Terceirização MVP Fase 1): early return pra novo tipo de
+  // proposta com layout próprio (espelha o PDF do app.web do Apps Script).
+  if (orc && orc.tipo_proposta === 'terceirizacao' && token) {
+    return <TerceirizacaoPublicaView orc={orc as any} token={token} />;
   }
 
   // Guard: se chegou aqui sem orc (RPC retornou vazio ou rascunho filtrado),
