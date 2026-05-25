@@ -104,7 +104,11 @@ export default function OrcamentoNovo() {
   // 25/05/2026 (Feature Terceirização — MVP Fase 1):
   // Toggle entre proposta clássica (serviço pontual) e nova proposta de
   // TERCEIRIZAÇÃO do departamento societário (porta do app.web do Apps Script).
-  const [tipoProposta, setTipoProposta] = useState<'servico_pontual' | 'terceirizacao'>('servico_pontual');
+  // Auto-marca pelo ?tipo= na URL (vindo do botão "Nova Proposta" de /propostas-comerciais).
+  const tipoUrl = searchParams.get('tipo');
+  const [tipoProposta, setTipoProposta] = useState<'servico_pontual' | 'terceirizacao'>(
+    tipoUrl === 'terceirizacao' ? 'terceirizacao' : 'servico_pontual'
+  );
   const [tercState, setTercState] = useState<TerceirizacaoState>({
     prospect_nome: '',
     prospect_cnpj: '',

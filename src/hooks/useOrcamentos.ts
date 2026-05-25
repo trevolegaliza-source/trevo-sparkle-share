@@ -67,11 +67,17 @@ export const CATEGORIA_STATUS: Record<string, string[]> = {
   todos: [], // [] = não filtra = traz tudo
 };
 
-export function useOrcamentos(filter?: string | string[]) {
+export function useOrcamentos(
+  filter?: string | string[],
+  tipoProposta: 'servico_pontual' | 'terceirizacao' = 'servico_pontual',
+) {
   return useQuery({
-    queryKey: ['orcamentos', filter],
+    queryKey: ['orcamentos', filter, tipoProposta],
     queryFn: async () => {
       let q = supabase.from('orcamentos').select('*').order('created_at', { ascending: false });
+      // 25/05/2026: separação Orçamentos (serviço pontual) vs Propostas Comerciais
+      // (terceirização). Cada page passa seu tipo; sem isso, mistura tudo.
+      q = q.eq('tipo_proposta' as any, tipoProposta);
       // Suporta tanto string (legado: status único) quanto string[] (categorias)
       // ou nome de categoria (mapeia via CATEGORIA_STATUS).
       let statuses: string[] | null = null;
@@ -94,11 +100,14 @@ export function useOrcamentos(filter?: string | string[]) {
   });
 }
 
-export function useOrcamentoKPIs() {
+export function useOrcamentoKPIs(tipoProposta: 'servico_pontual' | 'terceirizacao' = 'servico_pontual') {
   return useQuery({
-    queryKey: ['orcamento_kpis'],
+    queryKey: ['orcamento_kpis', tipoProposta],
     queryFn: async () => {
-      const { data, error } = await supabase.from('orcamentos').select('status, valor_final');
+      const { data, error } = await supabase
+        .from('orcamentos')
+        .select('status, valor_final')
+        .eq('tipo_proposta' as any, tipoProposta);
       if (error) throw error;
       const all = (data || []) as unknown as { status: string; valor_final: number }[];
       const total = all.length;

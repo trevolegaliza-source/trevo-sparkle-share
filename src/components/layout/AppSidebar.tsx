@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Users, DollarSign, Settings,
-  PlusCircle, ArrowUpCircle, LogOut, UsersRound, Receipt, X, CreditCard, TrendingUp, Sun, CheckCircle2,
+  PlusCircle, ArrowUpCircle, LogOut, UsersRound, Receipt, X, CreditCard, TrendingUp, Sun, CheckCircle2, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,9 @@ const navItems = [
   { path: '/cadastro-rapido', label: 'Cadastro Rápido', icon: PlusCircle, modulo: 'cadastro_rapido' },
   { path: '/clientes', label: 'Clientes', icon: Users, modulo: 'clientes' },
   { path: '/orcamentos', label: 'Orçamentos', icon: Receipt, modulo: 'orcamentos' },
+  // 25/05/2026: Propostas Comerciais (terceirização do dep. societário) — separadas
+  // dos orçamentos de serviço pontual por escolha do Thales. Mesma tabela, filtro diferente.
+  { path: '/propostas-comerciais', label: 'Propostas Comerciais', icon: Sparkles, modulo: 'orcamentos' },
   { path: '/financeiro', label: 'Financeiro', icon: DollarSign, modulo: 'financeiro' },
   { path: '/mrr', label: 'MRR', icon: TrendingUp, modulo: 'financeiro' },
   { path: '/contas-pagar', label: 'Contas a Pagar', icon: ArrowUpCircle, modulo: 'contas_pagar' },
