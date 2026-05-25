@@ -31,6 +31,7 @@ const OrcamentoNovo = lazy(() => import("./pages/OrcamentoNovo"));
 const Catalogo = lazy(() => import("./pages/Catalogo"));
 const RelatoriosDRE = lazy(() => import("./pages/RelatoriosDRE"));
 const RelatoriosFluxoCaixa = lazy(() => import("./pages/RelatoriosFluxoCaixa"));
+const Tarefas = lazy(() => import("./pages/Tarefas"));
 const PortfolioPublico = lazy(() => import("./pages/PortfolioPublico"));
 const ReconciliacaoTrello = lazy(() => import("./pages/ReconciliacaoTrello"));
 const PropostaPublica = lazy(() => import("./pages/PropostaPublica"));
@@ -190,6 +191,9 @@ const App = () => (
                       <ReconciliacaoTrello />
                     </RequirePermission>
                   } />
+                  {/* 25/05/2026: Tarefas — checklist sem gate de modulo
+                      (qualquer perfil ativo da empresa pode ver/criar). */}
+                  <Route path="/tarefas" element={<Tarefas />} />
                   <Route path="/configuracoes" element={
                     <RequirePermission modulo="configuracoes">
                       <Configuracoes />

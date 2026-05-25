@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Users, DollarSign, Settings,
-  PlusCircle, ArrowUpCircle, LogOut, UsersRound, Receipt, X, CreditCard, TrendingUp, Sun,
+  PlusCircle, ArrowUpCircle, LogOut, UsersRound, Receipt, X, CreditCard, TrendingUp, Sun, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useTarefasUrgentesCount } from '@/hooks/useTarefas';
 import logoTrevo from '@/assets/logo-trevo.png';
 
 // Demanda Thales 30/04 (item 2.3): menu enxuto. Itens removidos da UI
@@ -34,6 +36,10 @@ const navItems = [
   { path: '/contas-pagar', label: 'Contas a Pagar', icon: ArrowUpCircle, modulo: 'contas_pagar' },
   { path: '/cartao', label: 'Cartão', icon: CreditCard, modulo: 'contas_pagar' },
   { path: '/colaboradores', label: 'Colaboradores', icon: UsersRound, modulo: 'colaboradores' },
+  // 25/05/2026: Tarefas — checklist single source of truth de pendências.
+  // Claude popula via MCP (auditoria/sessão); Thales marca como feito inline.
+  // Sem módulo dedicado por ora — qualquer perfil ativo da empresa vê.
+  { path: '/tarefas', label: 'Tarefas', icon: CheckCircle2, modulo: null as any },
   { path: '/configuracoes', label: 'Configurações', icon: Settings, modulo: 'configuracoes' },
 ];
 
@@ -50,7 +56,9 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
   // Mobile mantém comportamento prévio (hambúrguer abre/fecha por clique).
   const [hover, setHover] = useState(false);
 
-  const visibleItems = navItems.filter(item => podeVer(item.modulo));
+  const tarefasUrgentes = useTarefasUrgentesCount();
+  // Tarefas é visível pra todo perfil ativo (modulo=null bypassa o gate).
+  const visibleItems = navItems.filter(item => item.modulo === null || podeVer(item.modulo));
   // Mobile: largura cheia quando aberta. Desktop: w-16 default, w-60 no hover.
   const expanded = hover || open;
 
@@ -107,6 +115,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
         ) : (
           visibleItems.map((item) => {
             const isActive = location.pathname === item.path;
+            const showBadge = item.path === '/tarefas' && tarefasUrgentes > 0;
 
             return (
               <Link
@@ -115,14 +124,29 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                 onClick={onClose}
                 title={item.label}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 relative',
                   isActive
                     ? 'sidebar-item-active'
                     : 'sidebar-item-hover text-sidebar-foreground/70 hover:text-sidebar-accent-foreground'
                 )}
               >
-                <item.icon className={cn('h-4.5 w-4.5 shrink-0 transition-all', isActive && 'icon-glow text-primary')} />
-                {expanded && <span className="flex-1 truncate">{item.label}</span>}
+                <div className="relative shrink-0">
+                  <item.icon className={cn('h-4.5 w-4.5 transition-all', isActive && 'icon-glow text-primary')} />
+                  {/* Badge contador quando sidebar colapsada (dot pequeno) */}
+                  {showBadge && !expanded && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-sidebar" />
+                  )}
+                </div>
+                {expanded && (
+                  <>
+                    <span className="flex-1 truncate">{item.label}</span>
+                    {showBadge && (
+                      <Badge variant="destructive" className="h-5 px-1.5 text-[10px] font-semibold">
+                        {tarefasUrgentes}
+                      </Badge>
+                    )}
+                  </>
+                )}
               </Link>
             );
           })
