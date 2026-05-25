@@ -1,196 +1,117 @@
 /**
- * Engine de Terceirização — calculador de preços + tipos do MVP.
- * 25/05/2026: porta do app.web do Apps Script pra dentro do ERP.
+ * Engine de Terceirização — refactor 25/05/2026.
  *
- * Lógica espelha o que Thales fazia ao vivo na reunião comercial:
- *  - Cada item incluso no escopo adiciona R$ X ao valor base
- *  - Desmarcar = remove R$ X (ex: tirar Alvarás = -200, tirar Inscrições = -100)
- *  - Modalidades aplicam desconto progressivo sobre o valor base
- *
- * Caso real reunião 23/02 com Edenilson (CONTADORIA):
- *  Base com tudo: R$ 880
- *  Removeu Inscrição Municipal/Estadual: -100 → 780
- *  Removeu Alvarás e Licenças: -200 → 580 (avulso final)
- *  PRO (5 proc, -15%): 493/un × 5 = 2.465/mês
- *  ENTERPRISE (10 proc, -20%): 464/un × 10 = 4.640/mês
+ * Decisão de arquitetura (pós-feedback Thales):
+ *  - Listas (servicos/naturezas/inclusos) são EDITÁVEIS: pode adicionar item
+ *    novo, mudar label, mudar valor, remover. Os defaults são SUGESTÕES, não
+ *    cárcere.
+ *  - Cálculo automático continua como BASELINE; mas Thales pode digitar valor
+ *    final override (`valorFinalOverride`) e dominar.
+ *  - Sub-totais sempre exibidos pra transparência (você vê quanto cada item
+ *    contribui).
  */
 
-// ─── Catálogos ──────────────────────────────────────────────────────────────
+// ─── Item editável ──────────────────────────────────────────────────────────
+// Usado pra servicos, naturezas e inclusos. Cada um vira objeto {id, label,
+// valor, ativo, descricao, customizado}. JSON guarda direto.
 
-export type ServicoSocietario =
-  | 'abertura' | 'alteracao' | 'baixa' | 'transformacao'
-  | 'cisao' | 'fusao' | 'incorporacao' | 'marcas_patentes';
-
-export type NaturezaJuridica =
-  | 'ltda' | 'slu' | 'mei' | 'ei'
-  | 'sa' | 'fundacao' | 'osc' | 'consorcio';
-
-export type ItemIncluso =
-  | 'plataforma' | 'peticionamento' | 'minuta_padrao' | 'minuta_propria'
-  | 'acompanhamento' | 'viabilidade' | 'dbe' | 'registro'
-  | 'mat' | 'inscricao_mun_est' | 'alvaras' | 'conselho_classe';
-
-export type Modalidade = 'avulso' | 'pro_5' | 'enterprise_10' | 'custom';
-
-// ─── Labels pra UI (consistentes com a Proposta PDF) ───────────────────────
-
-export const SERVICO_LABELS: Record<ServicoSocietario, string> = {
-  abertura: 'Abertura',
-  alteracao: 'Alteração',
-  baixa: 'Baixa',
-  transformacao: 'Transformação',
-  cisao: 'Cisão',
-  fusao: 'Fusão',
-  incorporacao: 'Incorporação',
-  marcas_patentes: 'Marcas e Patentes',
-};
-
-export const NATUREZA_LABELS: Record<NaturezaJuridica, string> = {
-  ltda: 'LTDA',
-  slu: 'SLU',
-  mei: 'MEI',
-  ei: 'EI',
-  sa: 'S.A',
-  fundacao: 'Fundação',
-  osc: 'OSC',
-  consorcio: 'Consórcio',
-};
-
-export interface ItemInclusoMeta {
-  label: string;
-  descricao: string;
-  precoAdicional: number;  // R$ que esse item adiciona ao valor base
-  obrigatorio?: boolean;   // se true, não pode desmarcar
+export interface ItemEditavel {
+  id: string;           // chave estável, pode ser custom_xxx pros adicionados pelo Thales
+  label: string;        // texto exibido
+  valor?: number;       // pra inclusos: quanto adiciona ao valor base. servicos/naturezas: 0.
+  ativo: boolean;       // se tá marcado no escopo
+  descricao?: string;   // texto auxiliar (opcional)
+  customizado?: boolean;// true se foi adicionado pelo Thales (não é default)
 }
 
-export const ITEM_INCLUSO_META: Record<ItemIncluso, ItemInclusoMeta> = {
-  plataforma: {
-    label: 'Plataforma Trevo',
-    descricao: 'Gestão e rastreabilidade integral do processo na plataforma própria da Trevo, com acesso ao status em tempo real.',
-    precoAdicional: 0,
-    obrigatorio: true,
-  },
-  peticionamento: {
-    label: 'Peticionamento',
-    descricao: 'Protocolo eletrônico ou físico de toda a documentação exigida pelo órgão registrador.',
-    precoAdicional: 0,
-    obrigatorio: true,
-  },
-  minuta_padrao: {
-    label: 'Minuta Padrão Junta',
-    descricao: 'Uso do modelo padrão da Junta Comercial (sem redação personalizada).',
-    precoAdicional: 0,
-  },
-  minuta_propria: {
-    label: 'Minuta Redação Própria',
-    descricao: 'Elaboração de instrumento societário com redação personalizada, conforme necessidade específica do caso.',
-    precoAdicional: 50,
-  },
-  acompanhamento: {
-    label: 'Acompanhamento Deferimento',
-    descricao: 'Monitoramento ativo até o deferimento final, com comunicação proativa sobre exigências ou pendências.',
-    precoAdicional: 0,
-    obrigatorio: true,
-  },
-  viabilidade: {
-    label: 'Viabilidade',
-    descricao: 'Consulta prévia de viabilidade de nome e atividade junto ao órgão competente antes do início do processo.',
-    precoAdicional: 50,
-  },
-  dbe: {
-    label: 'DBE',
-    descricao: 'Preenchimento e envio do Documento Básico de Entrada junto à Receita Federal para obtenção ou atualização do CNPJ.',
-    precoAdicional: 50,
-  },
-  registro: {
-    label: 'Registro (Junta/Cartório)',
-    descricao: 'Protocolo e acompanhamento do registro perante a Junta Comercial ou Cartório de Registro de Pessoas Jurídicas.',
-    precoAdicional: 0,
-    obrigatorio: true,
-  },
-  mat: {
-    label: 'Módulo Adm. Tributária (MAT)',
-    descricao: 'Pós-reforma tributária: informa regime tributário e coordena assinaturas para obtenção do CNPJ. Geralmente fica sob responsabilidade da Contabilidade.',
-    precoAdicional: 80,
-  },
-  inscricao_mun_est: {
-    label: 'Inscrição Municipal/Estadual',
-    descricao: 'Habilitação da empresa nos cadastros municipal e/ou estadual para emissão de notas fiscais.',
-    precoAdicional: 100,
-  },
-  alvaras: {
-    label: 'Alvarás e Licenças',
-    descricao: 'Solicitação e acompanhamento de alvarás de funcionamento e licenças necessárias para a operação.',
-    precoAdicional: 200,
-  },
-  conselho_classe: {
-    label: 'Conselho de Classe',
-    descricao: 'Registro perante conselhos profissionais (CRM, CRO, OAB, etc.) quando aplicável à atividade.',
-    precoAdicional: 50,
-  },
-};
+// ─── Defaults (sugestões — Thales edita à vontade) ──────────────────────────
+
+export const SERVICOS_DEFAULT: ItemEditavel[] = [
+  { id: 'abertura',       label: 'Abertura',          ativo: true,  valor: 0 },
+  { id: 'alteracao',      label: 'Alteração',         ativo: true,  valor: 0 },
+  { id: 'baixa',          label: 'Baixa',             ativo: true,  valor: 0 },
+  { id: 'transformacao',  label: 'Transformação',     ativo: true,  valor: 0 },
+  { id: 'cisao',          label: 'Cisão',             ativo: false, valor: 0 },
+  { id: 'fusao',          label: 'Fusão',             ativo: false, valor: 0 },
+  { id: 'incorporacao',   label: 'Incorporação',      ativo: false, valor: 0 },
+  { id: 'marcas_patentes',label: 'Marcas e Patentes', ativo: false, valor: 0 },
+];
+
+export const NATUREZAS_DEFAULT: ItemEditavel[] = [
+  { id: 'ltda',      label: 'LTDA',      ativo: true,  valor: 0 },
+  { id: 'slu',       label: 'SLU',       ativo: true,  valor: 0 },
+  { id: 'mei',       label: 'MEI',       ativo: true,  valor: 0 },
+  { id: 'ei',        label: 'EI',        ativo: true,  valor: 0 },
+  { id: 'sa',        label: 'S.A.',      ativo: false, valor: 0 },
+  { id: 'fundacao',  label: 'Fundação',  ativo: false, valor: 0 },
+  { id: 'osc',       label: 'OSC',       ativo: false, valor: 0 },
+  { id: 'consorcio', label: 'Consórcio', ativo: false, valor: 0 },
+];
+
+export const INCLUSOS_DEFAULT: ItemEditavel[] = [
+  { id: 'plataforma',        label: 'Plataforma Trevo',          valor: 0,   ativo: true,  descricao: 'Gestão e rastreabilidade integral do processo na plataforma própria.' },
+  { id: 'peticionamento',    label: 'Peticionamento',            valor: 0,   ativo: true,  descricao: 'Protocolo eletrônico ou físico de toda a documentação.' },
+  { id: 'minuta_padrao',     label: 'Minuta Padrão Junta',       valor: 0,   ativo: false, descricao: 'Uso do modelo padrão da Junta Comercial.' },
+  { id: 'minuta_propria',    label: 'Minuta Redação Própria',    valor: 50,  ativo: true,  descricao: 'Elaboração de instrumento societário com redação personalizada.' },
+  { id: 'acompanhamento',    label: 'Acompanhamento Deferimento',valor: 0,   ativo: true,  descricao: 'Monitoramento ativo até o deferimento final.' },
+  { id: 'viabilidade',       label: 'Viabilidade',               valor: 50,  ativo: true,  descricao: 'Consulta prévia de viabilidade de nome e atividade.' },
+  { id: 'dbe',               label: 'DBE',                       valor: 50,  ativo: true,  descricao: 'Preenchimento e envio do Documento Básico de Entrada.' },
+  { id: 'registro',          label: 'Registro (Junta/Cartório)', valor: 0,   ativo: true,  descricao: 'Protocolo perante Junta Comercial ou Cartório.' },
+  { id: 'mat',               label: 'Módulo Adm. Tributária (MAT)', valor: 80,  ativo: false, descricao: 'Pós-reforma tributária: informa regime tributário e coordena assinaturas.' },
+  { id: 'inscricao_mun_est', label: 'Inscrição Municipal/Estadual', valor: 100, ativo: false, descricao: 'Habilitação nos cadastros municipal e/ou estadual.' },
+  { id: 'alvaras',           label: 'Alvarás e Licenças',        valor: 200, ativo: false, descricao: 'Solicitação e acompanhamento de alvarás de funcionamento.' },
+  { id: 'conselho_classe',   label: 'Conselho de Classe',        valor: 50,  ativo: false, descricao: 'Registro perante conselhos profissionais (CRM, CRO, OAB, etc.).' },
+];
 
 // Valor mínimo independente do escopo (custo operacional fixo da Trevo)
 export const VALOR_BASE_MINIMO = 380;
 
-// Configuração dos planos
+// ─── Modalidades ─────────────────────────────────────────────────────────────
+
+export type Modalidade = 'avulso' | 'pro_5' | 'enterprise_10' | 'custom';
+
 export interface PlanoConfig {
   modalidade: Modalidade;
   label: string;
   badge: string;
-  volumeProcessos: number;   // 0 = avulso (sem volume)
-  descontoPercent: number;   // 0 = avulso, 15 = PRO, 20 = ENTERPRISE
+  volumeProcessos: number;
+  descontoPercent: number;
 }
 
-export const PLANOS: Record<Exclude<Modalidade, 'custom'>, PlanoConfig> = {
-  avulso: {
-    modalidade: 'avulso',
-    label: 'Avulso — Pontual',
-    badge: 'AVULSO — PONTUAL',
-    volumeProcessos: 0,
-    descontoPercent: 0,
-  },
-  pro_5: {
-    modalidade: 'pro_5',
-    label: 'Plano PRO',
-    badge: 'PLANO PRO',
-    volumeProcessos: 5,
-    descontoPercent: 15,
-  },
-  enterprise_10: {
-    modalidade: 'enterprise_10',
-    label: 'Plano ENTERPRISE',
-    badge: 'PLANO ENTERPRISE',
-    volumeProcessos: 10,
-    descontoPercent: 20,
-  },
+export const PLANOS: Record<'avulso' | 'pro_5' | 'enterprise_10', PlanoConfig> = {
+  avulso:        { modalidade: 'avulso',        label: 'Avulso — Pontual',    badge: 'AVULSO — PONTUAL',    volumeProcessos: 0,  descontoPercent: 0 },
+  pro_5:         { modalidade: 'pro_5',         label: 'Plano PRO',           badge: 'PLANO PRO',           volumeProcessos: 5,  descontoPercent: 15 },
+  enterprise_10: { modalidade: 'enterprise_10', label: 'Plano ENTERPRISE',    badge: 'PLANO ENTERPRISE',    volumeProcessos: 10, descontoPercent: 20 },
 };
 
 // ─── Cálculo ─────────────────────────────────────────────────────────────────
 
 export interface CalculoTerceirizacao {
-  valorBase: number;          // Avulso (preço por processo, sem desconto)
-  valorPro: number;           // R$/un no PRO (com -15%)
-  valorEnterprise: number;    // R$/un no ENTERPRISE (com -20%)
-  totalMensalPro: number;     // valorPro × 5
-  totalMensalEnterprise: number;  // valorEnterprise × 10
-  itensSelecionados: ItemIncluso[];
-  itensDesmarcados: ItemIncluso[];
+  valorBase: number;
+  valorPro: number;
+  valorEnterprise: number;
+  totalMensalPro: number;
+  totalMensalEnterprise: number;
+  detalhamentoAdicional: Array<{ label: string; valor: number }>;
 }
 
-export function calcularTerceirizacao(inclusos: ItemIncluso[]): CalculoTerceirizacao {
-  // Soma valor base mínimo + adicional de cada item marcado
-  const adicional = inclusos.reduce((soma, item) => {
-    return soma + (ITEM_INCLUSO_META[item]?.precoAdicional ?? 0);
-  }, 0);
+export function calcularTerceirizacao(
+  inclusos: ItemEditavel[],
+  opts: {
+    valorBaseMinimoOverride?: number;
+    descontoProOverride?: number;
+    descontoEnterpriseOverride?: number;
+  } = {},
+): CalculoTerceirizacao {
+  const baseMinimo = opts.valorBaseMinimoOverride ?? VALOR_BASE_MINIMO;
+  const ativos = inclusos.filter((i) => i.ativo);
+  const adicional = ativos.reduce((s, i) => s + Number(i.valor ?? 0), 0);
+  const valorBase = baseMinimo + adicional;
 
-  const valorBase = VALOR_BASE_MINIMO + adicional;
-
-  const valorPro = Math.round(valorBase * (1 - PLANOS.pro_5.descontoPercent / 100));
-  const valorEnterprise = Math.round(valorBase * (1 - PLANOS.enterprise_10.descontoPercent / 100));
-
-  const todosItens = Object.keys(ITEM_INCLUSO_META) as ItemIncluso[];
-  const itensDesmarcados = todosItens.filter((i) => !inclusos.includes(i));
+  const descPro = opts.descontoProOverride ?? PLANOS.pro_5.descontoPercent;
+  const descEnt = opts.descontoEnterpriseOverride ?? PLANOS.enterprise_10.descontoPercent;
+  const valorPro = Math.round(valorBase * (1 - descPro / 100));
+  const valorEnterprise = Math.round(valorBase * (1 - descEnt / 100));
 
   return {
     valorBase,
@@ -198,26 +119,34 @@ export function calcularTerceirizacao(inclusos: ItemIncluso[]): CalculoTerceiriz
     valorEnterprise,
     totalMensalPro: valorPro * PLANOS.pro_5.volumeProcessos,
     totalMensalEnterprise: valorEnterprise * PLANOS.enterprise_10.volumeProcessos,
-    itensSelecionados: inclusos,
-    itensDesmarcados,
+    detalhamentoAdicional: ativos
+      .filter((i) => (i.valor ?? 0) > 0)
+      .map((i) => ({ label: i.label, valor: i.valor ?? 0 })),
   };
 }
 
-// ─── Defaults sensatos pra começar uma proposta nova ──────────────────────
-
-export const SERVICOS_DEFAULT: ServicoSocietario[] = ['abertura', 'alteracao', 'baixa', 'transformacao'];
-export const NATUREZAS_DEFAULT: NaturezaJuridica[] = ['ltda', 'slu', 'mei', 'ei'];
-export const INCLUSOS_DEFAULT: ItemIncluso[] = [
-  'plataforma',
-  'peticionamento',
-  'minuta_propria',
-  'acompanhamento',
-  'viabilidade',
-  'dbe',
-  'registro',
-];
+// Valor "principal" exibido conforme modalidade
+export function valorPrincipalPorModalidade(
+  calc: CalculoTerceirizacao,
+  modalidade: Modalidade,
+  override?: number | null,
+): number {
+  if (override !== null && override !== undefined && override > 0) return override;
+  switch (modalidade) {
+    case 'pro_5':         return calc.totalMensalPro;
+    case 'enterprise_10': return calc.totalMensalEnterprise;
+    case 'avulso':
+    case 'custom':        return calc.valorBase;
+    default:              return calc.valorBase;
+  }
+}
 
 // ─── Formatação ──────────────────────────────────────────────────────────────
 
 export const fmtBRL = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// Gera id custom único pra novos itens adicionados pelo Thales
+export function gerarIdCustomizado(): string {
+  return `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+}

@@ -97,7 +97,7 @@ export default function PropostasComerciais() {
         subtitle="Terceirização do departamento societário — relação contínua"
         actions={
           podeCriar('orcamentos') ? (
-            <Button onClick={() => navigate('/orcamentos/novo?tipo=terceirizacao')} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => navigate('/propostas-comerciais/nova')} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
               <Plus className="h-4 w-4" /> Nova Proposta
             </Button>
           ) : null
@@ -151,7 +151,7 @@ export default function PropostasComerciais() {
               }
               action={
                 podeCriar('orcamentos') && (
-                  <Button onClick={() => navigate('/orcamentos/novo?tipo=terceirizacao')} className="bg-emerald-600 hover:bg-emerald-700">
+                  <Button onClick={() => navigate('/propostas-comerciais/nova')} className="bg-emerald-600 hover:bg-emerald-700">
                     <Plus className="h-4 w-4 mr-2" />
                     Nova Proposta
                   </Button>
@@ -167,7 +167,7 @@ export default function PropostasComerciais() {
                   <Card
                     key={orc.id}
                     className="p-4 border-0 shadow-sm hover:shadow-md hover:-translate-y-px transition-all cursor-pointer"
-                    onClick={() => navigate(`/orcamentos/novo?id=${orc.id}`)}
+                    onClick={() => navigate(`/propostas-comerciais/editar/${orc.id}`)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">

@@ -13,10 +13,9 @@ import {
   History,
 } from 'lucide-react';
 import HistoricoEntidadeModal from '@/components/historico/HistoricoEntidadeModal';
-import { TerceirizacaoConfigurator, type TerceirizacaoState } from '@/components/orcamentos/TerceirizacaoConfigurator';
-import {
-  calcularTerceirizacao, SERVICOS_DEFAULT, NATUREZAS_DEFAULT, INCLUSOS_DEFAULT,
-} from '@/lib/terceirizacao-engine';
+// 25/05/2026 refactor: terceirização foi MOVIDA pra page própria
+// (/propostas-comerciais/nova). OrcamentoNovo agora só lida com serviço pontual.
+// Imports antigos de TerceirizacaoConfigurator/engine removidos.
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -101,26 +100,13 @@ export default function OrcamentoNovo() {
   const [pacotesOpen, setPacotesOpen] = useState(false);
   const [historicoOpen, setHistoricoOpen] = useState(false);
 
-  // 25/05/2026 (Feature Terceirização — MVP Fase 1):
-  // Toggle entre proposta clássica (serviço pontual) e nova proposta de
-  // TERCEIRIZAÇÃO do departamento societário (porta do app.web do Apps Script).
-  // Auto-marca pelo ?tipo= na URL (vindo do botão "Nova Proposta" de /propostas-comerciais).
-  const tipoUrl = searchParams.get('tipo');
-  const [tipoProposta, setTipoProposta] = useState<'servico_pontual' | 'terceirizacao'>(
-    tipoUrl === 'terceirizacao' ? 'terceirizacao' : 'servico_pontual'
-  );
-  const [tercState, setTercState] = useState<TerceirizacaoState>({
-    prospect_nome: '',
-    prospect_cnpj: '',
-    prospect_email: '',
-    prospect_telefone: '',
-    prospect_contato: '',
-    modalidade: 'avulso',
-    servicos: SERVICOS_DEFAULT,
-    naturezas: NATUREZAS_DEFAULT,
-    inclusos: INCLUSOS_DEFAULT,
-    validade_dias: 15,
-  });
+  // 25/05/2026 refactor: terceirização tem page própria. Se vier link legado
+  // /orcamentos/novo?tipo=terceirizacao, redireciona automaticamente.
+  useEffect(() => {
+    if (searchParams.get('tipo') === 'terceirizacao') {
+      navigate('/propostas-comerciais/nova', { replace: true });
+    }
+  }, [searchParams, navigate]);
   // PRINT 02 #4a: id do item recém-adicionado pra dar highlight temporário
   const [novoItemId, setNovoItemId] = useState<string | null>(null);
   // Trevo → Cliente Final: pergunta se contador é o cliente final (null=não respondeu)
@@ -208,23 +194,10 @@ export default function OrcamentoNovo() {
       // Try to infer escritorio from selected client
       const selectedCliente = clientes?.find(c => c.id === orc.cliente_id);
 
-      // 25/05/2026: Terceirização — detecta tipo e popula tercState próprio
-      const tipoSalvo = (orc as any).tipo_proposta || 'servico_pontual';
-      if (tipoSalvo === 'terceirizacao') {
-        setTipoProposta('terceirizacao');
-        setTercState({
-          prospect_nome: orc.prospect_nome || '',
-          prospect_cnpj: orc.prospect_cnpj || '',
-          prospect_email: orc.prospect_email || '',
-          prospect_telefone: orc.prospect_telefone || '',
-          prospect_contato: orc.prospect_contato || '',
-          modalidade: (orc as any).terc_modalidade || 'avulso',
-          servicos: Array.isArray((orc as any).terc_servicos) ? (orc as any).terc_servicos : SERVICOS_DEFAULT,
-          naturezas: Array.isArray((orc as any).terc_naturezas) ? (orc as any).terc_naturezas : NATUREZAS_DEFAULT,
-          inclusos: Array.isArray((orc as any).terc_inclusos) ? (orc as any).terc_inclusos : INCLUSOS_DEFAULT,
-          validade_dias: orc.validade_dias || 15,
-        });
-        return;  // pula setForm clássico
+      // 25/05/2026: se for proposta comercial, redireciona pra page própria.
+      if ((orc as any).tipo_proposta === 'terceirizacao') {
+        navigate(`/propostas-comerciais/editar/${editId}`, { replace: true });
+        return;
       }
 
       setForm({
@@ -397,57 +370,6 @@ export default function OrcamentoNovo() {
   }
 
   function buildPayload(status: string) {
-    // 25/05 — Terceirização: payload diferente, espelha os campos terc_*
-    if (tipoProposta === 'terceirizacao') {
-      const calc = calcularTerceirizacao(tercState.inclusos);
-      return {
-        tipo_proposta: 'terceirizacao',
-        prospect_nome: tercState.prospect_nome,
-        prospect_cnpj: tercState.prospect_cnpj || null,
-        prospect_email: tercState.prospect_email || null,
-        prospect_telefone: tercState.prospect_telefone || null,
-        prospect_contato: tercState.prospect_contato || null,
-        destinatario: 'contador' as any,  // sempre B2B
-        servicos: [] as any,              // não usado pra terceirização
-        naturezas: [] as any,
-        escopo: [] as any,
-        tipo_contrato: tercState.modalidade,  // reusa campo existente
-        valor_base: calc.valorBase,
-        valor_final: tercState.modalidade === 'pro_5' ? calc.totalMensalPro
-          : tercState.modalidade === 'enterprise_10' ? calc.totalMensalEnterprise
-          : calc.valorBase,
-        desconto_pct: 0,
-        qtd_processos: 1,
-        desconto_progressivo_ativo: false,
-        desconto_progressivo_pct: 0,
-        desconto_progressivo_limite: 0,
-        validade_dias: tercState.validade_dias,
-        pagamento: null,
-        sla: null,
-        observacoes: null,
-        prazo_execucao: null,
-        contexto: null,
-        pacotes: [] as any,
-        secoes: [] as any,
-        riscos: [] as any,
-        etapas_fluxo: [] as any,
-        beneficios_capa: [] as any,
-        headline_cenario: null,
-        cenarios: [] as any,
-        senha_link: null,
-        status,
-        pdf_url: null,
-        // Campos específicos terc_*
-        terc_modalidade: tercState.modalidade,
-        terc_servicos: tercState.servicos as any,
-        terc_naturezas: tercState.naturezas as any,
-        terc_inclusos: tercState.inclusos as any,
-        terc_valor_base: calc.valorBase,
-        terc_valor_pro: calc.valorPro,
-        terc_valor_enterprise: calc.valorEnterprise,
-        terc_clicksign_status: 'nao_enviado',
-      };
-    }
     return {
       tipo_proposta: 'servico_pontual',
       prospect_nome: form.prospect_nome,
@@ -491,40 +413,6 @@ export default function OrcamentoNovo() {
   }
 
   async function handleSave(status: string = 'rascunho') {
-    // 25/05 — Terceirização: validação própria (mais simples que serviço pontual)
-    if (tipoProposta === 'terceirizacao') {
-      if (!tercState.prospect_nome?.trim()) {
-        toast.error('Informe a razão social do cliente');
-        return;
-      }
-      if (status !== 'rascunho') {
-        if (tercState.servicos.length === 0) {
-          toast.error('Marque pelo menos 1 serviço societário antes de enviar');
-          return;
-        }
-        if (tercState.inclusos.length === 0) {
-          toast.error('Marque pelo menos 1 item incluso antes de enviar');
-          return;
-        }
-      }
-      try {
-        const payload: any = buildPayload(status);
-        if (orcamentoId) payload.id = orcamentoId;
-        const id = await saveMutation.mutateAsync(payload);
-        setOrcamentoId(id);
-        setOrcamentoStatus(status);
-        if (!shareToken || !orcamentoNumero) {
-          const { data } = await supabase.from('orcamentos').select('share_token, numero').eq('id', id).single();
-          if (data?.share_token) setShareToken(data.share_token);
-          if ((data as any)?.numero) setOrcamentoNumero((data as any).numero);
-        }
-        toast.success(status === 'enviado' ? 'Proposta enviada! Link público pronto.' : 'Rascunho salvo.');
-      } catch (err: any) {
-        toast.error('Erro ao salvar: ' + (err.message || ''));
-      }
-      return;
-    }
-
     const ehFluxoContadorClienteFinal = form.destinatario === 'cliente_direto' && contadorEhClienteFinal === true;
     if (!form.prospect_nome?.trim() && !ehFluxoContadorClienteFinal) {
       toast.error('Informe o nome da empresa a regularizar');
@@ -577,9 +465,7 @@ export default function OrcamentoNovo() {
   // Pula se: não tem nome, ja está enviado+, ja tá salvando, ou novo sem nome.
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    // Autosave funciona pros 2 tipos: usa prospect_nome do form ativo
-    const nomeAtivo = tipoProposta === 'terceirizacao' ? tercState.prospect_nome : form.prospect_nome;
-    if (!nomeAtivo?.trim()) return;
+    if (!form.prospect_nome?.trim()) return;
     if (orcamentoStatus !== 'rascunho' && !!orcamentoId) return;
     if (saveMutation.isPending) return;
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
@@ -593,7 +479,7 @@ export default function OrcamentoNovo() {
     }, 5000);
     return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, tercState, tipoProposta, orcamentoStatus]);
+  }, [form, orcamentoStatus]);
 
   // Sprint autônoma 13/05 noite: muda status SEM passar pelo flow de buildPayload
   // (que reescreve tudo). Útil pra transições rápidas (rascunho→enviado, etc).
@@ -962,52 +848,6 @@ export default function OrcamentoNovo() {
           )}
         </div>
       </header>
-
-      {/* ─── Toggle Tipo de Proposta (MVP Fase 1 — 25/05/2026) ───
-          Decide se renderiza fluxo clássico (serviço pontual) ou novo
-          configurador de Terceirização. Só aparece em propostas novas
-          ou rascunhos — após enviar, fica trancado. */}
-      {(!orcamentoId || orcamentoStatus === 'rascunho') && (
-        <section className="on-card" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '12px 16px' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-2)' }}>Tipo de proposta:</span>
-            <button
-              type="button"
-              onClick={() => setTipoProposta('servico_pontual')}
-              className={cn(
-                'px-3 py-1.5 rounded-md text-xs font-medium transition-all',
-                tipoProposta === 'servico_pontual'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted hover:bg-muted/70 text-muted-foreground'
-              )}
-            >
-              Serviço pontual
-            </button>
-            <button
-              type="button"
-              onClick={() => setTipoProposta('terceirizacao')}
-              className={cn(
-                'px-3 py-1.5 rounded-md text-xs font-medium transition-all',
-                tipoProposta === 'terceirizacao'
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-muted hover:bg-muted/70 text-muted-foreground'
-              )}
-            >
-              🍀 Terceirização (departamento societário)
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* ─── Configurador de Terceirização ─── */}
-      {tipoProposta === 'terceirizacao' && (
-        <div style={{ marginBottom: 16 }}>
-          <TerceirizacaoConfigurator value={tercState} onChange={setTercState} />
-        </div>
-      )}
-
-      {/* ─── Form clássico (Serviço pontual) — só renderiza se NÃO for terceirização ─── */}
-      {tipoProposta === 'servico_pontual' && (<>
 
       {/* ─── Resposta do cliente (so quando aprovado ou pago) ─── */}
       {respostaCliente && respostaCliente.itens_selecionados && (() => {
@@ -1461,7 +1301,6 @@ export default function OrcamentoNovo() {
           </div>
         </aside>
       </div>
-      </>)}{/* fim do form clássico (servico_pontual) */}
 
       {/* Histórico de alterações (orçamento) */}
       <HistoricoEntidadeModal

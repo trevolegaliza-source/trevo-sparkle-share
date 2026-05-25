@@ -29,6 +29,7 @@ const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
 const OrcamentoNovo = lazy(() => import("./pages/OrcamentoNovo"));
 const PropostasComerciais = lazy(() => import("./pages/PropostasComerciais"));
+const PropostaComercialNova = lazy(() => import("./pages/PropostaComercialNova"));
 const Catalogo = lazy(() => import("./pages/Catalogo"));
 const RelatoriosDRE = lazy(() => import("./pages/RelatoriosDRE"));
 const RelatoriosFluxoCaixa = lazy(() => import("./pages/RelatoriosFluxoCaixa"));
@@ -122,10 +123,22 @@ const App = () => (
                     </RequirePermission>
                   } />
                   {/* 25/05/2026: separação Orçamentos (serviço pontual) vs
-                      Propostas Comerciais (terceirização). Mesma tabela, filtros diferentes. */}
+                      Propostas Comerciais (terceirização). Mesma tabela, filtros diferentes.
+                      Refactor (mesmo dia): preenchimento de proposta tem page PRÓPRIA,
+                      sem reuso de OrcamentoNovo. */}
                   <Route path="/propostas-comerciais" element={
                     <RequirePermission modulo="orcamentos">
                       <PropostasComerciais />
+                    </RequirePermission>
+                  } />
+                  <Route path="/propostas-comerciais/nova" element={
+                    <RequirePermission modulo="orcamentos" acao="criar">
+                      <PropostaComercialNova />
+                    </RequirePermission>
+                  } />
+                  <Route path="/propostas-comerciais/editar/:id" element={
+                    <RequirePermission modulo="orcamentos">
+                      <PropostaComercialNova />
                     </RequirePermission>
                   } />
                   <Route path="/cadastro-rapido" element={
