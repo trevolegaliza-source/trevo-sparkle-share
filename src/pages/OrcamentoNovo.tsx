@@ -10,7 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Plus, FileText, Save, Copy, Loader2, ChevronDown,
   Link as LinkIcon, CheckCircle2, XCircle, Eye, Send,
+  History,
 } from 'lucide-react';
+import HistoricoEntidadeModal from '@/components/historico/HistoricoEntidadeModal';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -93,6 +95,7 @@ export default function OrcamentoNovo() {
     cobranca_share_token: string | null;
   } | null>(null);
   const [pacotesOpen, setPacotesOpen] = useState(false);
+  const [historicoOpen, setHistoricoOpen] = useState(false);
   // PRINT 02 #4a: id do item recém-adicionado pra dar highlight temporário
   const [novoItemId, setNovoItemId] = useState<string | null>(null);
   // Trevo → Cliente Final: pergunta se contador é o cliente final (null=não respondeu)
@@ -793,6 +796,19 @@ export default function OrcamentoNovo() {
             </Button>
           )}
 
+          {/* 25/05/2026: histórico de alterações pro orçamento existente.
+              Mesmo modal usado em processos no ClienteDetalhe. */}
+          {orcamentoId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setHistoricoOpen(true)}
+              title="Ver histórico de alterações"
+            >
+              <History className="h-4 w-4 mr-1" /> Histórico
+            </Button>
+          )}
+
           {/* Menu de ações secundárias agrupadas: mudar status + duplicar.
               Só aparece se o orcamento já existe (não é novo). */}
           {orcamentoId && (
@@ -1267,6 +1283,15 @@ export default function OrcamentoNovo() {
           </div>
         </aside>
       </div>
+
+      {/* Histórico de alterações (orçamento) */}
+      <HistoricoEntidadeModal
+        open={historicoOpen}
+        onOpenChange={setHistoricoOpen}
+        entidadeTipo="orcamento"
+        entidadeId={orcamentoId}
+        entidadeLabel={form.prospect_nome || `Orçamento #${orcamentoNumero || '—'}`}
+      />
     </div>
   );
 }
