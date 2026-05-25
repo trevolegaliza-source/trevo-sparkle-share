@@ -27,6 +27,9 @@ import { useUpsertServiceNegotiations } from '@/hooks/useServiceNegotiations';
 import HonorariosInlineRepeater, { type InlineNegotiationRow } from '@/components/clientes/HonorariosInlineRepeater';
 import ServicosPreAcordados from '@/components/clientes/ServicosPreAcordados';
 import PrepagoTab from '@/components/clientes/PrepagoTab';
+import PrecosPorTipoDialog from '@/components/financeiro/PrecosPorTipoDialog';
+import { useClientePrecosPorTipo } from '@/hooks/useFinanceiro';
+import { Tag as TagIcon } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -80,6 +83,7 @@ export default function ClienteDetalhe() {
   const [contracts, setContracts] = useState<{ name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [precosTipoOpen, setPrecosTipoOpen] = useState(false);
   const [editForm, setEditForm] = useState<Partial<ClienteDB>>({});
   const [uploadingContract, setUploadingContract] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -987,6 +991,16 @@ export default function ClienteDetalhe() {
                   </>
                 )}
               </div>
+
+              {/* 25/05/2026: Preços diferenciados por tipo (override do valor_base).
+                  Backend já consumia via get_preco_por_tipo() — antes desta UI
+                  era SQL manual (caso VITAE abertura R$540). */}
+              {!isMensalista && (
+                <PrecosPorTipoButton
+                  clienteId={cliente.id}
+                  onClick={() => setPrecosTipoOpen(true)}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -2476,11 +2490,57 @@ export default function ClienteDetalhe() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Preços diferenciados por tipo */}
+      <PrecosPorTipoDialog
+        open={precosTipoOpen}
+        onOpenChange={setPrecosTipoOpen}
+        clienteId={cliente.id}
+        clienteNome={cliente.apelido || cliente.nome}
+        valorBase={Number((cliente as any).valor_base ?? 0)}
+      />
     </div>
   );
 }
 
 // ── Sub-components for audit in ClienteDetalhe ──
+
+/**
+ * Botão pra abrir o dialog de preços por tipo. Sub-componente isolado pra
+ * poder chamar useClientePrecosPorTipo() sem inflar o ClienteDetalhe.tsx.
+ * Mostra badge com nº de regras configuradas.
+ */
+function PrecosPorTipoButton({
+  clienteId,
+  onClick,
+}: { clienteId: string; onClick: () => void }) {
+  const { data: precos } = useClientePrecosPorTipo(clienteId);
+  const count = precos?.length ?? 0;
+  return (
+    <div className="mt-4 pt-4 border-t border-border/40">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onClick}
+        className="gap-1.5"
+      >
+        <TagIcon className="h-3.5 w-3.5" />
+        Preços diferenciados por tipo
+        {count > 0 && (
+          <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+            {count}
+          </Badge>
+        )}
+      </Button>
+      {count === 0 && (
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          Configure preços diferentes pra abertura/alteração/etc. (ex: cliente que negociou R$ 540 só pra abertura).
+        </p>
+      )}
+    </div>
+  );
+}
 
 function ClienteDetalheFaturasAuditoria({ lancamentos, clienteApelido, onReload, isMaster }: {
   lancamentos: any[];

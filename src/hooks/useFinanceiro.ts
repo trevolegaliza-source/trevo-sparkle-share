@@ -224,6 +224,92 @@ export function useUnarchiveCliente() {
   });
 }
 
+// ---- PREÇOS POR TIPO (override) ----
+// 25/05/2026: UI pra cliente_precos_por_tipo. Backend já consumia via
+// get_preco_por_tipo() em useCreateProcesso (linha ~320). Antes desta UI,
+// inserir override era SQL manual (caso VITAE 18/05 = R$ 540 abertura).
+export interface ClientePrecoTipo {
+  id: string;
+  cliente_id: string;
+  tipo: TipoProcesso;
+  valor: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useClientePrecosPorTipo(clienteId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['cliente_precos_por_tipo', clienteId],
+    enabled: !!clienteId,
+    staleTime: 30_000,
+    queryFn: async (): Promise<ClientePrecoTipo[]> => {
+      if (!clienteId) return [];
+      const { data, error } = await supabase
+        .from('cliente_precos_por_tipo' as any)
+        .select('id, cliente_id, tipo, valor, created_at, updated_at')
+        .eq('cliente_id', clienteId)
+        .order('tipo');
+      if (error) throw error;
+      return (data || []) as ClientePrecoTipo[];
+    },
+  });
+}
+
+export function useUpsertClientePrecoTipo() {
+  const qc = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    { cliente_id: string; tipo: TipoProcesso; valor: number }
+  >({
+    mutationFn: async ({ cliente_id, tipo, valor }) => {
+      // Upsert por (cliente_id, tipo) — exige unique constraint no banco;
+      // se não existir, faremos SELECT + UPDATE/INSERT manual.
+      const { data: existing } = await supabase
+        .from('cliente_precos_por_tipo' as any)
+        .select('id')
+        .eq('cliente_id', cliente_id)
+        .eq('tipo', tipo)
+        .maybeSingle();
+      if ((existing as any)?.id) {
+        const { error } = await supabase
+          .from('cliente_precos_por_tipo' as any)
+          .update({ valor })
+          .eq('id', (existing as any).id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('cliente_precos_por_tipo' as any)
+          .insert({ cliente_id, tipo, valor });
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['cliente_precos_por_tipo', vars.cliente_id] });
+      toast.success('Preço diferenciado salvo.');
+    },
+    onError: (e) => toast.error(e.message),
+  });
+}
+
+export function useDeleteClientePrecoTipo() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { id: string; cliente_id: string }>({
+    mutationFn: async ({ id }) => {
+      const { error } = await supabase
+        .from('cliente_precos_por_tipo' as any)
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['cliente_precos_por_tipo', vars.cliente_id] });
+      toast.success('Preço removido.');
+    },
+    onError: (e) => toast.error(e.message),
+  });
+}
+
 // ---- PROCESSOS ----
 export function useProcessos() {
   return useQuery({
