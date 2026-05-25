@@ -83,11 +83,18 @@ export function usePermissions(): UsePermissionsReturn {
         }
 
         // Fetch user-specific permissions (override)
-        const { data: permissions } = await supabase
+        const { data: permissions, error: permsErr } = await supabase
           .from('user_permissions')
           .select('modulo, pode_ver, pode_criar, pode_editar, pode_excluir, pode_aprovar')
           .eq('user_id', user.id) as any;
         if (cancelled) return;
+
+        // 25/05/2026: log de erro caso a query falhe silenciosamente (RLS, etc).
+        // Bug viagem: Letícia/Michele viram 'Acesso Restrito' pra orcamentos
+        // — perms estavam no banco mas talvez essa query retornava vazio.
+        if (permsErr) {
+          console.warn('[usePermissions] erro ao buscar user_permissions:', permsErr);
+        }
 
         if (permissions && permissions.length > 0) {
           const map: PermissionsMap = {};
@@ -102,9 +109,16 @@ export function usePermissions(): UsePermissionsReturn {
           }
           setPerms(map);
         } else {
+          if (!permsErr) {
+            console.warn('[usePermissions] user_permissions vazio pra', user.id, '— usando template');
+          }
           setPerms({});
         }
       }
+      // setLoading(false) DEPOIS de setPerms/setTemplate pra reduzir chance
+      // de RequirePermission renderizar com perms={} antes do useState atualizar.
+      // React 18 batches setState dentro do mesmo handler, então deveria ser sync,
+      // mas garantia extra não custa.
       setLoading(false);
     };
 
