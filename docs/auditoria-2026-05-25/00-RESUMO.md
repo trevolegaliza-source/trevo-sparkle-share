@@ -4,171 +4,155 @@
 >
 > **Método:** 2 agentes paralelos — (A) revisão de status dos 34 achados de 17/05, (B) varredura nova em código pós-17/05. Críticos validados manualmente contra código real antes de consolidar.
 >
-> **Escopo:** sistema pós-todas-as-mudanças até commit `f63b15d` (RLS DELETE refactor aplicado em prod hoje).
+> **Escopo:** sistema pós-todas-as-mudanças até commit `2303f1f` (Sessão A da auditoria) + `[NOVO]` (Sessão B+C).
 
 ---
 
 ## 📊 Sumário executivo
 
-### Auditoria 17/05 — **essencialmente fechada**
-- ✅ **24 CORRIGIDOS** (18 fixes diretos + 6 marcados resolvidos no RESUMO original)
-- ❌ **8 FALSO ALARME** já catalogados
-- ⏳ **2 PENDENTES** (FIN-006 polish + CODE-007 fantasma)
-- 🤷 **1 NÃO VERIFICÁVEL** (edge function fora do repo)
+### Auditoria 17/05 — **fechada**
+- ✅ **24 CORRIGIDOS** | ❌ **8 FALSO ALARME** | ⏳ **2 PENDENTES** (FIN-006 polish + CODE-007 fantasma) | 🤷 **1 NÃO VERIFICÁVEL**
 
-### Achados novos 25/05
-- 🔴 **4 críticos** — vazamento dados em RPC pública, push lockscreen, histórico vaza valor, edit vencimento sem gate
-- 🟡 **5 médios** — race no upsert, badge unread inflado, vencimento sem max, push subscription orphan, trigger fire-and-forget
-- 🟢 **3 polish** — flicker em listagens, cast unsafe, mensagem confusa em push
+### Auditoria 25/05 — **12 achados, 11 atacados nesta sessão**
+
+| Status | Total | 🔴 Crítico | 🟡 Médio | 🟢 Polish |
+|---|---:|---:|---:|---:|
+| ✅ Corrigido (Sessão A 25/05) | 4 | 4 | 0 | 0 |
+| ✅ Corrigido (Sessão B+C 25/05) | 7 | 0 | 4 | 3 |
+| 🤝 Aceito (trade-off) | 1 | 0 | 1 | 0 |
+| **Total** | **12** | **4** | **5** | **3** |
 
 ### Estado da plataforma
-- **Frontend:** commit `f63b15d` no `main` (publish feito)
-- **Edge `asaas-webhook`:** v30 (PAYMENT_UPDATED handler aplicado)
-- **Edge `asaas-atualizar-vencimento`:** v1 (aplicada 24/05)
-- **Edge `enviar-push`:** ativa (deploy 18/05)
-- **SQL RLS DELETE refactor:** ✅ aplicado em prod hoje (23 policies + função `tem_permissao_excluir`)
+- **Frontend:** commit `2303f1f` no `main` + commits Sessão B+C (a serem pushed)
+- **Edge `asaas-webhook`:** v30 (PAYMENT_UPDATED handler)
+- **Edge `asaas-atualizar-vencimento`:** v2 (FIN-009 — grava em entidade_audit)
+- **Edge `enviar-push`:** ativa (deploy 18/05; agora recebe body mascarado da trigger)
+- **SQL aplicado:** RLS DELETE refactor (`f63b15d`) + SEC-033 RPCs bifurcadas (`2303f1f`) + SEC-034/035 (a aplicar)
 
 ---
 
-## 🔴 4 CRÍTICOS NOVOS
+## ✅ SESSÃO A — 4 CRÍTICOS (concluída em `2303f1f`)
 
-### SEC-033 — Senha de proposta pública é só UI, dados vazam pela RPC
-- **Arquivos:** [PropostaPublica.tsx:572-578](src/pages/PropostaPublica.tsx#L572) + [docs/sql/get-proposta-por-token-permite-convertido.sql:20,43](docs/sql/get-proposta-por-token-permite-convertido.sql#L20)
-- **Severidade:** ALTA — vaza dados financeiros confidenciais
-- **Reprodução:** curl `POST /rest/v1/rpc/get_proposta_por_token` com `share_token` retorna 40+ campos (`valor_final`, `prospect_cnpj`, `servicos`, etc) + `has_password: true`. Frontend só renderiza tela de senha por cima de dados já em memória. Atacante via DevTools → `console.log(orc)` → vê tudo sem digitar senha.
-- **Fix proposto:** bifurcar a RPC:
-  - `get_proposta_por_token` (sem senha) retorna só `{has_password, numero, escritorio_nome}`
-  - `get_proposta_por_token_com_senha(p_token, p_senha)` faz match SQL e retorna o resto
-- **Esforço:** ~1h (RPC SQL + ajuste em PropostaPublica.tsx)
+### SEC-033 ✅ — Senha de proposta vira proteção real
+- **Bug:** RPC `get_proposta_por_token` retornava 40+ campos + `has_password`. Frontend só pulava pra tela de senha SE `has_password=true`, mas os dados já estavam em memória. Atacante via DevTools/curl vê tudo sem digitar senha.
+- **Fix aplicado:**
+  - SQL `docs/sql/sec-033-proposta-senha-real.sql` aplicado em prod (2 funções: `get_proposta_publica_minima` + `get_proposta_por_token(p_token, p_senha)`)
+  - `PropostaPublica.tsx`: 2-step load — mínima primeiro → completa após autenticar
+- **Verificação:** curl com share_token sem senha agora retorna 0 rows.
 
-### SEC-034 — Push notification expõe nome cliente + valor no lockscreen
-- **Arquivos:** [docs/sql/notif-master-funcionario-criou.sql:77-81](docs/sql/notif-master-funcionario-criou.sql#L77) + [docs/sql/dispatch-push-on-notif.sql:84-91](docs/sql/dispatch-push-on-notif.sql#L84) + [public/sw.js:23-30](public/sw.js#L23)
-- **Severidade:** MÉDIA-ALTA — exposição em ambiente físico (telefone na mesa numa reunião)
-- **Reprodução:** Letícia cadastra processo "Padaria do João — R$ 2.500". Trigger gera `notificacoes.mensagem` com texto literal. `dispatch_push_notif` envia `body = v_notif.mensagem` verbatim. iPhone do Thales na mesa numa reunião com cliente → todos veem.
-- **Fix proposto:** separar `notificacoes.mensagem_push` (curta/genérica: "Novo processo cadastrado") de `notificacoes.mensagem` (completa, acessível só após login). Ou: no `sw.js` exibir só "Trevo ERP — atividade" + "Toque para ver"; mensagem real fica in-app.
-- **Esforço:** ~1h (SQL + sw.js + edge enviar-push)
+### PERM-015 ✅ — Histórico mascara R$ pra operacional/visualizador
+- **Bug:** `HistoricoEntidadeModal` mostrava `valor_final: R$ 5.000 → R$ 4.500` mesmo pra operacional. SEC-029 (Clientes) tinha protegido `valor_base` mas histórico ignorou.
+- **Fix aplicado:** `HistoricoEntidadeModal` usa `usePermissions().podeVerValores()`. Campos `valor`, `valor_final`, `valor_avulso`, `valor_base`, `desconto_pct`, `desconto_progressivo_pct` viram `•••••`.
 
-### PERM-015 — Histórico de orçamentos/processos vaza valores pra operacional
-- **Arquivos:** [HistoricoEntidadeModal.tsx:60-64](src/components/historico/HistoricoEntidadeModal.tsx#L60) + [docs/sql/historico-entidade-audit.sql:40-43](docs/sql/historico-entidade-audit.sql#L40)
-- **Severidade:** ALTA — SEC-029 (já corrigido) protegeu `valor_base` mas histórico ignorou
-- **Reprodução:** Secretária (operacional) abre OrcamentoNovo de orçamento existente → clica "Histórico" → vê linhas tipo `valor_final: R$ 5.000,00 → R$ 4.500,00`. Operacional não deveria ver R$.
-- **Fix proposto:** opção mais simples — em `HistoricoEntidadeModal`, envolver valores em `<ValorProtegido>` quando campo for `valor*`. Opção mais robusta — RPC `listar_historico_entidade` filtra fora campos financeiros quando role não é master/financeiro/gerente.
-- **Esforço:** ~20min (frontend) ou ~40min (SQL + frontend)
+### FIN-009 ✅ — `EditarVencimentoButton` ganha gate + auditoria + max=180d
+- **Bug:** qualquer perfil com módulo `financeiro` (inclui visualizador) mudava data no Asaas+ERP sem trilha.
+- **Fix aplicado:**
+  - `EditarVencimentoButton.tsx`: `if (!canEdit) return null;` + `max={hoje+180d}` (resolve UX-149 junto)
+  - Edge `asaas-atualizar-vencimento` v2: grava entry em `entidade_audit` (campo `data_vencimento`, valor antigo → novo, ator)
+  - **Bônus:** consolidada duplicata — `DetalhesCobrancaModal` agora reusa `EditarVencimentoButton` (commit `391ec8d` eu havia criado dialog próprio sem perceber que já existia desde `92bd1a2`).
 
-### FIN-009 — `EditarVencimentoButton` sem permission gate + sem auditoria
-- **Arquivos:** [EditarVencimentoButton.tsx](src/components/financeiro/EditarVencimentoButton.tsx) + [ClienteAccordionFinanceiro.tsx:1313,1716](src/components/financeiro/ClienteAccordionFinanceiro.tsx#L1313) + [DetalhesCobrancaModal.tsx](src/components/financeiro/DetalhesCobrancaModal.tsx)
-- **Severidade:** ALTA — qualquer perfil com módulo `financeiro` (inclui visualizador) muda data de cobrança em prod Asaas + ERP sem trilha
-- **Reprodução:** Visualizador (que tem módulo `financeiro` por algum motivo) clica "Editar vencimento" → invoca edge → muda data no Asaas. Sem `disabled={!podeEditar('financeiro')}`, sem entry em `entidade_audit`, sem confirm grande.
-- **Fix proposto:**
-  1. `disabled={!podeEditar('financeiro')}` em ambos os botões (EditarVencimentoButton + DetalhesCobrancaModal)
-  2. Edge `asaas-atualizar-vencimento` grava entry em `entidade_audit` (campo `data_vencimento`, valor antigo → novo, ator)
-  3. Considerar refactor análogo ao DELETE: criar `tem_permissao_editar(p_modulo)` + RLS UPDATE em cobrancas/lancamentos
-- **Esforço:** ~30min frontend + ~30min auditoria. Refactor UPDATE RLS = sessão dedicada (~2h)
-
-### **Bônus de descoberta nesta auditoria:**
-Há **DOIS componentes "EditarVencimento"** redundantes:
-- `EditarVencimentoButton.tsx` (commit `92bd1a2` 18/05) — usado em listas
-- Dialog dentro de `DetalhesCobrancaModal.tsx` (commit `391ec8d` 25/05) — criado por mim hoje sem perceber que já existia
-
-**Recomendação:** consolidar pra usar só `EditarVencimentoButton.tsx` em ambos os lugares. ~15min.
+### SEC-034 + SEC-035 (movidos pra Sessão B — ver abaixo)
 
 ---
 
-## 🟡 5 MÉDIOS NOVOS
+## ✅ SESSÃO B+C — 7 médios/polish (concluída nesta sessão)
 
-### SEC-035 — Push `unread_count` é soma global, não por destinatário
-- **Arquivo:** [docs/sql/dispatch-push-on-notif.sql:65-68](docs/sql/dispatch-push-on-notif.sql#L65)
-- **Repro:** notificação multi-master usa `v_unread = count WHERE destinatario_id = ANY(masters)`. Cada master recebe o mesmo número (inflado).
-- **Fix:** loop por user e chamada de push individual com `v_unread` específico.
+### SEC-034 + SEC-035 ✅ — Push notification: privacidade + unread por user
+- **Bug:** `dispatch_push_notif` enviava `body = v_notif.mensagem` LITERAL no lockscreen (vaza nome cliente + R$). Também: `unread_count` era soma de todos os masters quando `destinatario_id IS NULL` — badge inflado.
+- **Fix aplicado:**
+  - SQL `docs/sql/sec-034-035-push-privacidade-unread-per-user.sql`:
+    - Body genérico por tipo: `'💰 Pagamento recebido. Toque para ver.'` / `'📋 Atualização de cobrança...'` / `'📄 Atualização de proposta...'` / etc.
+    - Loop por user — cada chamada `net.http_post` com `unread_count` específico daquele user + subs só daquele user.
+  - Mensagem completa continua em `notificacoes.mensagem` (acessível só após login).
+- **Pra ativar:** rodar SQL.
 
-### CODE-011 — `useUpsertClientePrecoTipo` faz SELECT+INSERT/UPDATE não-atômico
-- **Arquivo:** [useFinanceiro.ts:265-285](src/hooks/useFinanceiro.ts#L265)
-- **Status:** PARCIAL — `cliente_precos_por_tipo` JÁ TEM UNIQUE (cliente_id, tipo). Sem risco de duplicata, mas race de last-write-wins entre 2 cliques rápidos.
-- **Fix:** trocar pra `.upsert(..., { onConflict: 'cliente_id,tipo' })` + `disabled` enquanto pending.
+### SEC-036 ✅ — Push unsubscribe: ordem correta
+- **Bug:** `usePushNotifications.ts:99-100` deletava do DB ANTES de `sub.unsubscribe()`. Se browser falhasse → orphaned subscription.
+- **Fix aplicado:** browser unsubscribe primeiro; só deleta DB se confirmou; log de warning se DB falhar (não bloqueia).
 
-### UX-149 — `EditarVencimentoButton` aceita vencimento anos no futuro sem confirmação
-- **Arquivo:** [EditarVencimentoButton.tsx:86](src/components/financeiro/EditarVencimentoButton.tsx#L86)
-- **Repro:** input sem `max`, digitar `2076` no ano passa direto.
-- **Fix:** `max={hojePlus180dias}` + AlertDialog com diff humano antes do invoke.
+### CODE-011 ✅ — `useUpsertClientePrecoTipo` agora atômico
+- **Bug:** SELECT + INSERT/UPDATE manual; race entre 2 cliques rápidos (banco já tinha UNIQUE, mas frontend fazia round-trip desnecessário).
+- **Fix aplicado:** `.upsert(..., { onConflict: 'cliente_id,tipo' })` — 1 statement.
 
-### SEC-036 — `unsubscribe` push deleta DB antes de unsubscribe do browser
-- **Arquivo:** [usePushNotifications.ts:92-107](src/hooks/usePushNotifications.ts#L92)
-- **Repro:** `delete` Supabase roda antes de `sub.unsubscribe()`. Se browser falha → orphaned subscription continua recebendo do edge.
-- **Fix:** ordem invertida (unsubscribe browser → delete DB) + check de erro.
+### UX-150 ✅ — Cache flicker em useFinanceiroClientes
+- **Bug:** override `staleTime: 0` + default global `refetchOnWindowFocus: true` (commit `3b94fee`) causava refetch a cada blur/focus rápido na lista mais pesada.
+- **Fix aplicado:** `staleTime: 10_000` no override. Ainda essencialmente fresh; mutações invalidam explicitamente via `invalidateFinanceiro`.
 
-### CODE-012 — `dispatch_push_notif` fire-and-forget dentro de trigger
-- **Arquivo:** [docs/sql/dispatch-push-on-notif.sql:78-92](docs/sql/dispatch-push-on-notif.sql#L78)
-- **Repro:** trigger AFTER INSERT dispara `net.http_post`. Se a transação rollback depois, push já foi enviado — user recebe alerta de evento inexistente.
-- **Fix:** mover disparo pra cron que lê `notificacoes` com `push_enviado_em IS NULL`.
+### CODE-013 ✅ — `useHistoricoEntidade` cast safe
+- **Bug:** `(data ?? []) as HistoricoEntry[]` — se RPC mudar shape, crash silencioso no `.map`.
+- **Fix aplicado:** `Array.isArray(data) ? (data as HistoricoEntry[]) : []`.
 
----
+### UX-151 ✅ — Push permission states distintos
+- **Bug:** `unsubscribed` (permissão dada, sem inscrição) e `default` (nunca pediu) viam o mesmo botão "Ativar neste dispositivo".
+- **Fix aplicado:** se `unsubscribed`, botão vira "Reativar neste dispositivo" + nota "Permissão já dada".
 
-## 🟢 3 POLISH NOVOS
-
-### UX-150 — Cache 30s + windowFocus refetch pode causar flicker em listagens
-- **Arquivo:** [App.tsx:56-58](src/App.tsx#L56) + [useFinanceiroClientes.ts:275](src/hooks/useFinanceiroClientes.ts#L275)
-- **Repro:** mudança default global pra `staleTime: 30s + refetchOnWindowFocus: true` (commit `3b94fee` hoje) somado com override `staleTime: 0` em `useFinanceiroClientes` pode causar refetch toda troca de aba.
-- **Fix:** trocar override pra `staleTime: 10_000` no hook — ainda fresco, menos refetch.
-
-### CODE-013 — `useHistoricoEntidade` cast `as HistoricoEntry[]` sem validar shape
-- **Arquivo:** [useHistoricoEntidade.ts:30-32](src/hooks/useHistoricoEntidade.ts#L30)
-- **Fix:** `return Array.isArray(data) ? (data as HistoricoEntry[]) : [];`
-
-### UX-151 — Push: `unsubscribed` vs `default` confunde o usuário
-- **Arquivo:** [PushNotificationsCard.tsx:73-77](src/components/configuracoes/PushNotificationsCard.tsx#L73)
-- **Fix:** diferenciar mensagem entre "permissão nunca dada" e "permissão dada mas inscrição cancelada".
+### CODE-012 🤝 — Trigger fire-and-forget no push (ACEITO)
+- **Trade-off:** trigger AFTER INSERT em `notificacoes` chama `net.http_post`. Se a transação dá rollback, push já saiu — user recebe alerta de evento que não existe.
+- **Por que não atacar agora:**
+  - Frequência real é raríssima — `INSERT em notificacoes` raramente rolla back (a inserção é o último step das funções que disparam notif).
+  - Pior caso = user recebe "🔔 Nova atividade no ERP" → abre o app → não vê nada novo. Aceitável.
+  - Solução robusta (push em cron lendo `push_enviado_em IS NULL`) adiciona coluna + cron + job + retry, ~3h dev.
+- **Reabrir se:** começarem a aparecer reclamações de "push de evento que sumiu", ou rollback ficar comum.
 
 ---
 
-## 🔬 INVESTIGAR (não confirmado sem mais código)
+## ⏳ PENDENTES — futuras sessões
 
-- **`criar_notificacao_proposta` aceita texto arbitrário do anon?** RPC fora do repo. Se aceita `p_mensagem` literal e insere em `notificacoes.mensagem`, atacante com share_token gera push lockscreen com texto arbitrário (junta com SEC-034 e fica grave).
-- **Pessoa Física + Asaas:** `asaas-gerar-cobranca` edge não está no repo. Validar se `tipo_pessoa='PF'` + `cpf` gera boleto/PIX corretamente.
-- **RLS DELETE refactor (aplicado hoje):** pré-flight só checou 2 não-masters atuais. Testar com 3º usuário antes de declarar OK.
+### Da auditoria 17/05
+- **FIN-006** 🟢 Webhook insere notificação em empresa soft-deletada. Sem urgência — `empresas_config` não tem coluna `ativo`.
+- **CODE-007** 🟢 Provável fantasma — refactor já moveu o código original.
 
----
+### Da auditoria 25/05
+- **CODE-012** 🤝 — Aceito como trade-off (ver acima). Reabrir se houver dor real.
 
-## 🧪 TESTES PENDENTES (features dos últimos 7 dias)
+### Itens a investigar (criados nesta auditoria)
+- **`criar_notificacao_proposta` aceita texto arbitrário?** RPC fora do repo. Verificar se anon pode injetar texto em `notificacoes.mensagem`. (Mitigado parcialmente por SEC-034 agora — body do push é genérico.)
+- **Pessoa Física no Asaas:** validar com caso real que `tipo_pessoa='PF'` + `cpf` gera boleto/PIX OK.
+- **RLS DELETE refactor:** testar com 3º usuário antes de declarar OK.
 
-### Críticos (precisa rodar antes de qualquer outra feature)
-- [ ] **Editar vencimento Asaas** — abrir cliente → cobrança PENDING → "Detalhes" → "Editar" → mudar data → confirmar no painel Asaas que `dueDate` mudou
-- [ ] **Webhook PAYMENT_UPDATED** — editar `dueDate` direto no painel Asaas → confirmar que ERP sincroniza em ~5s + master recebe notif "📅 Vencimento alterado no Asaas"
-- [ ] **RLS DELETE refactor** — logar como Letícia/Michele → tentar deletar processo de cliente teste (deve funcionar). Logar como visualizador (se criar) → tentar deletar → deve bloquear
-- [ ] **Preços por tipo** — cliente VITAE → "Preços diferenciados por tipo" → adicionar abertura R$ 540 → criar processo de abertura → confirmar valor calculado é R$ 540 (não valor_base do cliente)
-- [ ] **Histórico em OrcamentoNovo** — editar orçamento → mudar valor → salvar → clicar "Histórico" → ver linha "valor → novo valor"
-
-### Médios
-- [ ] **Cache global 30s + windowFocus** — abrir Financeiro/Clientes/Processos → ir pra outra aba 1min → voltar → confirmar dados refrescaram
-- [ ] **Operacional + orçamentos** — Letícia/Michele criam novo orçamento (template inclui `orcamentos` agora)
-
-### Pré-existentes que vale confirmar
-- [ ] **Push notifications PWA** — instalar PWA no iPhone (Letícia, Michele) → cadastrar processo → confirmar push no lockscreen
-- [ ] **CPF (PF) em cliente** — criar cliente PF → gerar cobrança Asaas → confirmar que Asaas aceitou CPF
+### Débitos arquiteturais
+- **RLS UPDATE refactor** — análogo ao DELETE (criar `tem_permissao_editar`). Sessão acompanhada.
+- **Trello checklist deletado por engano** — escopo vago, aguarda alinhamento.
+- **Mapas mentais** (`docs/mapa-mental/01-05`) — pendente decidir se commita ou descarta.
 
 ---
 
-## 🎯 Sugestão de ataque
+## 🧪 SMOKE TESTS (rodar antes de qualquer outra feature)
 
-### Sessão A (~2h) — Críticos novos
-1. **SEC-033** (~1h) — bifurcar RPC `get_proposta_por_token`. Maior risco do sistema agora.
-2. **PERM-015** (~20min) — ValorProtegido em HistoricoEntidadeModal.
-3. **FIN-009** (~30min) — gate `podeEditar('financeiro')` + entry em `entidade_audit` no edge.
-4. Consolidar **EditarVencimentoButton** vs duplicata (~15min)
+### Da Sessão A (commit `2303f1f`)
+- [ ] **SEC-033** — abrir proposta com senha via curl: só vê `has_password/numero`. Digitar senha errada → erro. Certa → dados.
+- [ ] **PERM-015** — logar como Letícia → Histórico de orçamento com mudança de valor → ver `•••••`.
+- [ ] **FIN-009** — visualizador não vê botão "Editar vencimento". Master edita → `SELECT * FROM entidade_audit WHERE campo='data_vencimento'` mostra entry.
 
-### Sessão B (~1,5h) — SEC-034 + médios novos
-5. **SEC-034** (~1h) — separar `mensagem_push` de `mensagem`.
-6. **UX-149** (~10min) — `max` no input date.
-7. **CODE-011** (~10min) — upsert atômico.
-8. **SEC-036** (~10min) — ordem unsubscribe.
+### Da Sessão B+C (a serem pushed)
+- [ ] **SEC-034** — gerar notificação que vira push → ver no lockscreen do iPhone "📋 Atualização de cobrança..." em vez do nome+R$.
+- [ ] **SEC-035** — com 2+ masters cadastrados, gerar notif → cada um vê badge correto (não inflado).
+- [ ] **SEC-036** — ativar push → desativar → reativar → confirmar que não fica orphaned no banco.
+- [ ] **CODE-011** — Preços por Tipo → clicar "Adicionar" duas vezes seguidas (não dá pra clicar, mas teste sintético). Sem duplicata. Sem erro.
+- [ ] **UX-150** — Financeiro abrir → trocar de aba 30s → voltar → não refetch (cache 10s). Após 1min → refetch.
+- [ ] **UX-151** — após desativar push, voltar pra Configurações → ver "Reativar neste dispositivo".
 
-### Sessão C (~1h) — Polish + RLS UPDATE refactor (acompanhada)
-9. **CODE-012** (~30min) — push em cron, não trigger.
-10. **RLS UPDATE refactor** (~30min) — análogo ao DELETE pra cobrancas/lancamentos.
+### Pré-existentes (lembrete)
+- [ ] **RLS DELETE refactor** — Letícia/Michele deletam processo teste. Visualizador (se existir) bloqueado.
+- [ ] **Editar vencimento Asaas** — mudar data → confirmar Asaas+ERP sincronizados.
+- [ ] **Webhook PAYMENT_UPDATED** — editar dueDate direto no Asaas → ERP sincroniza em ~5s.
 
-### Backlog perene
-- Trello checklist (escopo vago — aguarda alinhamento)
-- Mapas mentais de fluxos (untracked: `docs/mapa-mental/01-05`)
-- Investigar Pessoa Física no Asaas com casos reais
+---
+
+## 🚦 Pra ativar
+
+**1. Publish no Lovable** (frontend Sessão B+C — `[NOVO COMMIT]`):
+- SEC-036: ordem unsubscribe correta
+- CODE-011: upsert atômico
+- UX-150: cache 10s em useFinanceiroClientes
+- CODE-013: cast safe em useHistoricoEntidade
+- UX-151: mensagem distinta pra `unsubscribed`
+
+**2. SQL no Supabase** (SEC-034 + SEC-035 — push):
+```bash
+cat /Users/thalesburger/Desktop/Trevo-ERP-ATIVO/trevo-sparkle-share/docs/sql/sec-034-035-push-privacidade-unread-per-user.sql | pbcopy
+```
+Cola no SQL Editor → Run. Esperado: 1 function (`dispatch_push_notif` recriada).
 
 ---
 
@@ -176,7 +160,8 @@ Há **DOIS componentes "EditarVencimento"** redundantes:
 - **🔴 crítico** — vaza dado / quebra fluxo / perde dinheiro
 - **🟡 médio** — UX ruim / inconsistência / código frágil
 - **🟢 polish** — performance / hardening / nice-to-have
+- **🤝 aceito** — trade-off documentado; reabre se houver dor real
 
-Achados com arquivo:linha. Reprodução em 1-2 frases. Fix sugerido inline.
+**Status total ao fim desta sessão:** 11 de 12 achados atacados. 1 aceito.
 
-**Próximo passo:** Thales escolhe se ataca Sessão A (críticos) hoje ou se prefere fazer smoke tests das features 25/05 primeiro.
+Auditoria 25/05 essencialmente fechada. Próxima auditoria valeria após uma onda nova de features (não há débito ativo de bug crítico hoje).

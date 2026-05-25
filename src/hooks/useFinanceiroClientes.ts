@@ -271,8 +271,11 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
     queryKey: ['financeiro_clientes', dataInicio, dataFim],
     // 18/05/2026: dados financeiros NÃO podem ficar stale. Cache stale gerou
     // bug de display sério (lançamento aparecia "Pago" depois de Desfazer).
-    // staleTime=0 + refetchOnWindowFocus forca dado fresco sempre.
-    staleTime: 0,
+    // 25/05/2026 (UX-150): staleTime 10s — ainda essencialmente fresh, mas
+    // evita refetch a cada blur/focus rápido (lista pesada, ~50 clientes).
+    // Mutações invalidam explicitamente via invalidateFinanceiro, então
+    // dado pós-mutação é sempre fresco.
+    staleTime: 10_000,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
     // L (17/05/2026 noite): refetch automático a cada 60s se houver pendência com

@@ -29,7 +29,10 @@ export function useHistoricoEntidade(
         p_limit: limit,
       });
       if (error) throw error;
-      return (data ?? []) as HistoricoEntry[];
+      // CODE-013 (25/05/2026): valida shape antes de cast. RPC retorna jsonb;
+      // se Supabase mudar handling ou RPC for alterada pra retornar objeto,
+      // o cast cego antes crashava o `.map` no modal. Agora retorna array vazio.
+      return Array.isArray(data) ? (data as HistoricoEntry[]) : [];
     },
     staleTime: 30_000,
   });

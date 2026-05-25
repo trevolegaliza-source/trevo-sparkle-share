@@ -89,6 +89,10 @@ export function usePushNotifications() {
     }
   }, [isSupported, user]);
 
+  // SEC-036 (25/05/2026): ordem correta — desinscreve do browser PRIMEIRO,
+  // só deleta do DB se confirmou. Antes: delete DB primeiro; se sub.unsubscribe()
+  // falhasse, ficava orphaned subscription (DB sem registro, browser ainda
+  // recebendo do edge → erros silenciosos no error_count).
   const unsubscribe = useCallback(async () => {
     if (!isSupported) return { ok: false };
     setBusy(true);
@@ -96,8 +100,19 @@ export function usePushNotifications() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
-        await supabase.from('push_subscriptions' as any).delete().eq('endpoint', sub.endpoint);
-        await sub.unsubscribe();
+        const endpoint = sub.endpoint;
+        const unsubscribed = await sub.unsubscribe().catch(() => false);
+        if (!unsubscribed) {
+          return { ok: false, error: 'browser-unsubscribe-failed' };
+        }
+        const { error } = await supabase
+          .from('push_subscriptions' as any)
+          .delete()
+          .eq('endpoint', endpoint);
+        if (error) {
+          console.warn('[push] delete DB falhou após unsubscribe:', error);
+          // Não bloqueia: browser já desinscreveu. Banco vai limpar via edge no próximo erro.
+        }
       }
       setStatus('unsubscribed');
       return { ok: true };

@@ -71,10 +71,21 @@ export function PushNotificationsCard() {
               Bloqueadas no navegador. Libere em Ajustes &gt; Safari &gt; Avançado &gt; Dados de Sites (iPhone) ou no cadeado da URL (desktop).
             </p>
           ) : (
-            <Button size="sm" onClick={handleAtivar} disabled={busy} className="mt-1">
-              <Bell className="h-3.5 w-3.5 mr-1" />
-              Ativar neste dispositivo
-            </Button>
+            // UX-151 (25/05/2026): distingue "unsubscribed" (permissão já dada,
+            // dispositivo só não tá inscrito) de "default" (nunca pediu). Antes
+            // ambos viam "Ativar neste dispositivo" — confundia quem desativou
+            // antes e queria reativar.
+            <div className="space-y-1.5 pt-1">
+              <Button size="sm" onClick={handleAtivar} disabled={busy}>
+                <Bell className="h-3.5 w-3.5 mr-1" />
+                {status === 'unsubscribed' ? 'Reativar neste dispositivo' : 'Ativar neste dispositivo'}
+              </Button>
+              {status === 'unsubscribed' && (
+                <p className="text-[11px] text-muted-foreground">
+                  Permissão já dada — só falta reinscrever este dispositivo.
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>

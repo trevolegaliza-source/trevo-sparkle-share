@@ -262,27 +262,17 @@ export function useUpsertClientePrecoTipo() {
     Error,
     { cliente_id: string; tipo: TipoProcesso; valor: number }
   >({
+    // CODE-011 (25/05/2026): upsert atômico via UNIQUE(cliente_id, tipo)
+    // existente. Antes: SELECT + INSERT/UPDATE manual — dois cliques rápidos
+    // criavam race de last-write-wins. Agora 1 statement atômico.
     mutationFn: async ({ cliente_id, tipo, valor }) => {
-      // Upsert por (cliente_id, tipo) — exige unique constraint no banco;
-      // se não existir, faremos SELECT + UPDATE/INSERT manual.
-      const { data: existing } = await supabase
+      const { error } = await supabase
         .from('cliente_precos_por_tipo' as any)
-        .select('id')
-        .eq('cliente_id', cliente_id)
-        .eq('tipo', tipo)
-        .maybeSingle();
-      if ((existing as any)?.id) {
-        const { error } = await supabase
-          .from('cliente_precos_por_tipo' as any)
-          .update({ valor })
-          .eq('id', (existing as any).id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('cliente_precos_por_tipo' as any)
-          .insert({ cliente_id, tipo, valor });
-        if (error) throw error;
-      }
+        .upsert(
+          { cliente_id, tipo, valor },
+          { onConflict: 'cliente_id,tipo' }
+        );
+      if (error) throw error;
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['cliente_precos_por_tipo', vars.cliente_id] });
