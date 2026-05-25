@@ -38,11 +38,24 @@ const CobrancaPublica = lazy(() => import("./pages/CobrancaPublica"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
+// 25/05/2026 (Frente 3 audit pós-viagem): defaults antes eram staleTime:2min +
+// refetchOnWindowFocus:false. Resultado: troca de aba/janela mantinha dados
+// stale por até 2min — causa raiz do bug "Desfazer não reflete na UI" (18/05).
+// Fix em useFinanceiroClientes (staleTime:0) era pontual; agora padroniza:
+//  - staleTime:30s → permite reuso em interações rápidas (modal/accordion)
+//    sem refetch desnecessário, mas curto o bastante pra não confundir
+//  - refetchOnWindowFocus:true → ao voltar de outra aba, sempre refresca.
+//    Operacional (Letícia/Michele) alterna entre WhatsApp e ERP o tempo todo;
+//    ver dado stale após volta da aba é o pior cenário.
+//  - gcTime:5min → garbage collect explícita pra não acumular cache
+// Hooks que precisam de imediato seguem com override (staleTime:0) — esses
+// continuam funcionando, apenas mais consistentes com o resto do app.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 2 * 60 * 1000,
-      refetchOnWindowFocus: false,
+      staleTime: 30_000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: true,
     },
   },
 });
