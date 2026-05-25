@@ -13,15 +13,16 @@
 ### Auditoria 17/05 — **fechada**
 - ✅ **24 CORRIGIDOS** | ❌ **8 FALSO ALARME** | ⏳ **2 PENDENTES** (FIN-006 polish + CODE-007 fantasma) | 🤷 **1 NÃO VERIFICÁVEL**
 
-### Auditoria 25/05 — **13 achados, 12 atacados (Sessão A+B+C+D)**
+### Auditoria 25/05 — **15 achados, 14 atacados (Sessão A+B+C+D+E)**
 
 | Status | Total | 🔴 Crítico | 🟡 Médio | 🟢 Polish |
 |---|---:|---:|---:|---:|
 | ✅ Corrigido (Sessão A 25/05) | 4 | 4 | 0 | 0 |
 | ✅ Corrigido (Sessão B+C 25/05) | 7 | 0 | 4 | 3 |
 | ✅ Corrigido (Sessão D 25/05) | 1 | 1 | 0 | 0 |
+| ✅ Corrigido (Sessão E 25/05) | 2 | 1 | 1 | 0 |
 | 🤝 Aceito (trade-off) | 1 | 0 | 1 | 0 |
-| **Total** | **13** | **5** | **5** | **3** |
+| **Total** | **15** | **6** | **6** | **3** |
 
 ### Estado da plataforma
 - **Frontend:** commit `2303f1f` no `main` + commits Sessão B+C (a serem pushed)
@@ -114,6 +115,35 @@
 
 ---
 
+---
+
+## ✅ SESSÃO E — Varredura de RPCs públicas (2 novos)
+
+Após SEC-037 ter sido um achado tão impactante, agente de varredura buscou outras RPCs com perfil similar (`SECURITY DEFINER` + `EXECUTE PUBLIC` + INSERT/UPDATE de texto não sanitizado). 80 funções `SECURITY DEFINER` analisadas; 2 com risco real:
+
+### SEC-038 ✅ — `_notif_master_func_criou` clone do SEC-037
+- **Bug:** SECURITY DEFINER + EXECUTE PUBLIC + 5 params text → INSERT em `notificacoes(titulo, mensagem)` sem sanitização. Atacante com qualquer UUID de profile passa um não-master (bypass do `IF v_ator_role = 'master' THEN RETURN`) e forja notif na bandeja do master.
+- **Callers reais:** apenas 2 triggers internos (que NÃO precisam de grant explícito porque triggers SECURITY DEFINER usam privilégio do owner).
+- **Fix:** `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` — triggers continuam funcionando.
+
+### SEC-039 ✅ — `criar_evento_proposta` aceita UUID direto (sem share_token)
+- **Bug:** SECURITY DEFINER + EXECUTE PUBLIC + recebe `p_orcamento_id uuid` direto. Anon que descobre/adivinha UUID polui histórico (`proposta_eventos`) com `tipo` e `dados` jsonb arbitrários — pode esconder ação maliciosa em meio a noise.
+- **Callers reais:** `PropostaPublica.tsx` (fluxo público aprovar/recusar).
+- **Fix:** assinatura nova `(p_token text, p_tipo text, p_dados jsonb)` — exige share_token gatekeeper, whitelist de `p_tipo`, limita tamanho de `p_dados` (4KB). Frontend atualizado pra passar `p_token` em vez de `p_orcamento_id`.
+
+### Bonus — Trigger nova: notif master ao recusar proposta
+- **Background:** `PropostaPublica.handleRecusar` chamava `criar_notificacao_proposta` (dropada no SEC-037). Master deixava de receber notif silenciosamente.
+- **Fix:** `tg_notif_master_proposta_recusada` AFTER UPDATE OF status em orcamentos. Source of truth no banco (não depende do frontend chamar).
+
+### Outros achados da varredura (sem ação)
+- `atualizar_proposta_por_token` — risco baixo (vandalismo + possível stored XSS se motivo não escapado). Aceitável por enquanto.
+- `cron_processar_*_wrapper` — EXECUTE PUBLIC desnecessário, mas só permite DoS leve (disparar job antes do horário). Backlog polish.
+- Demais RPCs com EXECUTE PUBLIC são gatekeeper de share_token (legítimas) ou usam `auth.uid()` (anon = NULL = RAISE EXCEPTION).
+
+**Plus:** validei via MCP que **NÃO há triggers em UPDATE de tabelas operacionais** (processos, lancamentos, cobrancas, orcamentos, extratos, clientes, contratos, documentos). Isso destrava parcialmente o RLS UPDATE refactor — quando reabrir, risco de cascata indireta é menor.
+
+---
+
 ### CODE-012 🤝 — Trigger fire-and-forget no push (ACEITO)
 - **Trade-off:** trigger AFTER INSERT em `notificacoes` chama `net.http_post`. Se a transação dá rollback, push já saiu — user recebe alerta de evento que não existe.
 - **Por que não atacar agora:**
@@ -188,7 +218,7 @@ Cola no SQL Editor → Run. Esperado: 1 function (`dispatch_push_notif` recriada
 - **🟢 polish** — performance / hardening / nice-to-have
 - **🤝 aceito** — trade-off documentado; reabre se houver dor real
 
-**Status total ao fim desta sessão:** 12 de 13 achados atacados. 2 aceitos como trade-off (CODE-012 + RLS UPDATE).
+**Status total ao fim desta sessão:** 14 de 15 achados atacados. 2 aceitos como trade-off (CODE-012 + RLS UPDATE).
 
 Auditoria 25/05 **fechada**. Auditoria 17/05 **fechada totalmente** (FIN-006 + CODE-007 fechados nesta sessão).
 Próxima auditoria valeria após uma onda nova de features.
@@ -204,3 +234,17 @@ cat /Users/thalesburger/Desktop/Trevo-ERP-ATIVO/trevo-sparkle-share/docs/sql/sec
 SQL Editor → Run. Esperado: `deve_ser_zero = 0`.
 
 Sem publish — Sessão D é só SQL.
+
+---
+
+## 🚦 Pra ativar (Sessão E)
+
+**1. SQL no Supabase** — SEC-038 + SEC-039 + trigger notif recusa:
+```bash
+cat /Users/thalesburger/Desktop/Trevo-ERP-ATIVO/trevo-sparkle-share/docs/sql/sec-038-039-rpcs-publicas-restritas.sql | pbcopy
+```
+SQL Editor → Run. Esperado:
+- Linhas vazias no SELECT de `_notif_master_func_criou` (sem grant)
+- `criar_evento_proposta` com args `text, text, jsonb`
+
+**2. Publish no Lovable** — frontend PropostaPublica.tsx ajustado pra nova assinatura de `criar_evento_proposta` + remove chamada à RPC dropada.

@@ -743,10 +743,13 @@ export default function PropostaPublica() {
       fetch(`${SUPABASE_URL}/functions/v1/asaas-gerar-cobranca-publico`, {
         method: 'POST', headers: anonHeaders, body: JSON.stringify({ share_token: result.cobranca_token }),
       }).catch(err => console.warn('[proposta] asaas-gerar-publico falhou:', err));
+      // SEC-039 (25/05/2026): RPC agora exige share_token (não p_orcamento_id).
+      // Whitelist no SQL valida p_tipo. Anon que descobrir UUID de orçamento
+      // não pode mais poluir histórico — precisa do token.
       fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
         method: 'POST', headers: anonHeaders,
         body: JSON.stringify({
-          p_orcamento_id: orc.id, p_tipo: 'aprovou',
+          p_token: token, p_tipo: 'aprovou',
           p_dados: { total: totalSel, itens_count: selecionados.size, cobranca_id: result.cobranca_id },
         }),
       }).catch(err => console.warn('[proposta] log aprovou falhou:', err));
@@ -776,17 +779,13 @@ export default function PropostaPublica() {
         body: JSON.stringify({ p_token: token, p_status: 'recusado', p_motivo: motivoRecusa }),
       });
       if (!r1.ok) throw new Error(`atualizar_proposta retornou ${r1.status}`);
-      const r2 = await fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_notificacao_proposta`, {
-        method: 'POST', headers: anonHeaders,
-        body: JSON.stringify({
-          p_orcamento_id: orc.id, p_tipo: 'recusa',
-          p_mensagem: `${orc.prospect_nome} recusou a proposta #${String(orc.numero).padStart(3, '0')}. Motivo: ${motivoRecusa}`,
-        }),
-      });
-      if (!r2.ok) console.warn('[proposta] criar_notificacao retornou', r2.status);
+      // SEC-037 (25/05/2026): RPC `criar_notificacao_proposta` foi DROPADA — era órfã
+      // com EXECUTE PUBLIC + injeção de texto. Notif master agora vem da trigger SQL
+      // que reage à mudança de status em `orcamentos` (status=recusado).
+      // SEC-039: criar_evento_proposta agora exige share_token.
       fetch(`${SUPABASE_URL}/rest/v1/rpc/criar_evento_proposta`, {
         method: 'POST', headers: anonHeaders,
-        body: JSON.stringify({ p_orcamento_id: orc.id, p_tipo: 'recusou', p_dados: { motivo: motivoRecusa } }),
+        body: JSON.stringify({ p_token: token, p_tipo: 'recusou', p_dados: { motivo: motivoRecusa } }),
       }).catch(err => console.warn('[proposta] log recusou falhou:', err));
       setStatusFinal('recusado');
       setShowRecusa(false);
