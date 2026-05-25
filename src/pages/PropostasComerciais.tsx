@@ -20,7 +20,7 @@ import {
   Plus, MoreHorizontal, Link as LinkIcon, MessageCircle, Trash2,
   Sparkles, Send, CheckCircle, TrendingUp,
 } from 'lucide-react';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/ui/page-header';
 import { SkeletonList } from '@/components/ui/skeleton-patterns';
 import { EmptyState } from '@/components/ui/empty-state';
 import { copyToClipboard } from '@/lib/clipboard';
