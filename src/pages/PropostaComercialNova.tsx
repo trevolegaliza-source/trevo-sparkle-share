@@ -24,17 +24,19 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from '@/components/ui/select';
 import {
-  ArrowLeft, Building2, FileText, ListChecks, DollarSign, MessageSquare,
+  ArrowLeft, Building2, FileText, ListChecks, DollarSign,
   Lock, Loader2, Save, Send, Sparkles,
 } from 'lucide-react';
 import { useSaveOrcamento } from '@/hooks/useOrcamentos';
 import { toast } from 'sonner';
 import {
-  type ItemEditavel, type Modalidade,
+  type ItemEditavel, type Modalidade, type PrecosPorTipo,
   SERVICOS_DEFAULT, NATUREZAS_DEFAULT, INCLUSOS_DEFAULT, PLANOS,
   calcularTerceirizacao, valorPrincipalPorModalidade, fmtBRL,
 } from '@/lib/terceirizacao-engine';
 import { ListaEditavel } from '@/components/proposta-comercial/ListaEditavel';
+import { RegrasRapidas } from '@/components/proposta-comercial/RegrasRapidas';
+import { PrecosPorTipoProcesso } from '@/components/proposta-comercial/PrecosPorTipoProcesso';
 import { cn } from '@/lib/utils';
 
 interface State {
@@ -55,9 +57,11 @@ interface State {
   valor_final_override: number | null;   // se preenchido, manda no cálculo
   volume_custom: number | null;          // pra modalidade=custom
   desconto_custom: number | null;        // pra modalidade=custom
+  precos_por_tipo: PrecosPorTipo;        // pra modalidade=preco_por_tipo
 
   // Textos
-  observacoes_publicas: string;          // cliente vê
+  regras_rapidas_ativas: string[];       // ids do catálogo de cláusulas
+  observacoes_publicas: string;          // cliente vê (texto livre adicional)
   anotacoes_internas: string;            // só Thales vê
 
   // Meta
@@ -78,6 +82,8 @@ function emptyState(): State {
     valor_final_override: null,
     volume_custom: null,
     desconto_custom: null,
+    precos_por_tipo: {},
+    regras_rapidas_ativas: [],
     observacoes_publicas: '',
     anotacoes_internas: '',
     validade_dias: 15,
@@ -128,6 +134,8 @@ export default function PropostaComercialNova() {
         valor_final_override: d.terc_valor_final_override ?? null,
         volume_custom: d.terc_volume_custom ?? null,
         desconto_custom: d.terc_desconto_custom ?? null,
+        precos_por_tipo: (d.terc_precos_por_tipo && typeof d.terc_precos_por_tipo === 'object') ? d.terc_precos_por_tipo : {},
+        regras_rapidas_ativas: Array.isArray(d.terc_regras_rapidas_ativas) ? d.terc_regras_rapidas_ativas : [],
         observacoes_publicas: d.terc_observacoes_publicas || '',
         anotacoes_internas: d.terc_anotacoes_internas || '',
         validade_dias: d.validade_dias || 15,
@@ -215,10 +223,12 @@ export default function PropostaComercialNova() {
         terc_inclusos: state.inclusos as any,
         terc_valor_base: calc.valorBase,
         terc_valor_pro: calc.valorPro,
-        terc_valor_enterprise: calc.valorEnterprise,
+        terc_valor_enterprise: 0,
         terc_valor_final_override: state.valor_final_override,
         terc_volume_custom: state.volume_custom,
         terc_desconto_custom: state.desconto_custom,
+        terc_precos_por_tipo: state.precos_por_tipo as any,
+        terc_regras_rapidas_ativas: state.regras_rapidas_ativas as any,
         terc_observacoes_publicas: state.observacoes_publicas || null,
         terc_anotacoes_internas: state.anotacoes_internas || null,
         terc_clicksign_status: 'nao_enviado',
@@ -412,7 +422,7 @@ export default function PropostaComercialNova() {
                     <SelectContent>
                       <SelectItem value="avulso">Avulso — Pontual</SelectItem>
                       <SelectItem value="pro_5">PRO — 5 processos/mês (-15%)</SelectItem>
-                      <SelectItem value="enterprise_10">ENTERPRISE — 10 processos/mês (-20%)</SelectItem>
+                      <SelectItem value="preco_por_tipo">Preço por tipo de processo</SelectItem>
                       <SelectItem value="custom">Customizado (volume + desconto livres)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -428,6 +438,14 @@ export default function PropostaComercialNova() {
                   />
                 </div>
               </div>
+
+              {/* Preço por tipo de processo */}
+              {state.modalidade === 'preco_por_tipo' && (
+                <PrecosPorTipoProcesso
+                  value={state.precos_por_tipo}
+                  onChange={(precos_por_tipo) => setState({ ...state, precos_por_tipo })}
+                />
+              )}
 
               {/* Custom fields */}
               {state.modalidade === 'custom' && (
@@ -479,23 +497,13 @@ export default function PropostaComercialNova() {
             </CardContent>
           </Card>
 
-          {/* Observações públicas */}
-          <Card>
-            <CardContent className="pt-6 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <MessageSquare className="h-4 w-4" /> OBSERVAÇÕES (cliente vê)
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Texto livre que aparece na proposta pública. Use pra detalhar combinações específicas, exceções, etc.
-              </p>
-              <Textarea
-                value={state.observacoes_publicas}
-                onChange={(e) => setState({ ...state, observacoes_publicas: e.target.value })}
-                rows={5}
-                placeholder="Ex: Cliente terá 50% de desconto no primeiro processo a título de cortesia..."
-              />
-            </CardContent>
-          </Card>
+          {/* Observações públicas (cláusulas + texto livre) */}
+          <RegrasRapidas
+            regrasAtivas={state.regras_rapidas_ativas}
+            textoLivre={state.observacoes_publicas}
+            onChangeRegras={(regras_rapidas_ativas) => setState({ ...state, regras_rapidas_ativas })}
+            onChangeTexto={(observacoes_publicas) => setState({ ...state, observacoes_publicas })}
+          />
 
           {/* Anotações internas */}
           <Card className="bg-amber-50/30 border-amber-200 dark:bg-amber-950/10">
@@ -532,18 +540,42 @@ export default function PropostaComercialNova() {
               )}
 
               <PreviewBox
-                titulo={`${state.modalidade === 'avulso' ? 'Avulso' : state.modalidade === 'pro_5' ? 'PRO' : state.modalidade === 'enterprise_10' ? 'ENTERPRISE' : 'Custom'} (selecionado)`}
-                valor={fmtBRL(valorPrincipal)}
-                subtitulo={state.modalidade === 'avulso' || state.modalidade === 'custom' ? 'por processo' : 'por mês'}
+                titulo={
+                  state.modalidade === 'avulso' ? 'Avulso (selecionado)' :
+                  state.modalidade === 'pro_5' ? 'PRO (selecionado)' :
+                  state.modalidade === 'preco_por_tipo' ? 'Por tipo de processo' :
+                  'Custom (selecionado)'
+                }
+                valor={state.modalidade === 'preco_por_tipo' ? '—' : fmtBRL(valorPrincipal)}
+                subtitulo={
+                  state.modalidade === 'preco_por_tipo' ? 'preços variam por categoria abaixo' :
+                  state.modalidade === 'pro_5' ? 'por mês' :
+                  'por processo'
+                }
                 destacado
               />
 
-              <div className="pt-3 border-t border-emerald-200 space-y-2">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Comparativo</p>
-                <PreviewLinha label="Avulso (base)" valor={fmtBRL(calc.valorBase)} ativo={state.modalidade === 'avulso'} />
-                <PreviewLinha label={`PRO — ${fmtBRL(calc.valorPro)}/un × 5`} valor={fmtBRL(calc.totalMensalPro) + '/mês'} ativo={state.modalidade === 'pro_5'} />
-                <PreviewLinha label={`ENT. — ${fmtBRL(calc.valorEnterprise)}/un × 10`} valor={fmtBRL(calc.totalMensalEnterprise) + '/mês'} ativo={state.modalidade === 'enterprise_10'} />
-              </div>
+              {state.modalidade !== 'preco_por_tipo' && (
+                <div className="pt-3 border-t border-emerald-200 space-y-2">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Comparativo</p>
+                  <PreviewLinha label="Avulso (base)" valor={fmtBRL(calc.valorBase)} ativo={state.modalidade === 'avulso'} />
+                  <PreviewLinha label={`PRO — ${fmtBRL(calc.valorPro)}/un × 5`} valor={fmtBRL(calc.totalMensalPro) + '/mês'} ativo={state.modalidade === 'pro_5'} />
+                </div>
+              )}
+
+              {state.modalidade === 'preco_por_tipo' && Object.keys(state.precos_por_tipo).length > 0 && (
+                <div className="pt-3 border-t border-emerald-200 space-y-1">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Preços por tipo</p>
+                  {Object.entries(state.precos_por_tipo).map(([tipo, valor]) =>
+                    valor && valor > 0 ? (
+                      <div key={tipo} className="flex justify-between text-xs px-2 py-1">
+                        <span className="capitalize">{tipo}</span>
+                        <span className="tabular-nums font-semibold">{fmtBRL(valor)}</span>
+                      </div>
+                    ) : null
+                  )}
+                </div>
+              )}
 
               {calc.detalhamentoAdicional.length > 0 && (
                 <div className="pt-3 border-t border-emerald-200 space-y-1">

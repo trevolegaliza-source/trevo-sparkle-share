@@ -84,7 +84,7 @@ export function ListaEditavel({
           </button>
         </div>
 
-        {/* Chips compactos (sempre visíveis) */}
+        {/* Pills arredondadas (sempre visíveis) */}
         {!editando && (
           <div className="flex flex-wrap gap-2">
             {itens.map((it) => (
@@ -93,13 +93,15 @@ export function ListaEditavel({
                 type="button"
                 onClick={() => toggle(it.id)}
                 className={cn(
-                  'px-3 py-1.5 rounded-md text-xs font-medium border transition-all inline-flex items-center gap-1.5',
-                  it.ativo ? corAtivo + ' shadow-sm' : 'bg-muted/30 border-border text-muted-foreground line-through hover:bg-muted/60'
+                  'px-4 py-1.5 rounded-full text-xs font-medium border transition-all inline-flex items-center gap-1.5',
+                  it.ativo
+                    ? corAtivo + ' shadow-sm hover:shadow'
+                    : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50 hover:border-slate-400'
                 )}
                 title={it.descricao || it.label}
               >
                 {it.customizado && <Sparkles className="h-3 w-3" />}
-                {it.label || '(sem nome)'}
+                <span className={cn(!it.ativo && 'line-through')}>{it.label || '(sem nome)'}</span>
                 {mostrarValor && (it.valor ?? 0) > 0 && (
                   <span className="text-[10px] opacity-70">+{fmtBRL(it.valor || 0)}</span>
                 )}
@@ -108,7 +110,7 @@ export function ListaEditavel({
             <button
               type="button"
               onClick={adicionar}
-              className="px-3 py-1.5 rounded-md text-xs font-medium border border-dashed text-muted-foreground hover:bg-muted/30 inline-flex items-center gap-1"
+              className="px-4 py-1.5 rounded-full text-xs font-medium border border-dashed border-slate-300 text-slate-500 hover:bg-slate-50 inline-flex items-center gap-1"
             >
               <Plus className="h-3 w-3" /> Adicionar
             </button>
