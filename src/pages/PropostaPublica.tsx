@@ -7,6 +7,15 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY as SUPABASE_KEY } from '@/integr
 import logoTrevo from '@/assets/logo-trevo-legaliza.png';
 import daniAvatar from '@/assets/dani-avatar.png';
 import { TerceirizacaoPublicaView } from '@/components/orcamentos/publico/TerceirizacaoPublicaView';
+import {
+  StatsBarTrevo,
+  PorqueTrevoBlock,
+  GarantiaSLABlock,
+  ComoFuncionaPos,
+  ValidadeCountdown,
+  ProvaSocialBlock,
+  FooterInstitucional,
+} from '@/components/orcamentos/publico/AutoridadeBlocks';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -1099,11 +1108,42 @@ export default function PropostaPublica() {
               </div>
             </div>
           </div>
+
+          {/* Stats bar continua dentro do gradient escuro do hero pra
+              continuidade visual. Variante dark. */}
+          <StatsBarTrevo variant="dark" />
         </section>
+
+        {/* ─── BLOCOS DE AUTORIDADE / CONFIANÇA (refactor 26/05/2026 noite) ──────
+            Inserção pré-main pra construir a narrativa de autoridade ANTES do
+            cliente cair na proposta concreta + CTA. Cada bloco é full-width
+            (fora do container max-w-920px do pp-main) pra ganhar imponência.
+            Não aparecem em modo contador — contador parceiro já conhece a Trevo
+            e quer eficiência, não pitch institucional. */}
+        {!isContador && (
+          <>
+            <PorqueTrevoBlock />
+            <GarantiaSLABlock />
+            <ProvaSocialBlock />
+            <ComoFuncionaPos />
+          </>
+        )}
 
         {/* MAIN */}
         <main className="pp-main">
           <div className="pp-stack pp-fade">
+
+            {/* Countdown destacado de validade — substitui a pílula sumida do
+                hero. Só aparece quando a proposta ainda está enviada (não
+                rascunho, não aceita, não recusada). */}
+            {orc?.status === 'enviado' && orc?.created_at && orc?.validade_dias != null && (
+              <ValidadeCountdown
+                createdAt={orc.created_at}
+                validadeDias={orc.validade_dias}
+                numero={orc.numero}
+              />
+            )}
+
 
             {/* DANI intro */}
             {!isContador && (
@@ -1499,30 +1539,9 @@ export default function PropostaPublica() {
           </div>
         </main>
 
-        {/* FOOTER — institucional Trevo Legaliza */}
-        <footer className="pp-foot">
-          <div className="pp-foot-inner">
-            <div className="pp-foot-brand">
-              <img src={logoTrevo} alt="Trevo Legaliza" className="pp-foot-logo" />
-              <div className="pp-foot-divider" />
-              <img src={daniAvatar} alt="Dani — IA da Trevo" className="pp-foot-dani" title="Dani — IA da Trevo Legaliza" />
-            </div>
-            <div className="pp-foot-info">
-              <div className="pp-foot-name">Trevo Legaliza · Assessoria Empresarial</div>
-              <div className="pp-foot-line">
-                <span>CNPJ 39.969.412/0001-70</span>
-                <span>· (11) 93492-7001</span>
-                <span>· administrativo@trevolegaliza.com.br</span>
-              </div>
-              <div className="pp-foot-line" style={{ marginTop: 4 }}>
-                <span>Rua Brasil, 1170 · Rudge Ramos · São Bernardo do Campo/SP</span>
-              </div>
-              <div className="pp-foot-tag">Desde 2018 · Regularização empresarial em 27 estados</div>
-            </div>
-          </div>
-        </footer>
-
-        {/* STICKY MOBILE BAR */}
+        {/* STICKY MOBILE BAR (continua DENTRO do pp-shell — position:fixed
+            garante visual independente da hierarquia, mas hierarquia limpa
+            evita problemas de stacking context futuros) */}
         {(orc?.status === 'enviado' || orc?.status === 'recusado') && (
           <div className="pp-sticky">
             <div className="pp-sticky-info">
@@ -1541,6 +1560,12 @@ export default function PropostaPublica() {
         )}
 
       </div>
+
+      {/* FOOTER institucional reforçado (26/05/2026 noite).
+          Substitui o footer pp-foot anterior (era 1-linha simples).
+          Agora: 3 colunas (marca + endereço + contatos) + faixa de selos.
+          Tailwind puro, FORA do shell pra ficar full-width. */}
+      <FooterInstitucional nomeDisplay={isContador ? 'TREVO ASSESSORIA SOCIETÁRIA · Painel do Parceiro' : 'TREVO ASSESSORIA SOCIETÁRIA'} />
 
       {/* MODAL APROVAÇÃO */}
       {showAprovacao && (
