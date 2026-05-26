@@ -54,6 +54,7 @@ interface OrcTerc {
   terc_regras_rapidas_ativas?: string[] | null;
   terc_observacoes_publicas?: string | null;
   terc_video_url?: string | null;
+  terc_pdf_url?: string | null;
   validade_dias: number;
   created_at: string;
 }
@@ -148,6 +149,22 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             <p className="text-xs font-mono text-muted-foreground">PROP-{String(orc.numero).padStart(4, '0')}</p>
             <p className="text-sm font-semibold text-slate-900">{orc.prospect_nome}</p>
           </div>
+          {orc.terc_pdf_url ? (
+            <a
+              href={orc.terc_pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-lg hover:shadow-xl transition-all"
+            >
+              <FileText className="h-4 w-4" />
+              Baixar Proposta + Contrato (PDF)
+            </a>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">
+              O PDF da proposta + contrato está sendo gerado e ficará disponível em alguns segundos.
+              Atualize a página em ~30s.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -613,6 +630,20 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
               Tirar dúvidas no WhatsApp
             </a>
           </div>
+
+          {orc.terc_pdf_url && (
+            <div className="mt-6">
+              <a
+                href={orc.terc_pdf_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-emerald-200/80 hover:text-white underline inline-flex items-center gap-1.5"
+              >
+                <FileText className="h-3 w-3" />
+                Pré-visualizar proposta + contrato em PDF
+              </a>
+            </div>
+          )}
 
           <p className="text-[11px] text-emerald-200/40 mt-12 flex items-center justify-center gap-1.5">
             <Lock className="h-3 w-3" />

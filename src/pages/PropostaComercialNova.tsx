@@ -686,6 +686,32 @@ export default function PropostaComercialNova() {
                 >
                   Copiar link
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={async () => {
+                    if (!propostaId) return;
+                    toast.info('Gerando PDF... aguarde 5-10 segundos.');
+                    try {
+                      const { data, error } = await supabase.functions.invoke('gerar-proposta-msa-pdf', {
+                        body: { orcamento_id: propostaId, force: true },
+                      });
+                      if (error) throw error;
+                      if (data?.pdf_url) {
+                        window.open(data.pdf_url, '_blank');
+                        toast.success('PDF pronto!');
+                      } else {
+                        throw new Error(data?.error || 'erro desconhecido');
+                      }
+                    } catch (e: any) {
+                      toast.error('Falha ao gerar PDF: ' + (e.message || ''));
+                    }
+                  }}
+                >
+                  <FileText className="h-3.5 w-3.5 mr-1" />
+                  Gerar / baixar PDF
+                </Button>
               </CardContent>
             </Card>
           )}
