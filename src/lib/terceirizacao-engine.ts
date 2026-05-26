@@ -30,31 +30,28 @@ export const SERVICOS_DEFAULT: ItemEditavel[] = [
 ];
 
 export const NATUREZAS_DEFAULT: ItemEditavel[] = [
-  { id: 'ltda', label: 'LTDA',                   ativo: true, valor: 0 },
-  { id: 'slu',  label: 'SLU',                    ativo: true, valor: 0 },
-  { id: 'mei',  label: 'MEI',                    ativo: true, valor: 0 },
-  { id: 'ei',   label: 'Empresário Individual',  ativo: true, valor: 0 },
-  { id: 'sa',   label: 'S.A.',                   ativo: true, valor: 0 },
+  { id: 'ltda', label: 'LTDA',                   ativo: true,  valor: 0 },
+  { id: 'slu',  label: 'SLU',                    ativo: true,  valor: 0 },
+  { id: 'mei',  label: 'MEI',                    ativo: true,  valor: 0 },
+  { id: 'ei',   label: 'Empresário Individual',  ativo: true,  valor: 0 },
+  { id: 'sa',   label: 'S.A.',                   ativo: false, valor: 0 },
 ];
 
-// Sem valor predefinido — Thales preenche manualmente.
+// Inclusos sem valor predefinido. Ordem fixa solicitada pelo Thales (26/05).
 export const INCLUSOS_DEFAULT: ItemEditavel[] = [
-  { id: 'plataforma',        label: 'Plataforma Trevo',          valor: 0, ativo: true,  descricao: 'Gestão e rastreabilidade integral do processo na plataforma própria.' },
-  { id: 'peticionamento',    label: 'Peticionamento',            valor: 0, ativo: true,  descricao: 'Protocolo eletrônico ou físico de toda a documentação.' },
-  { id: 'minuta_padrao',     label: 'Minuta Padrão Junta',       valor: 0, ativo: true,  descricao: 'Uso do modelo padrão da Junta Comercial.' },
-  { id: 'minuta_propria',    label: 'Minuta Redação Própria',    valor: 0, ativo: true,  descricao: 'Elaboração de instrumento societário com redação personalizada.' },
-  { id: 'acompanhamento',    label: 'Acompanhamento Deferimento',valor: 0, ativo: true,  descricao: 'Monitoramento ativo até o deferimento final.' },
-  { id: 'viabilidade',       label: 'Viabilidade',               valor: 0, ativo: true,  descricao: 'Consulta prévia de viabilidade de nome e atividade.' },
-  { id: 'dbe',               label: 'DBE',                       valor: 0, ativo: true,  descricao: 'Preenchimento e envio do Documento Básico de Entrada.' },
-  { id: 'registro',          label: 'Registro (Junta/Cartório)', valor: 0, ativo: true,  descricao: 'Protocolo perante Junta Comercial ou Cartório.' },
-  { id: 'mat',               label: 'Módulo Adm. Tributária (MAT)', valor: 0, ativo: false, descricao: 'Pós-reforma tributária: regime tributário e assinaturas coordenadas.' },
-  { id: 'inscricao_mun_est', label: 'Inscrição Municipal/Estadual', valor: 0, ativo: false, descricao: 'Habilitação nos cadastros municipal e/ou estadual.' },
-  { id: 'alvaras',           label: 'Alvarás e Licenças',        valor: 0, ativo: false, descricao: 'Solicitação e acompanhamento de alvarás de funcionamento.' },
-  { id: 'conselho_classe',   label: 'Conselho de Classe',        valor: 0, ativo: false, descricao: 'Registro perante conselhos profissionais (CRM, CRO, OAB, etc.).' },
+  { id: 'plataforma',         label: 'Plataforma Trevo',                 valor: 0, ativo: true,  descricao: 'Gestão e rastreabilidade integral do processo na plataforma própria, com acesso ao status em tempo real.' },
+  { id: 'viabilidade',        label: 'Viabilidade',                      valor: 0, ativo: true,  descricao: 'Consulta prévia de viabilidade de nome e atividade junto ao órgão competente antes do início do processo.' },
+  { id: 'dbe',                label: 'DBE',                              valor: 0, ativo: true,  descricao: 'Preenchimento e envio do Documento Básico de Entrada junto à Receita Federal.' },
+  { id: 'contrato_social',    label: 'Contrato Social',                  valor: 0, ativo: true,  descricao: 'Elaboração do instrumento societário (contrato social ou estatuto), seja em modelo padrão ou com redação personalizada.' },
+  { id: 'peticionamento_junta', label: 'Peticionamento Junta Comercial', valor: 0, ativo: true,  descricao: 'Protocolo eletrônico ou físico de toda a documentação na Junta Comercial competente, com acompanhamento até o deferimento.' },
+  { id: 'mat',                label: 'MAT',                              valor: 0, ativo: false, descricao: 'Módulo de Administração Tributária: regime tributário e assinaturas coordenadas pós-reforma tributária.' },
+  { id: 'inscricao_municipal',label: 'Inscrição Municipal',              valor: 0, ativo: false, descricao: 'Habilitação da empresa no cadastro municipal para emissão de notas fiscais.' },
+  { id: 'alvaras',            label: 'Alvarás e Licenças',               valor: 0, ativo: false, descricao: 'Solicitação e acompanhamento de alvarás de funcionamento e licenças necessárias para a operação.' },
+  { id: 'conselho_classe',    label: 'Conselho de Classe',               valor: 0, ativo: false, descricao: 'Registro perante conselhos profissionais (CRM, CRO, OAB, etc.) quando aplicável.' },
 ];
 
-// Valor mínimo (só usado em modalidades antigas — preco_por_tipo não usa)
-export const VALOR_BASE_MINIMO = 380;
+// Valor mínimo / base padrão (Thales 26/05): R$ 680.
+export const VALOR_BASE_MINIMO = 680;
 
 // ─── Modalidades ─────────────────────────────────────────────────────────────
 
@@ -149,6 +146,17 @@ export const REGRAS_RAPIDAS_CATALOGO: RegraRapida[] = [
     label: 'LGPD',
     texto: 'LGPD: A CONTRATANTE autoriza a CONTRATADA a tratar dados pessoais exclusivamente para execução deste contrato, conforme Lei 13.709/2018.',
   },
+  {
+    id: 'escopo_estendido',
+    label: 'ESCOPO ESTENDIDO',
+    texto: 'ESCOPO ESTENDIDO: Processos que excederem a complexidade média prevista no escopo contratual (ex: holdings patrimoniais com múltiplos imóveis a integralizar, sociedades anônimas com estrutura ampla, contratos extensos ou cláusulas atípicas) serão analisados caso a caso e poderão sofrer cobrança de honorário adicional, mediante orçamento prévio e aprovação por escrito da CONTRATANTE.',
+  },
+];
+
+// Regras que vêm sempre ativas em proposta nova (Thales 26/05).
+// FAST_TRACK e ALVARAS_600 ficam OPCIONAIS (Thales clica se quiser).
+export const REGRAS_RAPIDAS_ATIVAS_DEFAULT: string[] = [
+  'mat', 'troca_uf', 'doc_completa', 'taxas_fora', 'retrabalho', 'inadimplencia', 'lgpd', 'escopo_estendido',
 ];
 
 // Renderiza texto completo das observações combinando regras rápidas + texto livre

@@ -32,6 +32,7 @@ import { toast } from 'sonner';
 import {
   type ItemEditavel, type Modalidade, type PrecosPorTipo,
   SERVICOS_DEFAULT, NATUREZAS_DEFAULT, INCLUSOS_DEFAULT, PLANOS,
+  REGRAS_RAPIDAS_ATIVAS_DEFAULT,
   calcularTerceirizacao, valorPrincipalPorModalidade, fmtBRL,
 } from '@/lib/terceirizacao-engine';
 import { ListaEditavel } from '@/components/proposta-comercial/ListaEditavel';
@@ -58,6 +59,8 @@ interface State {
   volume_custom: number | null;          // pra modalidade=custom
   desconto_custom: number | null;        // pra modalidade=custom
   precos_por_tipo: PrecosPorTipo;        // pra modalidade=preco_por_tipo
+  valor_abertura: number | null;         // valor específico pra abertura (caso comum: maior que demais)
+  dia_pagamento: number | null;          // dia do mês pra cobrança (1-31)
 
   // Textos
   regras_rapidas_ativas: string[];       // ids do catálogo de cláusulas
@@ -79,11 +82,13 @@ function emptyState(): State {
     naturezas: NATUREZAS_DEFAULT,
     inclusos: INCLUSOS_DEFAULT,
     modalidade: 'avulso',
-    valor_final_override: null,
+    valor_final_override: 680,       // 26/05: pré-preenchido em R$ 680
     volume_custom: null,
     desconto_custom: null,
     precos_por_tipo: {},
-    regras_rapidas_ativas: [],
+    valor_abertura: null,            // 26/05: opcional, sobrescreve abertura
+    dia_pagamento: null,             // 26/05: dia do mês pra cobrança
+    regras_rapidas_ativas: REGRAS_RAPIDAS_ATIVAS_DEFAULT,
     observacoes_publicas: '',
     anotacoes_internas: '',
     validade_dias: 15,
@@ -135,6 +140,8 @@ export default function PropostaComercialNova() {
         volume_custom: d.terc_volume_custom ?? null,
         desconto_custom: d.terc_desconto_custom ?? null,
         precos_por_tipo: (d.terc_precos_por_tipo && typeof d.terc_precos_por_tipo === 'object') ? d.terc_precos_por_tipo : {},
+        valor_abertura: d.terc_valor_abertura ?? null,
+        dia_pagamento: d.terc_dia_pagamento ?? null,
         regras_rapidas_ativas: Array.isArray(d.terc_regras_rapidas_ativas) ? d.terc_regras_rapidas_ativas : [],
         observacoes_publicas: d.terc_observacoes_publicas || '',
         anotacoes_internas: d.terc_anotacoes_internas || '',
@@ -228,6 +235,8 @@ export default function PropostaComercialNova() {
         terc_volume_custom: state.volume_custom,
         terc_desconto_custom: state.desconto_custom,
         terc_precos_por_tipo: state.precos_por_tipo as any,
+        terc_valor_abertura: state.valor_abertura,
+        terc_dia_pagamento: state.dia_pagamento,
         terc_regras_rapidas_ativas: state.regras_rapidas_ativas as any,
         terc_observacoes_publicas: state.observacoes_publicas || null,
         terc_anotacoes_internas: state.anotacoes_internas || null,
@@ -395,7 +404,7 @@ export default function PropostaComercialNova() {
           />
 
           <ListaEditavel
-            titulo="O QUE ESTÁ INCLUÍDO NO PROCESSO"
+            titulo="O QUE ESTÁ INCLUSO NO PROCESSO"
             subtitulo="Cada item marcado adiciona ao valor base. Itens desmarcados aparecem riscados pro cliente."
             icon={ListChecks}
             itens={state.inclusos}
@@ -478,7 +487,7 @@ export default function PropostaComercialNova() {
               {/* Override de valor final */}
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5">
-                  Valor final (override)
+                  Valor final (padrão para alteração / baixa / transformação)
                   <span className="text-[10px] font-normal text-muted-foreground">— se preenchido, sobrescreve cálculo automático</span>
                 </Label>
                 <Input
@@ -493,6 +502,42 @@ export default function PropostaComercialNova() {
                   placeholder={fmtBRL(valorPrincipalPorModalidade(calc, state.modalidade, null))}
                   className="tabular-nums"
                 />
+              </div>
+
+              {/* Valor específico pra Abertura de Empresa */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    Valor específico de Abertura
+                    <span className="text-[10px] font-normal text-muted-foreground">— sobrescreve só pra abertura</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={state.valor_abertura ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setState({ ...state, valor_abertura: v ? Number(v) : null });
+                    }}
+                    placeholder="R$ 0,00"
+                    className="tabular-nums"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Dia de pagamento (do mês)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={state.dia_pagamento ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setState({ ...state, dia_pagamento: v ? Math.max(1, Math.min(31, Number(v))) : null });
+                    }}
+                    placeholder="ex: 5, 10, 15..."
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
