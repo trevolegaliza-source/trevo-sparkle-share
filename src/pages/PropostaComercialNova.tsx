@@ -67,6 +67,9 @@ interface State {
   observacoes_publicas: string;          // cliente vê (texto livre adicional)
   anotacoes_internas: string;            // só Thales vê
 
+  // Mídia
+  video_url: string;                     // URL de vídeo (YouTube/Vimeo/MP4) — opcional
+
   // Meta
   validade_dias: number;
 }
@@ -91,6 +94,7 @@ function emptyState(): State {
     regras_rapidas_ativas: REGRAS_RAPIDAS_ATIVAS_DEFAULT,
     observacoes_publicas: '',
     anotacoes_internas: '',
+    video_url: '',
     validade_dias: 15,
   };
 }
@@ -145,6 +149,7 @@ export default function PropostaComercialNova() {
         regras_rapidas_ativas: Array.isArray(d.terc_regras_rapidas_ativas) ? d.terc_regras_rapidas_ativas : [],
         observacoes_publicas: d.terc_observacoes_publicas || '',
         anotacoes_internas: d.terc_anotacoes_internas || '',
+        video_url: d.terc_video_url || '',
         validade_dias: d.validade_dias || 15,
       });
       setOrcamentoNumero(d.numero || null);
@@ -240,6 +245,7 @@ export default function PropostaComercialNova() {
         terc_regras_rapidas_ativas: state.regras_rapidas_ativas as any,
         terc_observacoes_publicas: state.observacoes_publicas || null,
         terc_anotacoes_internas: state.anotacoes_internas || null,
+        terc_video_url: state.video_url || null,
         terc_clicksign_status: 'nao_enviado',
       };
       if (propostaId) payload.id = propostaId;
@@ -539,6 +545,29 @@ export default function PropostaComercialNova() {
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Vídeo institucional / pitch (opcional) */}
+          <Card>
+            <CardContent className="pt-6 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <FileText className="h-4 w-4" /> VÍDEO NA LANDING PÚBLICA (opcional)
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Cole URL de YouTube, Vimeo ou MP4 direto. Aparece em destaque
+                logo abaixo do hero. Deixe vazio pra esconder a seção.
+              </p>
+              <Input
+                value={state.video_url}
+                onChange={(e) => setState({ ...state, video_url: e.target.value })}
+                placeholder="https://youtube.com/watch?v=... ou https://vimeo.com/..."
+              />
+              {state.video_url && (
+                <p className="text-[11px] text-emerald-700">
+                  ✓ Vídeo será exibido pro cliente
+                </p>
+              )}
             </CardContent>
           </Card>
 

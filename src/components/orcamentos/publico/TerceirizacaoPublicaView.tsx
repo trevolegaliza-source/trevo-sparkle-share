@@ -53,8 +53,25 @@ interface OrcTerc {
   terc_precos_por_tipo?: PrecosPorTipo | null;
   terc_regras_rapidas_ativas?: string[] | null;
   terc_observacoes_publicas?: string | null;
+  terc_video_url?: string | null;
   validade_dias: number;
   created_at: string;
+}
+
+// ─── Helper de detecção de plataforma de vídeo ───────────────────────────────
+function parseVideoUrl(url: string): { type: 'youtube' | 'vimeo' | 'mp4' | 'iframe'; embed: string } | null {
+  if (!url || !url.trim()) return null;
+  const trimmed = url.trim();
+  // YouTube
+  const yt = trimmed.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (yt) return { type: 'youtube', embed: `https://www.youtube.com/embed/${yt[1]}?rel=0&modestbranding=1` };
+  // Vimeo
+  const vm = trimmed.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vm) return { type: 'vimeo', embed: `https://player.vimeo.com/video/${vm[1]}?title=0&byline=0&portrait=0` };
+  // MP4/WebM/OGG direto
+  if (/\.(mp4|webm|ogg|m4v)(\?.*)?$/i.test(trimmed)) return { type: 'mp4', embed: trimmed };
+  // fallback: iframe genérico
+  return { type: 'iframe', embed: trimmed };
 }
 
 interface Props {
@@ -85,6 +102,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
   const regrasAtivas = Array.isArray(orc.terc_regras_rapidas_ativas) ? orc.terc_regras_rapidas_ativas : [];
   const regrasObjetos = REGRAS_RAPIDAS_CATALOGO.filter((r) => regrasAtivas.includes(r.id));
   const precosPorTipo = orc.terc_precos_por_tipo || {};
+  const video = parseVideoUrl(orc.terc_video_url || '');
 
   const valorPrincipal = (() => {
     if (orc.terc_valor_final_override && orc.terc_valor_final_override > 0) return orc.terc_valor_final_override;
@@ -149,12 +167,12 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
         {/* Header */}
-        <div className="relative max-w-5xl mx-auto px-6 pt-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={logoTrevo} alt="Trevo Legaliza" className="h-12 w-12 object-contain drop-shadow-2xl" />
+        <div className="relative max-w-5xl mx-auto px-6 pt-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <img src={logoTrevo} alt="Trevo Legaliza" className="h-20 w-20 md:h-24 md:w-24 object-contain drop-shadow-2xl" />
             <div>
-              <p className="text-sm font-bold tracking-tight">TREVO ASSESSORIA SOCIETÁRIA</p>
-              <p className="text-[10px] text-emerald-200/70 tabular-nums">CNPJ 39.969.412/0001-70 · Atuação Nacional</p>
+              <p className="text-base md:text-lg font-bold tracking-tight">TREVO ASSESSORIA SOCIETÁRIA</p>
+              <p className="text-xs text-emerald-200/70 tabular-nums">CNPJ 39.969.412/0001-70 · Atuação Nacional</p>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-2 text-xs text-emerald-200/70">
@@ -164,7 +182,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
         </div>
 
         {/* Hero core */}
-        <div className="relative max-w-5xl mx-auto px-6 py-16 md:py-24">
+        <div className="relative max-w-5xl mx-auto px-6 py-16 md:py-20">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-6">
             <Sparkles className="h-3.5 w-3.5 text-emerald-300" />
             <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-200 font-semibold">
@@ -222,6 +240,44 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
           </div>
         </div>
       </section>
+
+      {/* ─── VÍDEO (se houver) ─── */}
+      {video && (
+        <section className="py-16 md:py-20 bg-gradient-to-b from-emerald-950 to-slate-50">
+          <div className="max-w-4xl mx-auto px-6">
+            <div className="text-center mb-8">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">
+                Conheça a Trevo em 2 minutos
+              </p>
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">
+                Quem é, como atende, por que confiar.
+              </h2>
+            </div>
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-black aspect-video">
+              {video.type === 'mp4' && (
+                <video
+                  src={video.embed}
+                  controls
+                  className="w-full h-full"
+                  playsInline
+                  preload="metadata"
+                >
+                  Seu navegador não suporta vídeo HTML5.
+                </video>
+              )}
+              {(video.type === 'youtube' || video.type === 'vimeo' || video.type === 'iframe') && (
+                <iframe
+                  src={video.embed}
+                  title="Trevo Legaliza — vídeo institucional"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ─── DIFERENCIAIS ─── */}
       <section className="py-20 bg-white">
@@ -568,8 +624,8 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
       {/* ─── FOOTER ─── */}
       <footer className="bg-slate-100 border-t border-slate-200">
         <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-4 items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center gap-3">
-            <img src={logoTrevo} alt="Trevo" className="h-8 w-8 object-contain opacity-60" />
+          <div className="flex items-center gap-4">
+            <img src={logoTrevo} alt="Trevo" className="h-14 w-14 object-contain opacity-80" />
             <div>
               <p className="font-bold text-slate-700">TREVO ASSESSORIA SOCIETÁRIA LTDA</p>
               <p>CNPJ 39.969.412/0001-70 · São Bernardo do Campo / SP</p>
