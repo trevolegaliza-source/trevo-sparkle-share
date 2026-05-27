@@ -434,15 +434,13 @@ function renderPropostaHTML(p: any): string {
     return items + obs;
   };
 
-  // proposta nº derivado do cnpj/created
-  const propostaId =
-    'PROP-' +
-    String(created.getFullYear()) +
-    '-' +
-    String(created.getMonth() + 1).padStart(2, '0') +
-    String(created.getDate()).padStart(2, '0') +
-    '-' +
-    (p.prospect_cnpj || '00000000').replace(/\D/g, '').slice(-4);
+  // proposta nº: prioriza numero do ERP (sequencial PROP-NNNN), fallback hash do CNPJ
+  const propostaId = p.numero
+    ? `PROP-${String(p.numero).padStart(4, '0')}`
+    : 'PROP-' + String(created.getFullYear()) +
+      '-' + String(created.getMonth() + 1).padStart(2, '0') +
+      String(created.getDate()).padStart(2, '0') +
+      '-' + (p.prospect_cnpj || '00000000').replace(/\D/g, '').slice(-4);
 
   // contatos com fallback
   const contato = p.prospect_contato ? esc(p.prospect_contato) : null;
@@ -521,7 +519,7 @@ function renderPropostaHTML(p: any): string {
     position: relative;
     overflow: hidden;
     background: var(--bg);
-    padding: 16mm 18mm 14mm;
+    padding: 12mm 18mm 10mm;
     display: flex;
     flex-direction: column;
   }
@@ -569,7 +567,7 @@ function renderPropostaHTML(p: any): string {
   }
   .hdr-l { display: flex; align-items: center; gap: 14px; }
   .hdr-logo {
-    height: 38px; width: auto; object-fit: contain;
+    height: 56px; width: auto; object-fit: contain;
     flex-shrink: 0;
   }
   .hdr-id-name {
@@ -999,17 +997,17 @@ function renderPropostaHTML(p: any): string {
   .inclusos {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 3mm;
+    gap: 2mm;
   }
   .incl {
     background: var(--bg-soft);
     border: 1px solid var(--border);
     border-left: 2px solid var(--brand);
     border-radius: 6px;
-    padding: 4mm 5mm;
+    padding: 2.5mm 3.5mm;
     display: grid;
-    grid-template-columns: 16px 1fr;
-    gap: 10px;
+    grid-template-columns: 14px 1fr;
+    gap: 8px;
     align-items: start;
   }
   .incl-off {
@@ -1018,13 +1016,13 @@ function renderPropostaHTML(p: any): string {
     background: transparent;
   }
   .incl-ico {
-    width: 16px; height: 16px;
+    width: 14px; height: 14px;
     border-radius: 50%;
     background: var(--brand);
     color: #ffffff;
-    font-size: 10px; font-weight: 800;
+    font-size: 9px; font-weight: 800;
     display: inline-flex; align-items: center; justify-content: center;
-    margin-top: 2px;
+    margin-top: 1px;
   }
   .incl-off .incl-ico {
     background: transparent;
@@ -1032,7 +1030,7 @@ function renderPropostaHTML(p: any): string {
     border: 1px solid var(--fg-4);
   }
   .incl-label {
-    font-size: 12px; font-weight: 600;
+    font-size: 11px; font-weight: 600;
     color: var(--fg-1);
     letter-spacing: -0.005em;
   }
@@ -1041,9 +1039,9 @@ function renderPropostaHTML(p: any): string {
     color: var(--fg-3);
   }
   .incl-desc {
-    font-size: 10px; color: var(--fg-2);
-    line-height: 1.45;
-    margin-top: 2px;
+    font-size: 9.5px; color: var(--fg-2);
+    line-height: 1.4;
+    margin-top: 1px;
   }
   .incl-off .incl-desc { color: var(--fg-4); }
 
@@ -1064,28 +1062,28 @@ function renderPropostaHTML(p: any): string {
 
   .rules {
     display: flex; flex-direction: column;
-    gap: 2mm;
-    margin-bottom: 5mm;
+    gap: 1.5mm;
+    margin-bottom: 4mm;
   }
   .rule {
     display: grid;
-    grid-template-columns: 28px 1fr;
-    gap: 10px;
-    padding: 3mm 4mm 3mm 4mm;
+    grid-template-columns: 26px 1fr;
+    gap: 8px;
+    padding: 2mm 3mm;
     background: var(--bg-soft);
     border: 1px solid var(--border);
-    border-radius: 7px;
+    border-radius: 6px;
   }
   .rule-num {
     font-family: var(--font-mono);
-    font-size: 9.5px; font-weight: 600;
+    font-size: 9px; font-weight: 600;
     color: var(--brand);
     letter-spacing: 0.06em;
     padding-top: 1px;
   }
   .rule-txt {
-    font-size: 9.5px;
-    line-height: 1.5;
+    font-size: 9px;
+    line-height: 1.4;
     color: var(--fg-2);
     text-wrap: pretty;
   }
@@ -1100,8 +1098,8 @@ function renderPropostaHTML(p: any): string {
     background: linear-gradient(135deg, rgba(22,163,74,0.08), rgba(22,163,74,0.01));
     border: 1px solid var(--brand-bord);
     border-radius: 10px;
-    padding: 4mm 6mm;
-    margin-bottom: 5mm;
+    padding: 3mm 5mm;
+    margin-bottom: 4mm;
   }
   .validade-l .lbl {
     font-family: var(--font-mono);
@@ -1124,11 +1122,11 @@ function renderPropostaHTML(p: any): string {
   /* binding statement — replaces the signature block (it's an Annex I, not a contract requiring signature) */
   .binding {
     margin-top: auto;
-    margin-bottom: 5mm;
+    margin-bottom: 3mm;
     background: linear-gradient(135deg, rgba(22,163,74,0.06), rgba(22,163,74,0.01));
     border: 1px solid var(--brand-bord);
     border-radius: 10px;
-    padding: 5mm 6mm 5mm 7mm;
+    padding: 4mm 5mm 4mm 6mm;
     position: relative;
     overflow: hidden;
   }
@@ -1153,8 +1151,8 @@ function renderPropostaHTML(p: any): string {
     color: var(--fg-1);
   }
   .binding-body {
-    font-size: 10px;
-    line-height: 1.55;
+    font-size: 9.5px;
+    line-height: 1.45;
     color: var(--fg-2);
     margin: 0;
     text-wrap: pretty;
