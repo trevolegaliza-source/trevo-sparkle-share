@@ -1540,18 +1540,22 @@ function BlocoAntesDepois() {
 }
 
 // ─── Bloco Calculadora de ROI ───────────────────────────────────────────────
+// Refatorada 27/05: a lógica antiga comparava custo interno (salário/colaborador)
+// com preço de venda da Trevo (com margem). Comparação invalida — Trevo sempre
+// saía "mais cara". O argumento real é REVENUE SHIFT: as horas que o contador
+// gasta em societário poderiam estar faturando em contabilidade pra outros
+// clientes. Custo Trevo é < receita potencial = ganho real.
 function BlocoCalculadoraROI({ valorProcesso }: { valorProcesso: number }) {
   const [processosMes, setProcessosMes] = useState(8);
   const [horasPorProcesso, setHorasPorProcesso] = useState(4);
-  const [valorHora, setValorHora] = useState(120);
+  const [horaFaturada, setHoraFaturada] = useState(250); // R$/h que o contador COBRA do cliente contábil
 
-  // Cálculos
-  const horasTotaisHoje = processosMes * horasPorProcesso;
-  const custoOperacionalHoje = horasTotaisHoje * valorHora;
+  // Cálculos honestos
+  const horasEmSocietario = processosMes * horasPorProcesso;
+  const faturamentoPotencialPerdido = horasEmSocietario * horaFaturada;
   const custoComTrevo = processosMes * valorProcesso;
-  const horasLiberadas = horasTotaisHoje;
-  const novosClientesAtendiveis = Math.floor(horasLiberadas / 8); // 8h por cliente novo no mês
-  const economiaMensal = Math.max(0, custoOperacionalHoje - custoComTrevo);
+  const ganhoReal = faturamentoPotencialPerdido - custoComTrevo;
+  const novosClientesAtendiveis = Math.floor(horasEmSocietario / 8); // 8h/mês por cliente contábil
 
   return (
     <section className="py-20 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30">
@@ -1559,10 +1563,11 @@ function BlocoCalculadoraROI({ valorProcesso }: { valorProcesso: number }) {
         <div className="max-w-2xl mb-10">
           <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">Calculadora interativa</p>
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">
-            Quanto seu escritório <span className="text-emerald-700">ganha</span> terceirizando?
+            Quanto você <span className="text-emerald-700">deixa de faturar</span> fazendo societário?
           </h2>
           <p className="text-slate-600 mt-3 leading-relaxed">
-            Ajuste os controles. O cálculo é em tempo real e considera apenas o seu volume societário.
+            Cada hora em processo societário é uma hora a menos pra atender contabilidade —
+            seu serviço de maior margem. Veja o impacto real.
           </p>
         </div>
 
@@ -1601,17 +1606,20 @@ function BlocoCalculadoraROI({ valorProcesso }: { valorProcesso: number }) {
 
             <div>
               <div className="flex items-baseline justify-between mb-2">
-                <label className="text-sm font-semibold text-slate-700">Custo da hora interna (R$)</label>
-                <span className="text-2xl font-bold text-emerald-700 tabular-nums">R$ {valorHora}</span>
+                <label className="text-sm font-semibold text-slate-700">Valor da sua hora faturada (contabilidade)</label>
+                <span className="text-2xl font-bold text-emerald-700 tabular-nums">R$ {horaFaturada}</span>
               </div>
               <input
-                type="range" min={50} max={400} step={10} value={valorHora}
-                onChange={(e) => setValorHora(Number(e.target.value))}
+                type="range" min={100} max={600} step={10} value={horaFaturada}
+                onChange={(e) => setHoraFaturada(Number(e.target.value))}
                 className="w-full accent-emerald-600 cursor-pointer"
               />
               <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                <span>R$ 50</span><span>R$ 400</span>
+                <span>R$ 100</span><span>R$ 600</span>
               </div>
+              <p className="text-[10px] text-slate-500 mt-1.5 italic">
+                Quanto você cobra do seu cliente contábil por hora de trabalho contábil (não o custo do seu colaborador).
+              </p>
             </div>
           </div>
 
@@ -1622,28 +1630,38 @@ function BlocoCalculadoraROI({ valorProcesso }: { valorProcesso: number }) {
             <div className="space-y-4">
               <div className="flex items-baseline justify-between gap-4 pb-3 border-b border-emerald-600/40">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-bold">Custo operacional hoje</p>
-                  <p className="text-[10px] text-emerald-200/60 mt-0.5">{horasTotaisHoje}h × R$ {valorHora}/h</p>
+                  <p className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-bold">Faturamento que você deixa de ganhar</p>
+                  <p className="text-[10px] text-emerald-200/60 mt-0.5">{horasEmSocietario}h × R$ {horaFaturada}/h faturada</p>
                 </div>
-                <p className="text-2xl font-bold tabular-nums text-white">{fmtBRL(custoOperacionalHoje)}</p>
+                <p className="text-2xl font-bold tabular-nums text-white">{fmtBRL(faturamentoPotencialPerdido)}</p>
               </div>
 
               <div className="flex items-baseline justify-between gap-4 pb-3 border-b border-emerald-600/40">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-bold">Custo com a Trevo</p>
+                  <p className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-bold">Investimento na Trevo</p>
                   <p className="text-[10px] text-emerald-200/60 mt-0.5">{processosMes} × {fmtBRL(valorProcesso)}/processo</p>
                 </div>
                 <p className="text-2xl font-bold tabular-nums text-white">{fmtBRL(custoComTrevo)}</p>
               </div>
 
-              <div className="rounded-xl bg-emerald-500/20 ring-1 ring-emerald-400/40 p-4">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200 font-bold mb-1">Economia mensal</p>
-                <p className="text-4xl font-bold tabular-nums text-emerald-100">{fmtBRL(economiaMensal)}</p>
+              <div className={`rounded-xl p-4 ring-1 ${ganhoReal > 0 ? 'bg-emerald-500/20 ring-emerald-400/40' : 'bg-amber-500/20 ring-amber-400/40'}`}>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200 font-bold mb-1">
+                  {ganhoReal > 0 ? 'Ganho real terceirizando' : 'Análise reversa'}
+                </p>
+                <p className={`text-4xl font-bold tabular-nums ${ganhoReal > 0 ? 'text-emerald-100' : 'text-amber-100'}`}>
+                  {ganhoReal > 0 ? '+' : ''}{fmtBRL(ganhoReal)}
+                </p>
+                <p className="text-[10px] text-emerald-200/70 mt-1 leading-relaxed">
+                  {ganhoReal > 0
+                    ? 'Faturamento liberado − investimento Trevo'
+                    : 'Sua hora faturada precisaria ser R$ ' + Math.ceil(custoComTrevo / horasEmSocietario) + '+/h pra valer financeiramente. Ainda assim você ganha em SLA, especialização e qualidade de vida.'
+                  }
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="rounded-lg bg-white/10 px-3 py-2">
-                  <p className="text-2xl font-bold tabular-nums">{horasLiberadas}h</p>
+                  <p className="text-2xl font-bold tabular-nums">{horasEmSocietario}h</p>
                   <p className="text-[10px] text-emerald-200/80 leading-tight mt-0.5">liberadas no mês</p>
                 </div>
                 <div className="rounded-lg bg-white/10 px-3 py-2">
@@ -1654,7 +1672,8 @@ function BlocoCalculadoraROI({ valorProcesso }: { valorProcesso: number }) {
             </div>
 
             <p className="text-[10px] text-emerald-200/50 italic mt-4 leading-relaxed">
-              Estimativa baseada em valores informados. Não inclui taxas governamentais (passantes em ambos os modelos).
+              Estimativa simplificada. Premissa: as horas liberadas seriam aplicadas em serviços contábeis pra outros clientes
+              ao valor de hora faturada informado. Não inclui taxas governamentais (passam em ambos os modelos).
             </p>
           </div>
         </div>
