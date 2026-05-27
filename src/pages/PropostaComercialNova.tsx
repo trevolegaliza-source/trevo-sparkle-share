@@ -312,13 +312,28 @@ export default function PropostaComercialNova() {
       };
       if (propostaId) payload.id = propostaId;
       const id = await saveMutation.mutateAsync(payload);
+
+      // 27/05: pre-gera PDF da proposta ao enviar (fire-and-forget). Quando o
+      // cliente abrir o link, o PDF já estará pronto — aceite vira instantâneo,
+      // ClickSign dispara na hora sem o loader de 25s.
+      if (statusAlvo === 'enviado') {
+        supabase.rpc('disparar_gerar_pdf_proposta' as any, { p_orcamento_id: id })
+          .then((res: any) => {
+            if (res.error) {
+              console.warn('[pre-gerar-pdf] dispatch falhou (nao bloqueia o envio):', res.error);
+            } else {
+              console.log('[pre-gerar-pdf] disparado:', res.data);
+            }
+          });
+      }
+
       if (!propostaId) {
         // Foi criação → navega pra modo edit
         navigate(`/propostas-comerciais/editar/${id}`, { replace: true });
       } else {
         setOrcamentoStatus(statusAlvo);
       }
-      toast.success(statusAlvo === 'enviado' ? 'Proposta enviada — link público pronto.' : 'Rascunho salvo.');
+      toast.success(statusAlvo === 'enviado' ? 'Proposta enviada — link público pronto. PDF sendo gerado em background.' : 'Rascunho salvo.');
     } catch (e: any) {
       toast.error('Erro: ' + (e.message || 'falhou'));
     } finally {
