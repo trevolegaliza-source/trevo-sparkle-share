@@ -1713,20 +1713,46 @@ function BlocoCalculadoraROI({ valorProcesso }: { valorProcesso: number }) {
                 <p className="text-xl sm:text-2xl font-bold tabular-nums text-white whitespace-nowrap">{fmtBRL(custoComTrevo)}</p>
               </div>
 
-              <div className={`rounded-xl p-4 ring-1 ${ganhoReal > 0 ? 'bg-emerald-500/20 ring-emerald-400/40' : 'bg-amber-500/20 ring-amber-400/40'}`}>
-                <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200 font-bold mb-1">
-                  {ganhoReal > 0 ? 'Ganho real terceirizando' : 'Análise reversa'}
-                </p>
-                <p className={`text-3xl sm:text-4xl font-bold tabular-nums break-all ${ganhoReal > 0 ? 'text-emerald-100' : 'text-amber-100'}`}>
-                  {ganhoReal > 0 ? '+' : ''}{fmtBRL(ganhoReal)}
-                </p>
-                <p className="text-[10px] text-emerald-200/70 mt-1 leading-relaxed">
-                  {ganhoReal > 0
-                    ? 'Faturamento liberado − investimento Trevo'
-                    : 'Sua hora faturada precisaria ser R$ ' + Math.ceil(custoComTrevo / horasEmSocietario) + '+/h pra valer financeiramente. Ainda assim você ganha em SLA, especialização e qualidade de vida.'
-                  }
-                </p>
-              </div>
+              {ganhoReal > 0 ? (
+                <div className="rounded-xl p-4 ring-1 bg-emerald-500/20 ring-emerald-400/40">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200 font-bold mb-1">
+                    Ganho real terceirizando
+                  </p>
+                  <p className="text-3xl sm:text-4xl font-bold tabular-nums text-emerald-100">
+                    +{fmtBRL(ganhoReal)}
+                  </p>
+                  <p className="text-[10px] text-emerald-200/80 mt-1 leading-relaxed">
+                    Faturamento liberado − investimento Trevo
+                  </p>
+                </div>
+              ) : (
+                /* COM-03 (27/05 noite): quando ganho negativo, NÃO mostra mea-culpa.
+                   Reposiciona como "neutralidade financeira" + ganho em dimensões
+                   qualitativas (sem "ainda assim", sem "qualidade de vida"). */
+                <div className="rounded-xl p-4 ring-1 bg-emerald-500/15 ring-emerald-400/30">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200 font-bold mb-2">
+                    Equivalência financeira · ganho qualitativo
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-white/5 p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-emerald-200/70 font-bold">SLA contratual</p>
+                      <p className="text-sm font-bold text-white mt-0.5">Garantido</p>
+                    </div>
+                    <div className="rounded-lg bg-white/5 p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-emerald-200/70 font-bold">Retrabalho</p>
+                      <p className="text-sm font-bold text-white mt-0.5">Eliminado</p>
+                    </div>
+                    <div className="rounded-lg bg-white/5 p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-emerald-200/70 font-bold">Risco operacional</p>
+                      <p className="text-sm font-bold text-white mt-0.5">Transferido</p>
+                    </div>
+                    <div className="rounded-lg bg-white/5 p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-emerald-200/70 font-bold">Tempo livre</p>
+                      <p className="text-sm font-bold text-white mt-0.5">{horasEmSocietario}h/mês</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="rounded-lg bg-white/10 px-3 py-2">

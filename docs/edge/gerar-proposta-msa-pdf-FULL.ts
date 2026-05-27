@@ -1779,7 +1779,13 @@ Deno.serve(async (req) => {
     }
 
     // 6. Upload Storage
-    const fileName = `PROP-${String((orc as any).numero).padStart(4, "0")}-${Date.now()}.pdf`;
+    // SEC-04 (27/05 noite): filename com entropy criptográfica (16 bytes hex)
+    // pra evitar brute-force do filename via timestamp guessing. O bucket é
+    // public mas o link só sai via RPC autenticada — adversário não consegue
+    // adivinhar o filename.
+    const randomHex = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map((b) => b.toString(16).padStart(2, "0")).join("");
+    const fileName = `PROP-${String((orc as any).numero).padStart(4, "0")}-${randomHex}.pdf`;
     const { error: uploadErr } = await admin.storage
       .from(BUCKET_NAME)
       .upload(fileName, finalPdf, { contentType: "application/pdf", cacheControl: "3600", upsert: false });
