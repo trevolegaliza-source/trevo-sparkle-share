@@ -869,7 +869,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             <div className="relative p-6 rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white hover:border-emerald-400 transition-colors">
               <p className="text-5xl font-bold text-emerald-200 leading-none mb-4">04</p>
               <div className="flex items-center gap-2 mb-2">
-                <img src={logoDaniDark} alt="dani.ai" className="h-4 object-contain" />
+                <img src={logoDaniDark} alt="dani.ai" loading="lazy" decoding="async" className="h-4 object-contain" />
                 <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-wider">24/7</span>
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-2">Monitoramento por IA</h3>
@@ -1032,7 +1032,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
       <footer className="bg-slate-100 border-t border-slate-200">
         <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-6 items-center justify-between text-xs text-slate-500">
           <div className="flex items-center gap-4">
-            <img src={logoTrevo} alt="Trevo Legaliza" className="h-16 w-16 object-contain opacity-90" />
+            <img src={logoTrevo} alt="Trevo Legaliza" loading="lazy" decoding="async" className="h-16 w-16 object-contain opacity-90" />
             <div>
               <p className="font-bold text-slate-700">TREVO ASSESSORIA SOCIETÁRIA LTDA</p>
               <p>CNPJ 39.969.412/0001-70 · São Bernardo do Campo / SP</p>
@@ -1041,7 +1041,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
           </div>
           <div className="flex items-center gap-3 pl-0 md:pl-4 md:border-l border-slate-300">
             <div className="flex items-baseline">
-              <img src={logoDaniDark} alt="dani.ai" className="h-10 object-contain" />
+              <img src={logoDaniDark} alt="dani.ai" loading="lazy" decoding="async" className="h-10 object-contain" />
               <span className="text-[10px] text-slate-400 font-semibold ml-0.5" aria-label="marca registrada">®</span>
             </div>
             <div className="leading-tight">
@@ -1289,7 +1289,7 @@ function CardDaniAi() {
           </div>
           <h3 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight mb-3 flex items-baseline flex-wrap gap-x-2">
             <span>Conheça a</span>
-            <img src={logoDaniDark} alt="dani.ai" className="h-7 md:h-8 object-contain inline-block translate-y-1" />
+            <img src={logoDaniDark} alt="dani.ai" loading="lazy" decoding="async" className="h-7 md:h-8 object-contain inline-block translate-y-1" />
             <span>— sua aliada que nunca dorme.</span>
           </h3>
           <p className="text-sm text-slate-600 leading-relaxed mb-4">
@@ -1319,7 +1319,7 @@ function CardDaniAi() {
           <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
             <div className="relative shrink-0">
               <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 inline-flex items-center justify-center shadow-sm overflow-hidden p-1.5">
-                <img src={logoDaniLight} alt="dani.ai" className="h-full w-full object-contain" />
+                <img src={logoDaniLight} alt="dani.ai" loading="lazy" decoding="async" className="h-full w-full object-contain" />
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
             </div>
