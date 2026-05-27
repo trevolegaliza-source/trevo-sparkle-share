@@ -1,14 +1,40 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
+# Trevo Legaliza — robots.txt
+# 27/05 noite: bloqueia indexação de rotas privadas e links públicos com token.
 
 User-agent: *
-Allow: /
+Allow: /dani
+Allow: /$
+Disallow: /proposta/
+Disallow: /cobranca/
+Disallow: /portfolio/
+Disallow: /reset-password
+Disallow: /clientes
+Disallow: /clientes/
+Disallow: /processos
+Disallow: /processos-ativos
+Disallow: /financeiro
+Disallow: /contas-pagar
+Disallow: /faturamento
+Disallow: /orcamentos
+Disallow: /orcamentos/
+Disallow: /propostas-comerciais
+Disallow: /propostas-comerciais/
+Disallow: /cadastro-rapido
+Disallow: /colaboradores
+Disallow: /configuracoes
+Disallow: /cartao
+Disallow: /cartao/
+Disallow: /catalogo
+Disallow: /relatorios/
+Disallow: /reconciliacao-trello
+Disallow: /tarefas
+Disallow: /mrr
+Disallow: /hoje
+
+User-agent: Googlebot
+Allow: /dani
+Disallow: /proposta/
+Disallow: /cobranca/
+Disallow: /portfolio/
+
+Sitemap: https://app.trevolegaliza.com/sitemap.xml

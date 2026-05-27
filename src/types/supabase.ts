@@ -1,4 +1,4 @@
-export type ClienteTipoDB = 'MENSALISTA' | 'AVULSO_4D' | 'PRE_PAGO';
+export type ClienteTipoDB = 'MENSALISTA' | 'AVULSO_4D' | 'PRE_PAGO' | 'PRECO_POR_TIPO';
 export type MomentoFaturamento = 'na_solicitacao' | 'no_deferimento';
 export type TipoDesconto = 'progressivo' | 'cumulativo' | 'composto';
 

@@ -1364,8 +1364,8 @@ export default function PropostaPublica() {
                           {item.detalhes && (
                             <div className="pp-svc-desc" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.detalhes) }} />
                           )}
-                          {item.observacoes_financeiro && (
-                            <p className="pp-svc-obs">{item.observacoes_financeiro}</p>
+                          {(item as any).observacoes_financeiro && (
+                            <p className="pp-svc-obs">{(item as any).observacoes_financeiro}</p>
                           )}
                           {((isReq || hasTaxa || item.prazo) && !isOptOff) && (
                             <div className="pp-svc-meta">

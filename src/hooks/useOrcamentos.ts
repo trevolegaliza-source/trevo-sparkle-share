@@ -74,10 +74,11 @@ export function useOrcamentos(
   return useQuery({
     queryKey: ['orcamentos', filter, tipoProposta],
     queryFn: async () => {
-      let q = supabase.from('orcamentos').select('*').order('created_at', { ascending: false });
+      let q: any = supabase.from('orcamentos').select('*').order('created_at', { ascending: false });
       // 25/05/2026: separação Orçamentos (serviço pontual) vs Propostas Comerciais
       // (terceirização). Cada page passa seu tipo; sem isso, mistura tudo.
-      q = q.eq('tipo_proposta' as any, tipoProposta);
+      // 27/05 noite: q: any pra escapar do TS2589 (Supabase chain explode em recursão de type infer).
+      q = q.eq('tipo_proposta', tipoProposta);
       // Suporta tanto string (legado: status único) quanto string[] (categorias)
       // ou nome de categoria (mapeia via CATEGORIA_STATUS).
       let statuses: string[] | null = null;
@@ -109,10 +110,11 @@ export function useOrcamentoKPIs(tipoProposta: 'servico_pontual' | 'terceirizaca
       const cols = tipoProposta === 'terceirizacao'
         ? 'status, valor_final, created_at, terc_aceito_em, terc_recusado_em, terc_recusa_motivo'
         : 'status, valor_final, created_at';
-      const { data, error } = await supabase
-        .from('orcamentos')
+      // 27/05 noite: cast pra any pra escapar do TS2589 (Supabase chain recursion)
+      const { data, error } = await (supabase
+        .from('orcamentos') as any)
         .select(cols)
-        .eq('tipo_proposta' as any, tipoProposta);
+        .eq('tipo_proposta', tipoProposta);
       if (error) throw error;
       const all = (data || []) as unknown as {
         status: string;

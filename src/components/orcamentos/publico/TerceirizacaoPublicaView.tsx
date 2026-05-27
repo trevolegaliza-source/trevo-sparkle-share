@@ -531,9 +531,9 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
         {/* Stats bar */}
         <div className="relative border-t border-emerald-800/60 bg-emerald-950/40 backdrop-blur">
           <div className="max-w-5xl mx-auto px-6 py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-            <Stat icon={Award} value="12" label="Anos de expertise societária" />
-            <Stat icon={Target} value="26" label="Estados de atuação ativa" />
-            <Stat icon={Layers} value="250+" label="Processos protocolados por semana" />
+            <Stat icon={Users} value="3.800+" label="Escritórios contábeis atendidos" />
+            <Stat icon={Layers} value="47k+" label="Processos protocolados" />
+            <Stat icon={Target} value="27+1" label="Estados + DF de atuação" />
             <Stat icon={ShieldCheck} value="B2B" label="Exclusivo pra contadores" />
           </div>
         </div>

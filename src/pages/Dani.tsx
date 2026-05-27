@@ -17,6 +17,33 @@ import logoDaniLight from '@/assets/dani-light.png';
 import logoDaniDark from '@/assets/dani-dark.png';
 
 export default function Dani() {
+  // SEO dinâmico: title + og tags pra /dani (SPA não tem SSR — setamos no client)
+  useEffect(() => {
+    const prev = {
+      title: document.title,
+      ogTitle: document.querySelector('meta[property="og:title"]')?.getAttribute('content'),
+      ogDesc: document.querySelector('meta[property="og:description"]')?.getAttribute('content'),
+    };
+    document.title = 'dani.ai — IA que monitora processos societários · Trevo Legaliza';
+    const setMeta = (sel: string, val: string) => {
+      const el = document.querySelector(sel);
+      if (el) el.setAttribute('content', val);
+    };
+    setMeta('meta[property="og:title"]', 'dani.ai — IA que monitora processos societários');
+    setMeta('meta[name="twitter:title"]', 'dani.ai — IA que monitora processos societários');
+    setMeta('meta[property="og:description"]',
+      'A IA proprietária da Trevo Legaliza consulta Juntas, Receita Federal, Prefeituras e demais órgãos competentes em tempo real — e reporta ao contador a cada movimentação.');
+    setMeta('meta[name="twitter:description"]',
+      'A IA proprietária da Trevo Legaliza consulta Juntas, Receita Federal, Prefeituras e demais órgãos competentes em tempo real — e reporta ao contador a cada movimentação.');
+    setMeta('meta[name="description"]',
+      'A IA proprietária da Trevo Legaliza consulta Juntas, Receita Federal, Prefeituras e demais órgãos competentes em tempo real — e reporta ao contador a cada movimentação.');
+    return () => {
+      if (prev.title) document.title = prev.title;
+      if (prev.ogTitle) setMeta('meta[property="og:title"]', prev.ogTitle);
+      if (prev.ogDesc) setMeta('meta[property="og:description"]', prev.ogDesc);
+    };
+  }, []);
+
   // Anima o chat simulado em loop (mesmo padrão da landing principal)
   const [chatStep, setChatStep] = useState(0);
   useEffect(() => {

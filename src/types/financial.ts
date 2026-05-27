@@ -1,4 +1,7 @@
 import type { Cliente as SupabaseCliente } from '@/types/supabase';
+// 27/05 noite: import local pra usar ProcessoDB na interface abaixo (linha 73).
+// O `export type { ProcessoDB }` re-exporta mas não traz pro escopo deste arquivo.
+import type { ProcessoDB } from '@/types/process';
 
 export type TipoCliente = 'MENSALISTA' | 'AVULSO_4D' | 'PRE_PAGO' | 'PRECO_POR_TIPO';
 export type TipoProcesso = 'abertura' | 'alteracao' | 'transformacao' | 'baixa' | 'avulso' | 'orcamento';
