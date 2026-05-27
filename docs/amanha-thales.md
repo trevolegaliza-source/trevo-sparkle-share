@@ -20,9 +20,15 @@ cat /Users/thalesburger/Desktop/Trevo-ERP-ATIVO/trevo-sparkle-share/docs/sql/fea
 ```
 Cola no SQL Editor → RUN. Cria coluna `terc_interesse_mensal` + RPC `registrar_interesse_mensal_proposta`.
 
-### 2. Edge Function
+### 2. Edge Function — **PRECISA REDEPLOY**
 
-**NÃO precisa redeploy.** Edge function não foi modificada nesta sessão.
+SEC-04 (filename PDF random) modificou a edge function. Redeploya:
+
+```bash
+cat /Users/thalesburger/Desktop/Trevo-ERP-ATIVO/trevo-sparkle-share/docs/edge/gerar-proposta-msa-pdf-FULL.ts | pbcopy
+```
+
+Dashboard → Edge Functions → `gerar-proposta-msa-pdf` → Edit Function → Cmd+A → Cmd+V → **Deploy function**.
 
 ### 3. Publish no Lovable
 
@@ -126,8 +132,13 @@ Todos documentados em `docs/AUDITORIA-NOITE-27-05.md`.
 2. `b65e5b9` feat(propostas): #12 upsell pacote mensal antes do aceite
 3. `17176a8` feat(dani): página dedicada /dani — landing pública da IA
 4. `4f75201` chore: TS cleanup pre-existente + SEO básico + COM-01 stats hero
+5. `64862c8` fix: SEC-04 filename PDF random + COM-03 ROI sem mea-culpa
+6. `6a80bb8` fix(auditoria): COM-10 urgência ancorada + COM-08 dani.ai sem triplicação
+7. `be30418` perf(landing): DSG-10 lazy load nas imagens abaixo do fold
 
-(Plus os 2 anteriores da sessão de hoje à tarde que você já validou.)
+7 commits totais. ~1500 linhas mexidas.
+
+(Plus os 4 anteriores da sessão de hoje à tarde que você já validou.)
 
 ---
 
