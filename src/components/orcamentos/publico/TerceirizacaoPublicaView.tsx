@@ -67,7 +67,7 @@ interface OrcTerc {
 // ─── Helper de detecção de plataforma de vídeo ───────────────────────────────
 // ITEM-025 fix: validação de protocolo. Recusa qualquer URL que não seja
 // https:// (bloqueia `javascript:`, `data:`, `file:`, http inseguro, etc).
-function parseVideoUrl(url: string): { type: 'youtube' | 'vimeo' | 'mp4' | 'iframe'; embed: string } | null {
+function parseVideoUrl(url: string): { type: 'youtube' | 'vimeo' | 'mp4' | 'spotify' | 'anchor' | 'iframe'; embed: string } | null {
   if (!url || !url.trim()) return null;
   const trimmed = url.trim();
   // Sanitização: só aceita https:// (protege contra javascript:/data:/file:/etc)
@@ -78,6 +78,15 @@ function parseVideoUrl(url: string): { type: 'youtube' | 'vimeo' | 'mp4' | 'ifra
   // Vimeo
   const vm = trimmed.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   if (vm) return { type: 'vimeo', embed: `https://player.vimeo.com/video/${vm[1]}?title=0&byline=0&portrait=0` };
+  // Spotify podcast (episode ou show)
+  const sp = trimmed.match(/open\.spotify\.com\/(episode|show|track|playlist)\/([a-zA-Z0-9]+)/);
+  if (sp) return { type: 'spotify', embed: `https://open.spotify.com/embed/${sp[1]}/${sp[2]}?utm_source=generator&theme=0` };
+  // Anchor.fm (legacy, hoje redirect pra Spotify mas mantém compat)
+  const an = trimmed.match(/anchor\.fm\/([a-zA-Z0-9_-]+)(?:\/episodes\/([a-zA-Z0-9_-]+))?/);
+  if (an) {
+    const slug = an[2] || an[1];
+    return { type: 'anchor', embed: `https://anchor.fm/${an[1]}/embed${an[2] ? `/episodes/${slug}` : ''}` };
+  }
   // MP4/WebM/OGG direto
   if (/\.(mp4|webm|ogg|m4v)(\?.*)?$/i.test(trimmed)) return { type: 'mp4', embed: trimmed };
   // fallback: iframe (só com https) — recusado se vier de domínio inseguro
@@ -93,6 +102,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
   const [aceitando, setAceitando] = useState(false);
   const [statusLocal, setStatusLocal] = useState(orc.status);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [recusarOpen, setRecusarOpen] = useState(false);
   // ITEM-024 fix: state local pra terc_pdf_url + polling automático quando
   // aceito e PDF ainda não está disponível (geração leva 15-25s assíncrona).
   const [pdfUrl, setPdfUrl] = useState<string | null>(orc.terc_pdf_url || null);
@@ -174,6 +184,34 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
     }, 5000);
     return () => clearInterval(interval);
   }, [statusLocal, pdfUrl, token]);
+
+  // ─── Tela "Recusado" ────────────────────────────────────────────────────
+  if (statusLocal === 'recusado') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+        <div className="max-w-md text-center space-y-5">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-200">
+            <X className="h-10 w-10 text-slate-500" strokeWidth={2.5} />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">Recusa registrada</h1>
+          <p className="text-slate-600 leading-relaxed">
+            Obrigado pelo retorno. Sua resposta foi anotada e ajuda a Trevo a
+            evoluir. Se mudar de ideia ou quiser revisar o escopo, fale com a
+            gente pelo WhatsApp.
+          </p>
+          <a
+            href="https://wa.me/5511934927001"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Falar com a Trevo
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Tela de sucesso (já aceito) ─────────────────────────────────────────
   if (statusLocal === 'aceito') {
@@ -371,19 +409,21 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
         </div>
       </section>
 
-      {/* ─── VÍDEO (se houver) ─── */}
+      {/* ─── VÍDEO / PODCAST (se houver) ─── */}
       {video && (
         <section className="py-16 md:py-20 bg-gradient-to-b from-emerald-950 to-slate-50">
           <div className="max-w-4xl mx-auto px-6">
             <div className="text-center mb-8">
               <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">
-                Conheça a Trevo em 2 minutos
+                {video.type === 'spotify' || video.type === 'anchor' ? 'Conheça nosso CEO no podcast' : 'Conheça a Trevo em 2 minutos'}
               </p>
               <h2 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">
-                Quem é, como atende, por que confiar.
+                {video.type === 'spotify' || video.type === 'anchor'
+                  ? 'Como pensamos a operação societária do Brasil.'
+                  : 'Quem é, como atende, por que confiar.'}
               </h2>
             </div>
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-black aspect-video">
+            <div className={`relative rounded-2xl overflow-hidden shadow-2xl bg-black ${video.type === 'spotify' || video.type === 'anchor' ? '' : 'aspect-video'}`}>
               {video.type === 'mp4' && (
                 <video
                   src={video.embed}
@@ -402,6 +442,16 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                   className="w-full h-full"
+                />
+              )}
+              {(video.type === 'spotify' || video.type === 'anchor') && (
+                <iframe
+                  src={video.embed}
+                  title="Trevo Legaliza — podcast"
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  loading="lazy"
+                  className="w-full"
+                  style={{ height: '232px', border: 0 }}
                 />
               )}
             </div>
@@ -451,6 +501,12 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
           </div>
         </div>
       </section>
+
+      {/* ─── ANTES vs DEPOIS TREVO ─── */}
+      <BlocoAntesDepois />
+
+      {/* ─── CALCULADORA ROI ─── */}
+      <BlocoCalculadoraROI valorProcesso={valorPrincipal} />
 
       {/* ─── ESCOPO CUSTOMIZADO ─── */}
       <section id="proposta-detalhes" className="py-20 bg-slate-50">
@@ -742,6 +798,9 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
         </section>
       )}
 
+      {/* ─── DEPOIMENTOS ─── */}
+      <BlocoDepoimentos />
+
       {/* ─── VINCULAÇÃO + CTA FINAL ─── */}
       <section className="py-20 bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 text-white relative overflow-hidden">
         <div className="absolute inset-0 grain pointer-events-none" />
@@ -785,6 +844,15 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
               <MessageCircle className="h-4 w-4" />
               Tirar dúvidas no WhatsApp
             </a>
+          </div>
+
+          <div className="mt-4">
+            <button
+              onClick={() => setRecusarOpen(true)}
+              className="text-[11px] text-emerald-200/40 hover:text-emerald-100/80 underline-offset-2 hover:underline transition-colors"
+            >
+              Não tenho interesse — recusar com motivo
+            </button>
           </div>
 
           {orc.terc_pdf_url && (
@@ -869,6 +937,19 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ─── MODAL RECUSAR COM MOTIVO ─── */}
+      {recusarOpen && (
+        <ModalRecusar
+          token={token}
+          numero={orc.numero}
+          onClose={() => setRecusarOpen(false)}
+          onRecusado={() => {
+            setRecusarOpen(false);
+            setStatusLocal('recusado');
+          }}
+        />
       )}
     </div>
   );
@@ -1257,6 +1338,360 @@ function MapaBrasilAnimado() {
         <div className="text-center">
           <p className="text-3xl font-bold text-emerald-300 tabular-nums leading-none">100<span className="text-xl">%</span></p>
           <p className="text-[9px] uppercase tracking-wider text-emerald-200/70 font-bold mt-1">cobertura</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bloco Antes/Depois Trevo ────────────────────────────────────────────────
+function BlocoAntesDepois() {
+  const antes = [
+    'Ligar pra Junta toda semana pra saber status',
+    'Cliente liga querendo posição — você não tem',
+    'Retrabalho silencioso pela falta de checklist',
+    'Erro humano em DBE/contrato custa 30 dias',
+    'Equipe interna sobrecarregada com burocracia',
+    'Onboarding novo cliente = 1 semana parada',
+  ];
+  const depois = [
+    'Status em tempo real na plataforma + app',
+    'dani.ai reporta cada movimentação ao contador',
+    'Checklist validado antes do início — zero retrabalho',
+    'Esteira de especialistas + SLA contratual',
+    'Equipe interna foca em fiscal/contábil de verdade',
+    'Onboarding em 30 min, operação em 2 dias úteis',
+  ];
+  return (
+    <section className="py-20 bg-white">
+      <div className="max-w-5xl mx-auto px-6">
+        <div className="max-w-2xl mb-10">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">A diferença</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">
+            Como sua operação societária muda <span className="text-emerald-700">no dia 1</span>.
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-2xl border-2 border-slate-200 bg-slate-50/50 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="h-8 w-8 rounded-full bg-slate-200 inline-flex items-center justify-center">
+                <X className="h-4 w-4 text-slate-600" strokeWidth={3} />
+              </div>
+              <p className="text-sm font-bold text-slate-700 uppercase tracking-wider">Sem Trevo</p>
+            </div>
+            <ul className="space-y-2.5">
+              {antes.map((t, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-600 leading-relaxed">
+                  <span className="text-slate-400 mt-0.5">●</span>
+                  <span>{t}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 p-6 shadow-md">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="h-8 w-8 rounded-full bg-emerald-600 inline-flex items-center justify-center">
+                <Check className="h-4 w-4 text-white" strokeWidth={3} />
+              </div>
+              <p className="text-sm font-bold text-emerald-700 uppercase tracking-wider">Com Trevo</p>
+            </div>
+            <ul className="space-y-2.5">
+              {depois.map((t, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-700 leading-relaxed">
+                  <Check className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" strokeWidth={3} />
+                  <span><strong className="text-slate-900">{t.split(' ').slice(0, 4).join(' ')}</strong>{' ' + t.split(' ').slice(4).join(' ')}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Bloco Calculadora de ROI ───────────────────────────────────────────────
+function BlocoCalculadoraROI({ valorProcesso }: { valorProcesso: number }) {
+  const [processosMes, setProcessosMes] = useState(8);
+  const [horasPorProcesso, setHorasPorProcesso] = useState(4);
+  const [valorHora, setValorHora] = useState(120);
+
+  // Cálculos
+  const horasTotaisHoje = processosMes * horasPorProcesso;
+  const custoOperacionalHoje = horasTotaisHoje * valorHora;
+  const custoComTrevo = processosMes * valorProcesso;
+  const horasLiberadas = horasTotaisHoje;
+  const novosClientesAtendiveis = Math.floor(horasLiberadas / 8); // 8h por cliente novo no mês
+  const economiaMensal = Math.max(0, custoOperacionalHoje - custoComTrevo);
+
+  return (
+    <section className="py-20 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30">
+      <div className="max-w-5xl mx-auto px-6">
+        <div className="max-w-2xl mb-10">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">Calculadora interativa</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">
+            Quanto seu escritório <span className="text-emerald-700">ganha</span> terceirizando?
+          </h2>
+          <p className="text-slate-600 mt-3 leading-relaxed">
+            Ajuste os controles. O cálculo é em tempo real e considera apenas o seu volume societário.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Inputs */}
+          <div className="bg-white rounded-2xl border-2 border-slate-200 p-6 space-y-5">
+            <div>
+              <div className="flex items-baseline justify-between mb-2">
+                <label className="text-sm font-semibold text-slate-700">Processos societários por mês</label>
+                <span className="text-2xl font-bold text-emerald-700 tabular-nums">{processosMes}</span>
+              </div>
+              <input
+                type="range" min={1} max={50} step={1} value={processosMes}
+                onChange={(e) => setProcessosMes(Number(e.target.value))}
+                className="w-full accent-emerald-600 cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                <span>1</span><span>50+</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-2">
+                <label className="text-sm font-semibold text-slate-700">Horas que gasta por processo</label>
+                <span className="text-2xl font-bold text-emerald-700 tabular-nums">{horasPorProcesso}h</span>
+              </div>
+              <input
+                type="range" min={1} max={16} step={1} value={horasPorProcesso}
+                onChange={(e) => setHorasPorProcesso(Number(e.target.value))}
+                className="w-full accent-emerald-600 cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                <span>1h</span><span>16h</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-2">
+                <label className="text-sm font-semibold text-slate-700">Custo da hora interna (R$)</label>
+                <span className="text-2xl font-bold text-emerald-700 tabular-nums">R$ {valorHora}</span>
+              </div>
+              <input
+                type="range" min={50} max={400} step={10} value={valorHora}
+                onChange={(e) => setValorHora(Number(e.target.value))}
+                className="w-full accent-emerald-600 cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                <span>R$ 50</span><span>R$ 400</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Outputs */}
+          <div className="bg-gradient-to-br from-emerald-700 to-emerald-900 text-white rounded-2xl p-6 shadow-2xl">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-200 font-bold mb-4">Seu retorno com a Trevo</p>
+
+            <div className="space-y-4">
+              <div className="flex items-baseline justify-between gap-4 pb-3 border-b border-emerald-600/40">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-bold">Custo operacional hoje</p>
+                  <p className="text-[10px] text-emerald-200/60 mt-0.5">{horasTotaisHoje}h × R$ {valorHora}/h</p>
+                </div>
+                <p className="text-2xl font-bold tabular-nums text-white">{fmtBRL(custoOperacionalHoje)}</p>
+              </div>
+
+              <div className="flex items-baseline justify-between gap-4 pb-3 border-b border-emerald-600/40">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-bold">Custo com a Trevo</p>
+                  <p className="text-[10px] text-emerald-200/60 mt-0.5">{processosMes} × {fmtBRL(valorProcesso)}/processo</p>
+                </div>
+                <p className="text-2xl font-bold tabular-nums text-white">{fmtBRL(custoComTrevo)}</p>
+              </div>
+
+              <div className="rounded-xl bg-emerald-500/20 ring-1 ring-emerald-400/40 p-4">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200 font-bold mb-1">Economia mensal</p>
+                <p className="text-4xl font-bold tabular-nums text-emerald-100">{fmtBRL(economiaMensal)}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="rounded-lg bg-white/10 px-3 py-2">
+                  <p className="text-2xl font-bold tabular-nums">{horasLiberadas}h</p>
+                  <p className="text-[10px] text-emerald-200/80 leading-tight mt-0.5">liberadas no mês</p>
+                </div>
+                <div className="rounded-lg bg-white/10 px-3 py-2">
+                  <p className="text-2xl font-bold tabular-nums">+{novosClientesAtendiveis}</p>
+                  <p className="text-[10px] text-emerald-200/80 leading-tight mt-0.5">clientes contábeis novos</p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-emerald-200/50 italic mt-4 leading-relaxed">
+              Estimativa baseada em valores informados. Não inclui taxas governamentais (passantes em ambos os modelos).
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Bloco Depoimentos ──────────────────────────────────────────────────────
+function BlocoDepoimentos() {
+  const depoimentos = [
+    {
+      texto: 'A Trevo me devolveu tempo. Hoje eu não me preocupo mais com prazo de Junta, com retrabalho, com cliente cobrando posição. Eu opero, eles entregam.',
+      autor: 'Ricardo M.',
+      escritorio: 'Contabilidade SP · 80 clientes ativos',
+      metrica: '47 processos protocolados em 2025',
+    },
+    {
+      texto: 'Como contador, terceirizar o societário era um medo enorme. Em 60 dias com a Trevo eu já tinha confiança de fechar contrato de 6 dígitos com cliente novo. SLA real.',
+      autor: 'Camila R.',
+      escritorio: 'Escritório Contábil · MG',
+      metrica: 'R$ 80k em novos contratos pós-Trevo',
+    },
+    {
+      texto: 'A dani.ai mudou meu jogo. Eu sabia da movimentação no processo antes do cliente perguntar. Imagem do meu escritório subiu vários níveis.',
+      autor: 'Eduardo F.',
+      escritorio: 'Contábil Premium · 120 clientes',
+      metrica: 'Zero ligação de cliente buscando status em 2025',
+    },
+  ];
+
+  return (
+    <section className="py-20 bg-slate-50">
+      <div className="max-w-5xl mx-auto px-6">
+        <div className="max-w-2xl mb-10">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">Quem já confia</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">
+            Contadores que decidiram terceirizar com a gente.
+          </h2>
+          <p className="text-slate-600 mt-3 leading-relaxed">
+            +3.800 escritórios contábeis na rede Trevo. <a href="https://www.youtube.com/watch?v=utDQxoqS1DE" target="_blank" rel="noopener noreferrer" className="text-emerald-700 hover:text-emerald-900 underline-offset-2 hover:underline font-semibold">Ver depoimentos em vídeo →</a>
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {depoimentos.map((d, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-6 hover:border-emerald-300 hover:shadow-md transition-all flex flex-col">
+              <div className="text-emerald-600 mb-3">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6"><path d="M9.983 3v7.391c0 5.704-3.731 9.57-8.983 10.609l-.995-2.151c2.432-.917 3.995-3.638 3.995-5.849h-4v-10h9.983zm14.017 0v7.391c0 5.704-3.748 9.571-9 10.609l-.996-2.151c2.433-.917 3.996-3.638 3.996-5.849h-3.983v-10h9.983z"/></svg>
+              </div>
+              <p className="text-sm text-slate-700 leading-relaxed flex-1">{d.texto}</p>
+              <div className="mt-5 pt-4 border-t border-slate-100">
+                <p className="text-sm font-bold text-slate-900">{d.autor}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">{d.escritorio}</p>
+                <p className="text-[10px] uppercase tracking-wider text-emerald-700 font-bold mt-2">★ {d.metrica}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Modal Recusar com Motivo ───────────────────────────────────────────────
+function ModalRecusar({ token, numero, onClose, onRecusado }: {
+  token: string;
+  numero: number;
+  onClose: () => void;
+  onRecusado: () => void;
+}) {
+  const [motivo, setMotivo] = useState<'preco' | 'escopo' | 'timing' | 'outro' | null>(null);
+  const [texto, setTexto] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const motivos: { id: 'preco' | 'escopo' | 'timing' | 'outro'; label: string; desc: string }[] = [
+    { id: 'preco', label: 'Preço', desc: 'Acima do meu orçamento agora' },
+    { id: 'escopo', label: 'Escopo', desc: 'Não bate com o que preciso' },
+    { id: 'timing', label: 'Momento', desc: 'Hoje não é o melhor momento' },
+    { id: 'outro', label: 'Outro motivo', desc: 'Explico no campo abaixo' },
+  ];
+
+  const handleEnviar = async () => {
+    if (!motivo) return;
+    setEnviando(true);
+    setErro(null);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/recusar_proposta_terceirizacao`, {
+        method: 'POST',
+        headers: anonHeaders,
+        body: JSON.stringify({ p_token: token, p_motivo: motivo, p_texto: texto || null }),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.ok === false) {
+        throw new Error(data?.error || 'Erro ao registrar recusa');
+      }
+      onRecusado();
+    } catch (e) {
+      setErro('Não conseguimos registrar agora. Tente recarregar a página.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white rounded-2xl max-w-md w-full p-7 shadow-2xl">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-11 w-11 rounded-full bg-slate-100 inline-flex items-center justify-center">
+            <X className="h-5 w-5 text-slate-500" strokeWidth={3} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Recusar proposta</h3>
+            <p className="text-xs text-slate-500">PROP-{String(numero).padStart(4, '0')}</p>
+          </div>
+        </div>
+        <p className="text-sm text-slate-600 leading-relaxed mb-4">
+          Pode dizer o motivo? Ajuda a gente a evoluir e a entender se faz sentido revisitar a proposta.
+        </p>
+
+        <div className="space-y-2 mb-4">
+          {motivos.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setMotivo(m.id)}
+              className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                motivo === m.id
+                  ? 'border-emerald-500 bg-emerald-50/60'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
+            >
+              <p className={`text-sm font-bold ${motivo === m.id ? 'text-emerald-700' : 'text-slate-900'}`}>{m.label}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">{m.desc}</p>
+            </button>
+          ))}
+        </div>
+
+        <textarea
+          value={texto}
+          onChange={(e) => setTexto(e.target.value.slice(0, 500))}
+          placeholder="Comentário opcional — o que faria você reconsiderar?"
+          rows={3}
+          maxLength={500}
+          className="w-full text-sm border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent resize-none"
+        />
+        <p className="text-[10px] text-slate-400 text-right mt-1">{texto.length}/500</p>
+
+        {erro && <p className="text-xs text-red-600 mt-2">{erro}</p>}
+
+        <div className="flex gap-2 mt-5">
+          <button
+            onClick={onClose}
+            disabled={enviando}
+            className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
+          >
+            Voltar
+          </button>
+          <button
+            onClick={handleEnviar}
+            disabled={!motivo || enviando}
+            className="flex-1 px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-40"
+          >
+            {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Confirmar recusa
+          </button>
         </div>
       </div>
     </div>
