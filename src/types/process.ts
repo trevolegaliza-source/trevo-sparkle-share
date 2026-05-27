@@ -67,6 +67,43 @@ export interface Process {
   value?: number;
 }
 
+// ─── PROC-009 fix (26/05): fonte ÚNICA de ProcessoDB ─────────────────────
+// Antes existia em src/hooks/useProcessos.ts E em src/types/financial.ts com
+// schemas diferentes e nenhum tinha created_by/updated_by que o banco tem
+// desde 18/05. Re-exportada nos outros 2 lugares pra retro-compat.
+//
+// `etapa` é string (não KanbanStage) pra tolerar valores legados do banco
+// ('registro', 'finalizados', etc) pré-DECISION-001 Fase 3.
+export interface ProcessoDB {
+  id: string;
+  cliente_id: string;
+  razao_social: string;
+  tipo: ProcessType;
+  etapa: string; // canônico: 'ativo' | 'finalizado'. Tolerante a legados.
+  prioridade: string;
+  responsavel: string | null;
+  valor: number | null;
+  notas: string | null;
+  created_at: string;
+  updated_at: string;
+  // Campos opcionais (banco tem mas nem todo SELECT traz):
+  data_deferimento?: string | null;
+  dentro_do_plano?: boolean | null;
+  valor_avulso?: number | null;
+  justificativa_avulso?: string | null;
+  link_drive?: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
+  cliente?: {
+    id: string;
+    nome: string;
+    codigo_identificador: string;
+    tipo: string;
+    nome_contador: string | null;
+    apelido: string | null;
+  };
+}
+
 export interface Client {
   id: string;
   name: string;

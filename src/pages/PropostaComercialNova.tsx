@@ -282,7 +282,9 @@ export default function PropostaComercialNova() {
         terc_naturezas: state.naturezas as any,
         terc_inclusos: state.inclusos as any,
         terc_valor_base: calc.valorBase,
-        terc_valor_pro: calc.valorPro,
+        // ITEM-022 fix: terc_valor_pro só faz sentido na modalidade pro_5.
+        // Antes era sempre gravado mesmo em avulso/custom/preco_por_tipo (pollution).
+        terc_valor_pro: state.modalidade === 'pro_5' ? calc.valorPro : null,
         terc_valor_enterprise: 0,
         terc_valor_final_override: state.valor_final_override,
         terc_volume_custom: state.volume_custom,
@@ -417,39 +419,45 @@ export default function PropostaComercialNova() {
               <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                 <Building2 className="h-4 w-4" /> DADOS DO CLIENTE (CONTRATANTE)
               </div>
+              {/* ITEM-015 fix: htmlFor + id em todos os campos (a11y) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1.5 md:col-span-2">
-                  <Label>Razão social *</Label>
+                  <Label htmlFor="prospect-nome">Razão social *</Label>
                   <Input
+                    id="prospect-nome"
                     value={state.prospect_nome}
                     onChange={(e) => setState({ ...state, prospect_nome: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>CNPJ</Label>
+                  <Label htmlFor="prospect-cnpj">CNPJ</Label>
                   <Input
+                    id="prospect-cnpj"
                     value={state.prospect_cnpj}
                     onChange={(e) => setState({ ...state, prospect_cnpj: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Representante legal</Label>
+                  <Label htmlFor="prospect-contato">Representante legal</Label>
                   <Input
+                    id="prospect-contato"
                     value={state.prospect_contato}
                     onChange={(e) => setState({ ...state, prospect_contato: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Email</Label>
+                  <Label htmlFor="prospect-email">Email</Label>
                   <Input
+                    id="prospect-email"
                     type="email"
                     value={state.prospect_email}
                     onChange={(e) => setState({ ...state, prospect_email: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Telefone</Label>
+                  <Label htmlFor="prospect-telefone">Telefone</Label>
                   <Input
+                    id="prospect-telefone"
                     value={state.prospect_telefone}
                     onChange={(e) => setState({ ...state, prospect_telefone: e.target.value })}
                   />
@@ -600,13 +608,23 @@ export default function PropostaComercialNova() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Validade da proposta (dias)</Label>
+                  <Label htmlFor="validade-dias">Validade da proposta (dias)</Label>
                   <Input
+                    id="validade-dias"
                     type="number"
                     min={1}
                     max={90}
                     value={state.validade_dias}
-                    onChange={(e) => setState({ ...state, validade_dias: Math.max(1, Number(e.target.value) || 15) })}
+                    onChange={(e) => {
+                      // ITEM-011 fix: trata vazio, negativos e overflow consistentemente.
+                      // Antes: Number("0")=0 → fallback 15; Number("-5")=-5 → Math.max(1, -5)=1.
+                      // Inconsistente. Agora: vazio/inválido → 15; clamp em [1, 90].
+                      const raw = e.target.value;
+                      if (!raw) { setState({ ...state, validade_dias: 15 }); return; }
+                      const n = Number(raw);
+                      if (!Number.isFinite(n)) { setState({ ...state, validade_dias: 15 }); return; }
+                      setState({ ...state, validade_dias: Math.min(90, Math.max(1, Math.floor(n))) });
+                    }}
                   />
                 </div>
               </div>

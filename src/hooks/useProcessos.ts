@@ -1,29 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { KanbanStage, ProcessType } from '@/types/process';
+// PROC-009 fix (26/05): re-export do tipo canonical em types/process.ts
+// pra eliminar duplicação. Importadores antigos `import { ProcessoDB } from '@/hooks/useProcessos'` continuam funcionando.
+export type { ProcessoDB } from '@/types/process';
+import type { ProcessoDB } from '@/types/process';
 import { toast } from 'sonner';
-
-export interface ProcessoDB {
-  id: string;
-  cliente_id: string;
-  razao_social: string;
-  tipo: ProcessType;
-  etapa: KanbanStage;
-  prioridade: string;
-  responsavel: string | null;
-  valor: number | null;
-  notas: string | null;
-  created_at: string;
-  updated_at: string;
-  cliente?: {
-    id: string;
-    nome: string;
-    codigo_identificador: string;
-    tipo: string;
-    nome_contador: string | null;
-    apelido: string | null;
-  };
-}
 
 export function useProcessosDB() {
   return useQuery({

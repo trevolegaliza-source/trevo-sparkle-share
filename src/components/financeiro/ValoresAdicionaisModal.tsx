@@ -150,6 +150,17 @@ export default function ValoresAdicionaisModal({
 
   const handleSaveEdit = (id: string) => {
     const valor = parseFloat(editValor.replace(',', '.')) || 0;
+    // FIN-014 fix (26/05): valida valor antes do UPDATE. Antes operador podia
+    // setar -500 e o total da cobrança caía R$ 500 silenciosamente. handleAdd
+    // já valida (linha 120) mas handleSaveEdit não — agora ambos consistentes.
+    if (!editDesc.trim()) {
+      toast.error('Descrição é obrigatória');
+      return;
+    }
+    if (valor <= 0) {
+      toast.error('Valor deve ser maior que zero');
+      return;
+    }
     updateMut.mutate({
       id, processo_id: processoId,
       updates: { descricao: editDesc.trim(), valor },

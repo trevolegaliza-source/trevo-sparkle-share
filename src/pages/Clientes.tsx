@@ -22,7 +22,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { STORAGE_BUCKETS } from '@/constants/storage';
-import { empresaPath } from '@/lib/storage-path';
+import { empresaPath, getEmpresaId } from '@/lib/storage-path';
 import ContractDropzone from '@/components/contratos/ContractDropzone';
 import ContractPreviewModal from '@/components/contratos/ContractPreviewModal';
 import { formatCNPJ, maskCNPJ, isValidCNPJ, maskCodigo } from '@/lib/cnpj';
@@ -56,12 +56,18 @@ export default function Clientes() {
   const unarchiveCliente = useUnarchiveCliente();
 
   // Audit pending counts per client
+  // CLI-003 fix (26/05): adicionado filtro explícito de empresa_id como
+  // defense-in-depth. RLS já protege, mas auditoria recomendou nunca confiar
+  // só em RLS pra query — se a policy for relaxada algum dia (ou um SECURITY
+  // INVOKER mudar), o filtro explícito mantém isolation entre tenants.
   const { data: auditPendentes } = useQuery({
     queryKey: ['audit_pendentes_clientes'],
     queryFn: async () => {
+      const empresa_id = await getEmpresaId();
       const { data } = await supabase
         .from('lancamentos')
         .select('cliente_id')
+        .eq('empresa_id', empresa_id) // <-- CLI-003 fix
         .eq('auditado', false)
         .eq('status', 'pendente')
         .eq('tipo', 'receber') as any;

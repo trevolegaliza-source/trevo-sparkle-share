@@ -34,7 +34,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { useUpdateCliente, useCreateProcesso, useDeleteCliente, useArchiveCliente, useUnarchiveCliente, calcularDescontoProgressivo } from '@/hooks/useFinanceiro';
+// CLI-005 fix: useDeleteCliente removido (botão duplicado eliminado)
+import { useUpdateCliente, useCreateProcesso, useArchiveCliente, useUnarchiveCliente, calcularDescontoProgressivo } from '@/hooks/useFinanceiro';
 import { getEtapaSimplificada, isProcessoFinalizado } from '@/types/process';
 import { STATUS_LABELS, STATUS_STYLES, TIPO_PROCESSO_LABELS } from '@/types/financial';
 import type { ClienteDB, ProcessoDB, Lancamento, StatusFinanceiro, TipoProcesso } from '@/types/financial';
@@ -101,13 +102,13 @@ export default function ClienteDetalhe() {
   const createProcesso = useCreateProcesso();
   const { data: negotiations } = useServiceNegotiations(id);
   const { data: colaboradores } = useColaboradores();
-  const deleteCliente = useDeleteCliente();
+  // CLI-005 fix: deleteCliente removido
   const archiveCliente = useArchiveCliente();
   const unarchiveCliente = useUnarchiveCliente();
 
   // Action dialogs
   const [showArchivePassword, setShowArchivePassword] = useState(false);
-  const [showDeleteClientePassword, setShowDeleteClientePassword] = useState(false);
+  // CLI-005 fix: showDeleteClientePassword state removido
   const [showRelatorioDialog, setShowRelatorioDialog] = useState(false);
   const [showCobrancaDialog, setShowCobrancaDialog] = useState(false);
   const [selectedRelatorioProcessos, setSelectedRelatorioProcessos] = useState<Set<string>>(new Set());
@@ -763,10 +764,10 @@ export default function ClienteDetalhe() {
               <Archive className="h-3.5 w-3.5" /> Arquivar
             </Button>
           )}
-          {/* audit fix #5 — botão "Excluir" hoje arquiva (preserva histórico financeiro) */}
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs text-destructive" onClick={() => setShowDeleteClientePassword(true)}>
-            <Trash2 className="h-3.5 w-3.5" /> Arquivar
-          </Button>
+          {/* CLI-005 fix (26/05): removido botão duplicado "Arquivar" com ícone
+              Trash2+texto vermelho. Era armadilha visual — usuário achava que
+              deletava, mas internamente o useDeleteCliente também só arquiva
+              (audit fix #5). O botão Archive acima já cobre a ação. */}
         </div>
       </div>
 
@@ -1061,8 +1062,13 @@ export default function ClienteDetalhe() {
                         .single();
 
                       if (clienteCheck?.momento_faturamento === 'no_deferimento') {
-                        const DEFER_STAGES = ['registro', 'finalizados'];
-                        const naoDeferidos = selectedProcs.filter(p => !DEFER_STAGES.includes(p.etapa));
+                        // PROC-001 fix (26/05): pós DECISION-001 Fase 3, deferimento é
+                        // identificado por data_deferimento (não mais por etapa específica
+                        // — banco migrou pra binário ativo/finalizado). DEFER_STAGES virou
+                        // dead enum — usava ['registro', 'finalizados'] (plural) que NÃO
+                        // existem mais. Resultado: alerta disparava sempre, abortando
+                        // todo extrato pra cliente no_deferimento.
+                        const naoDeferidos = selectedProcs.filter((p: any) => !p.data_deferimento);
 
                         if (naoDeferidos.length > 0) {
                           setDeferimentoAlertData({
@@ -1327,8 +1333,13 @@ export default function ClienteDetalhe() {
                   <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-amber-600">Sem fatura neste mês</p>
+                      {/* CLI-001 fix (26/05): em mensalistas, MENSALIDADE é o valor cobrado
+                          por mês. valor_base é o preço do processo EXCEDENTE (após estourar
+                          franquia). Antes mostrava valor_base aqui (e usava no INSERT abaixo)
+                          — cliente com mensalidade R$ 1.500 e valor_base R$ 300 tinha fatura
+                          gerada por R$ 300/mês. */}
                       <p className="text-xs text-muted-foreground">
-                        {Number((cliente as any).valor_base || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês · Vencimento dia {(cliente as any).dia_vencimento_mensal || 10}
+                        {Number((cliente as any).mensalidade || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês · Vencimento dia {(cliente as any).dia_vencimento_mensal || 10}
                       </p>
                     </div>
                     <Button
@@ -1368,11 +1379,12 @@ export default function ClienteDetalhe() {
                             return;
                           }
 
+                          // CLI-001 fix (26/05): MENSALIDADE (não valor_base — esse é p/ excedente)
                           const { error } = await supabase.from('lancamentos').insert({
                             tipo: 'receber' as const,
                             cliente_id: cliente.id,
                             descricao: `Fatura mensal — ${mesLabel}`,
-                            valor: Number((cliente as any).valor_base || 0),
+                            valor: Number((cliente as any).mensalidade || 0),
                             data_vencimento: vencimento.toISOString().split('T')[0],
                             status: 'pendente' as const,
                             etapa_financeiro: 'solicitacao_criada',
@@ -2198,17 +2210,8 @@ export default function ClienteDetalhe() {
         }}
       />
 
-      {/* Arquivar Cliente Password Dialog (audit fix #5: era DELETE bruto) */}
-      <PasswordConfirmDialog
-        open={showDeleteClientePassword}
-        onOpenChange={setShowDeleteClientePassword}
-        title="Arquivar Cliente"
-        description={`Arquivar "${cliente.nome}" e seus ${processos.length} processo(s)? O histórico financeiro (cobranças e lançamentos) será PRESERVADO. Você pode desarquivar a qualquer momento.`}
-        onConfirm={() => {
-          if (!cliente) return;
-          deleteCliente.mutate(cliente.id, { onSuccess: () => navigate('/clientes') });
-        }}
-      />
+      {/* CLI-005 fix (26/05): dialog removido junto com o botão duplicado.
+          Arquivamento agora é só via o botão Archive (showArchivePassword). */}
 
       {/* Gerar Relatório Dialog */}
       <Dialog open={showRelatorioDialog} onOpenChange={setShowRelatorioDialog}>

@@ -7,24 +7,9 @@ export type TipoLancamento = 'receber' | 'pagar';
 
 export interface ClienteDB extends SupabaseCliente {}
 
-export interface ProcessoDB {
-  id: string;
-  cliente_id: string;
-  razao_social: string;
-  tipo: TipoProcesso;
-  etapa: string;
-  prioridade: string;
-  responsavel: string | null;
-  valor: number | null;
-  notas: string | null;
-  created_at: string;
-  updated_at: string;
-  cliente?: ClienteDB;
-  dentro_do_plano?: boolean | null;
-  valor_avulso?: number | null;
-  justificativa_avulso?: string | null;
-  link_drive?: string | null;
-}
+// PROC-009 fix (26/05): tipo canonical movido pra `src/types/process.ts`.
+// Aqui só re-exportamos pra retro-compat de imports antigos.
+export type { ProcessoDB } from '@/types/process';
 
 export type EtapaFinanceiro =
   | 'aguardando_deferimento' // 0. Cliente no_deferimento — só pode cobrar após processo deferido

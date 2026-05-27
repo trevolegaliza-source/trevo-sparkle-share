@@ -37,13 +37,19 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, asaas-access-token",
+    "authorization, x-client-info, apikey, content-type, asaas-access-token, asaas-signature",
   "Access-Control-Allow-Methods": "POST, OPTIONS, HEAD, GET",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const WEBHOOK_TOKEN = Deno.env.get("ASAAS_WEBHOOK_TOKEN") ?? "";
+// FIN-010 fix (26/05): HMAC-SHA256 signature opcional. Quando configurado
+// + Asaas enviando o header `asaas-signature`, valida assinatura do body.
+// Mantém compatibilidade: se o secret não tá configurado, segue só com
+// access-token (deploy gradual: 1) deploy do código → 2) Thales configura
+// o secret no Asaas painel + Supabase → 3) HMAC passa a validar).
+const WEBHOOK_HMAC_SECRET = Deno.env.get("ASAAS_WEBHOOK_HMAC_SECRET") ?? "";
 
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -64,6 +70,32 @@ class BusinessRuleError extends Error {
     super(message);
     this.name = "BusinessRuleError";
   }
+}
+
+// FIN-010 fix (26/05): valida HMAC-SHA256 do body usando o secret configurado
+// no Asaas (painel → Configurações → Webhooks → "Token de assinatura").
+// Retorna `null` se o secret não tá configurado (modo compat, antes do deploy
+// gradual do HMAC). Retorna true/false se configurado + header presente.
+async function validarHmacAsaas(rawBody: string, signature: string | null): Promise<boolean | null> {
+  if (!WEBHOOK_HMAC_SECRET) return null; // não configurado — pula HMAC
+  if (!signature || signature.trim().length === 0) {
+    // Secret configurado MAS Asaas não mandou header → bloqueia
+    return false;
+  }
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(WEBHOOK_HMAC_SECRET),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sigBytes = await crypto.subtle.sign("HMAC", key, enc.encode(rawBody));
+  const sigHex = Array.from(new Uint8Array(sigBytes))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  // Comparação timing-safe entre hex calculado e header recebido (lowercase)
+  return timingSafeEqual(sigHex, signature.trim().toLowerCase());
 }
 
 // Comparação de strings resistente a timing attacks.
@@ -541,7 +573,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Validação de origem — comparação timing-safe
+  // Validação de origem — comparação timing-safe do access-token (camada 1)
   const headerToken = req.headers.get("asaas-access-token") ?? "";
   if (!timingSafeEqual(headerToken, WEBHOOK_TOKEN)) {
     console.warn("[asaas-webhook] invalid access-token header");
@@ -551,9 +583,24 @@ Deno.serve(async (req) => {
     });
   }
 
+  // FIN-010 fix (26/05): camada 2 de segurança — HMAC-SHA256 do body.
+  // Precisamos ler o body como TEXT antes do JSON.parse pra calcular o HMAC
+  // sobre o conteúdo exato que o Asaas assinou.
+  const rawBody = await req.text();
+  const hmacResult = await validarHmacAsaas(rawBody, req.headers.get("asaas-signature"));
+  if (hmacResult === false) {
+    console.warn("[asaas-webhook] HMAC signature mismatch (secret configurado, header inválido)");
+    return new Response(JSON.stringify({ error: "invalid signature" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  // hmacResult === null → modo compat (secret não configurado, segue sem HMAC)
+  // hmacResult === true  → assinatura válida, segue
+
   let payload: any = null;
   try {
-    payload = await req.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return new Response(JSON.stringify({ error: "invalid JSON" }), {
       status: 400,
