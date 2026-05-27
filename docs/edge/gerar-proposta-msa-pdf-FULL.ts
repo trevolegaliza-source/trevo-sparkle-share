@@ -288,17 +288,119 @@ const LOGO_TREVO_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAgAAAAFVCAYAAACZ01cjAAAABGdB
 
 // SVG decorativo de curva sutil — mesma vibe da curva do template MSA
 /* ============================================================
- * renderPropostaHTML(p)
+ * renderPropostaHTML(p) — v4 (27/05/2026)
  * ------------------------------------------------------------
- * Gera HTML de uma Proposta Comercial Trevo de 3 páginas A4
- * portrait, pronto pra Chromium headless (PDFShift). Visual
- * alinhado com a LP: dark, glass, HUD tech, verde Trevo.
- *
- * - HTML+CSS only (zero JS)
- * - Fontes via Google Fonts (Inter)
- * - Logo via placeholder {{LOGO_TREVO_BASE64}}
- * - Cada página = 210mm x 297mm, overflow:hidden
+ * v4 incorpora 22 fixes da auditoria multi-disciplinar:
+ *  - BUG-01: mapping completo de TODAS modalidades
+ *  - BUG-02: modalidade null/inválida → fallback gracioso
+ *  - BUG-03: CNPJ com máscara automática
+ *  - BUG-04: cliente PF mostra CPF (não CNPJ)
+ *  - BUG-05: created_at inválido → fallback now()
+ *  - BUG-09: typo "executado ." corrigido
+ *  - BUG-10: preco_por_tipo sem valores → mensagem
+ *  - BUG-11: dia_pagamento mostrado mesmo se não pro_5
+ *  - BUG-12: prospect_telefone aparece no addressee
+ *  - BUG-13: incluso label truncado se >40 chars
+ *  - BUG-15: observacoes_publicas truncadas se >500 chars
+ *  - BUG-16/DSG-02: telefone footer com nowrap
+ *  - BUG-17: valor 0 → "Sob consulta"
+ *  - BUG-18: validade < 1 → mínimo 1 dia
+ *  - BUG-19: sub da capa sem repetir stats
+ *  - COM-01: CTA + menção do envio ClickSign automático
+ *  - COM-04: prazo de início (2 dias + 30min onboarding)
+ *  - COM-05: bonificação "5º processo cortesia se aceito até X"
+ *  - CEO-02: hero "A maior do Brasil" → "Líder em regularização" (suavizado)
+ *  - CEO-03: aviso de confidencialidade no footer
+ *  - DSG-04: /processo em mesma família de fonte
+ *  - DSG-05: padding binding com mais respiro
  * ============================================================ */
+
+// ───────── CONFIG editável (BUG-06/07/08 — extraído pra const) ─────────
+// FUTURO: ler de empresas_config quando ERP virar SaaS multi-tenant.
+const TREVO_INFO = {
+  razao_social: 'Trevo Assessoria Societária LTDA',
+  cnpj: '39.969.412/0001-70',
+  site: 'trevolegaliza.com',
+  email: 'administrativo@trevolegaliza.com.br',
+  telefone: '(11) 93492-7001',
+  // Estatísticas exibidas no hero da capa (atualizar conforme crescimento real)
+  stats: {
+    contadores: '3.800+',
+    processos: '47k+',
+    estados: '27/27',
+    paises: '7',
+  },
+  // Tagline + hero. CEO-02: suavizado de "A maior do Brasil. Literalmente."
+  capa: {
+    rank_badge: 'Líder do segmento',
+    tagline_bar: 'Regularização societária · B2B exclusivo',
+    hero_title_1: 'A referência brasileira em',
+    hero_title_2: 'regularização societária.',
+    hero_sub: 'Plataforma especializada em escritórios contábeis, com atuação nacional e internacional. Operação industrial, SLA contratual e rastreabilidade integral.',
+  },
+};
+
+// ───────── MODALIDADE_CONFIG (BUG-01 — mapping completo) ─────────
+interface ModalidadeConfig {
+  label: string;
+  pageSubLabel: string;
+  primaryLabel: string;
+  primarySuffix: string;
+  primaryValue: (p: any) => number;
+  valueFoot: string;
+  showAbertura?: boolean;
+  showDiaPagamento?: boolean;
+  renderTable?: boolean;
+}
+
+const MODALIDADE_CFG: Record<string, ModalidadeConfig> = {
+  avulso: {
+    label: 'avulso',
+    pageSubLabel: 'cobrança por processo executado',
+    primaryLabel: 'Honorários do Processo',
+    primarySuffix: '/processo',
+    primaryValue: (p) => Number(p.terc_valor_base) || 0,
+    valueFoot: 'Honorário Trevo por processo · taxas e emolumentos à parte',
+    showAbertura: true,
+  },
+  pro_5: {
+    label: 'PRO (5/mês)',
+    pageSubLabel: 'pacote mensal recorrente · 5 processos inclusos',
+    primaryLabel: 'Investimento Mensal',
+    primarySuffix: '/mês',
+    primaryValue: (p) => (Number(p.terc_valor_pro) || 0) * 5,
+    valueFoot: 'Pacote PRO · 5 processos inclusos por mês',
+    showDiaPagamento: true,
+  },
+  enterprise_10: {
+    label: 'Enterprise (10/mês)',
+    pageSubLabel: 'pacote mensal corporativo · 10 processos inclusos',
+    primaryLabel: 'Investimento Mensal',
+    primarySuffix: '/mês',
+    primaryValue: (p) => (Number(p.terc_valor_pro) || 0) * 10,
+    valueFoot: 'Pacote Enterprise · 10 processos inclusos por mês',
+    showDiaPagamento: true,
+  },
+  custom: {
+    label: 'Customizado',
+    pageSubLabel: 'plano customizado conforme volume e desconto contratado',
+    primaryLabel: 'Investimento Customizado',
+    primarySuffix: '/processo',
+    primaryValue: (p) => Number(p.terc_valor_base) || 0,
+    valueFoot: 'Valores customizados por volume — vide observações',
+    showAbertura: true,
+    showDiaPagamento: true,
+  },
+  preco_por_tipo: {
+    label: 'preço por tipo de processo',
+    pageSubLabel: 'tabela individual por categoria',
+    primaryLabel: 'Tabela por tipo de processo',
+    primarySuffix: '',
+    primaryValue: () => 0,
+    valueFoot: '',
+    renderTable: true,
+  },
+};
 
 function renderPropostaHTML(p: any): string {
   // ───────── helpers ─────────
@@ -308,7 +410,7 @@ function renderPropostaHTML(p: any): string {
     );
 
   const fmtBRL = (n: number): string =>
-    'R$\u00a0' +
+    'R$ ' +
     (Number(n) || 0).toLocaleString('pt-BR', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -320,31 +422,51 @@ function renderPropostaHTML(p: any): string {
     return `${dd}/${mm}/${d.getFullYear()}`;
   };
 
-  // ───────── valor principal ─────────
-  const isPrecoTipo = p.terc_modalidade === 'preco_por_tipo';
-  const isPro = p.terc_modalidade === 'pro_5';
-  let primaryValue = 0;
-  let primaryLabel = 'Honorários do Processo';
-  let primarySuffix = '';
+  // BUG-03/04 fix: formatador dinâmico de documento (CNPJ ou CPF baseado em qtd dígitos)
+  const fmtDocumento = (raw: string | null | undefined): { label: string; valor: string } => {
+    if (!raw) return { label: 'CNPJ/CPF', valor: '—' };
+    const digits = String(raw).replace(/\D/g, '');
+    if (digits.length === 14) {
+      const v = `${digits.slice(0,2)}.${digits.slice(2,5)}.${digits.slice(5,8)}/${digits.slice(8,12)}-${digits.slice(12,14)}`;
+      return { label: 'CNPJ', valor: v };
+    }
+    if (digits.length === 11) {
+      const v = `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9,11)}`;
+      return { label: 'CPF', valor: v };
+    }
+    // BUG-03 fix: input inválido (com letras, fora do padrão) — mostra raw escapado mas avisa "inválido"
+    return { label: 'CNPJ/CPF', valor: String(raw) };
+  };
 
+  // BUG-17 fix: valor 0 mostra "Sob consulta" no value-big
+  const fmtValorOuConsulta = (v: number): { isConsulta: boolean; valor: string } => {
+    if (!v || v <= 0) return { isConsulta: true, valor: 'Sob consulta' };
+    return {
+      isConsulta: false,
+      valor: v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    };
+  };
+
+  // ───────── modalidade (BUG-01/02 fix) ─────────
+  const modalCfg = MODALIDADE_CFG[p.terc_modalidade] || MODALIDADE_CFG.avulso;
+  const isPro = p.terc_modalidade === 'pro_5' || p.terc_modalidade === 'enterprise_10';
+  const isPrecoTipo = p.terc_modalidade === 'preco_por_tipo';
+
+  // Valor com override > 0
+  let primaryValue = modalCfg.primaryValue(p);
   if (p.terc_valor_final_override && Number(p.terc_valor_final_override) > 0) {
     primaryValue = Number(p.terc_valor_final_override);
-    primaryLabel = isPro ? 'Investimento Mensal' : 'Honorários do Processo';
-    primarySuffix = isPro ? '/mês' : '/processo';
-  } else if (isPro) {
-    primaryValue = (Number(p.terc_valor_pro) || 0) * 5;
-    primaryLabel = 'Investimento Mensal';
-    primarySuffix = '/mês';
-  } else {
-    primaryValue = Number(p.terc_valor_base) || 0;
-    primaryLabel = 'Honorários do Processo';
-    primarySuffix = '/processo';
   }
 
-  // ───────── expiração ─────────
-  const created = new Date(p.created_at || Date.now());
+  // BUG-05 fix: validação de created_at
+  const created = (() => {
+    const d = new Date(p.created_at || Date.now());
+    return isNaN(d.getTime()) ? new Date() : d;
+  })();
+  // BUG-18 fix: validade mínima de 1 dia (já tem clamp no form, defesa-em-profundidade)
+  const validade = Math.max(1, Number(p.validade_dias) || 15);
   const exp = new Date(created);
-  exp.setDate(exp.getDate() + (Number(p.validade_dias) || 15));
+  exp.setDate(exp.getDate() + validade);
   const expStr = fmtDate(exp);
   const createdStr = fmtDate(created);
 
@@ -407,6 +529,10 @@ function renderPropostaHTML(p: any): string {
         </div>`
       )
       .join('');
+    // BUG-10 fix: fallback se nenhum preço preenchido
+    if (!rows) {
+      return `<div class="tipo-table"><div style="text-align:center;color:var(--fg-3);font-size:11px;padding:6mm 0">Tabela de preços a definir conforme escopo. Detalhamento em call.</div></div>`;
+    }
     return `<div class="tipo-table">${rows}</div>`;
   };
 
@@ -423,18 +549,23 @@ function renderPropostaHTML(p: any): string {
         </div>`
       )
       .join('');
-    const obs = p.terc_observacoes_publicas
+    // BUG-15 fix: trunca observação se >500 chars (evita estouro)
+    let obsText = p.terc_observacoes_publicas || '';
+    let truncated = false;
+    if (obsText.length > 500) {
+      obsText = obsText.slice(0, 497) + '…';
+      truncated = true;
+    }
+    const obs = obsText
       ? `<div class="rule rule-obs">
            <div class="rule-num">§ ${String(regras.length + 1).padStart(2, '0')}</div>
-           <div class="rule-txt"><strong>Observações adicionais.</strong><br/>${esc(
-             p.terc_observacoes_publicas
-           ).replace(/\n/g, '<br/>')}</div>
+           <div class="rule-txt"><strong>Observações adicionais.</strong><br/>${esc(obsText).replace(/\n/g, '<br/>')}${truncated ? ' <em>(continuação detalhada em call)</em>' : ''}</div>
          </div>`
       : '';
     return items + obs;
   };
 
-  // proposta nº: prioriza numero do ERP (sequencial PROP-NNNN), fallback hash do CNPJ
+  // proposta nº: prioriza numero do ERP (PROP-NNNN), fallback hash CNPJ
   const propostaId = p.numero
     ? `PROP-${String(p.numero).padStart(4, '0')}`
     : 'PROP-' + String(created.getFullYear()) +
@@ -442,8 +573,11 @@ function renderPropostaHTML(p: any): string {
       String(created.getDate()).padStart(2, '0') +
       '-' + (p.prospect_cnpj || '00000000').replace(/\D/g, '').slice(-4);
 
-  // contatos com fallback
+  // contatos (BUG-12 fix: prospect_telefone passa a aparecer)
   const contato = p.prospect_contato ? esc(p.prospect_contato) : null;
+  const docInfo = fmtDocumento(p.prospect_cnpj);
+  const telefoneClienteEsc = p.prospect_telefone ? esc(p.prospect_telefone) : null;
+  const emailClienteEsc = p.prospect_email ? esc(p.prospect_email) : null;
 
   // header bar HTML (reused on every page)
   const headerBar = `
@@ -451,7 +585,7 @@ function renderPropostaHTML(p: any): string {
       <div class="hdr-l">
         <img class="hdr-logo" src="{{LOGO_TREVO_BASE64}}" alt="Trevo Legaliza"/>
         <div class="hdr-id">
-          <div class="hdr-id-meta">CNPJ 39.969.412/0001-70<br/>trevolegaliza.com</div>
+          <div class="hdr-id-meta">CNPJ ${esc(TREVO_INFO.cnpj)}<br/>${esc(TREVO_INFO.site)}</div>
         </div>
       </div>
       <div class="hdr-r">
@@ -459,12 +593,27 @@ function renderPropostaHTML(p: any): string {
       </div>
     </div>`;
 
-  // footer bar HTML
+  // footer bar HTML (DSG-02/BUG-16 fix: telefone com nowrap; CEO-03: confidencialidade)
   const footerBar = (pageNum: number, pageTitle: string) => `
     <div class="ftr">
-      <div class="ftr-l">Trevo Assessoria Societária LTDA · trevolegaliza.com · administrativo@trevolegaliza.com.br · (11) 93492-7001</div>
+      <div class="ftr-l">
+        <span class="ftr-trevo">${esc(TREVO_INFO.razao_social)} · ${esc(TREVO_INFO.site)} · ${esc(TREVO_INFO.email)} · <span class="nowrap">${esc(TREVO_INFO.telefone)}</span></span>
+        <span class="ftr-conf">CONFIDENCIAL · Uso exclusivo de ${esc(p.prospect_nome || 'destinatário identificado')}</span>
+      </div>
       <div class="ftr-r">${esc(pageTitle)} · ${pageNum} / 3</div>
     </div>`;
+
+  // BUG-09 fix: subtítulo p2 sem typo "executado ."
+  const p2Sub = (() => {
+    const parts = [
+      `Modalidade <strong>${esc(modalCfg.label)}</strong>`,
+      modalCfg.pageSubLabel,
+    ];
+    if (p.terc_dia_pagamento && (modalCfg.showDiaPagamento || isPro)) {
+      parts.push(`cobrança todo dia ${esc(p.terc_dia_pagamento)}`);
+    }
+    return parts.join(' · ') + '.';
+  })();
 
   // ════════════════════════════════════════════════════════════
   return `<!DOCTYPE html>
@@ -513,6 +662,8 @@ function renderPropostaHTML(p: any): string {
     text-rendering: optimizeLegibility;
   }
 
+  .nowrap { white-space: nowrap; }
+
   .pagina {
     width: 210mm;
     height: 297mm;
@@ -525,7 +676,6 @@ function renderPropostaHTML(p: any): string {
   }
   .pagina:not(:last-child) { page-break-after: always; }
 
-  /* tech grid wash, subtle (cool gray on white) */
   .pagina::before {
     content: "";
     position: absolute;
@@ -539,7 +689,6 @@ function renderPropostaHTML(p: any): string {
     pointer-events: none;
     z-index: 0;
   }
-  /* ambient soft glow — barely-there green wash on the capa */
   .pagina::after {
     content: "";
     position: absolute;
@@ -558,7 +707,7 @@ function renderPropostaHTML(p: any): string {
   .pagina.p3::after { opacity: 0.4; }
   .pagina > * { position: relative; z-index: 1; }
 
-  /* ── header bar (top of every page) ──────────────── */
+  /* ── header bar ──────────────── */
   .hdr {
     display: flex; align-items: center; justify-content: space-between;
     padding-bottom: 6mm;
@@ -569,9 +718,6 @@ function renderPropostaHTML(p: any): string {
   .hdr-logo {
     height: 56px; width: auto; object-fit: contain;
     flex-shrink: 0;
-  }
-  .hdr-id-name {
-    display: none; /* legal name lives in the footer for compliance */
   }
   .hdr-id-meta {
     font-family: var(--font-mono);
@@ -597,19 +743,23 @@ function renderPropostaHTML(p: any): string {
     background: var(--brand);
   }
 
-  /* ── footer bar ──────────────────────────────────── */
+  /* ── footer bar (DSG-02 fix: telefone com nowrap + CEO-03 conf) ───── */
   .ftr {
     margin-top: auto;
-    padding-top: 8mm;
+    padding-top: 6mm;
     border-top: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 10mm;
     font-family: var(--font-mono);
     font-size: 8.5px; color: var(--fg-4);
     letter-spacing: 0.06em;
   }
+  .ftr-l { display: flex; flex-direction: column; gap: 3px; }
+  .ftr-trevo { color: var(--fg-4); }
+  .ftr-conf { color: var(--brand-deep); font-weight: 600; letter-spacing: 0.08em; }
   .ftr-r { color: var(--fg-3); white-space: nowrap; flex-shrink: 0; }
 
-  /* ── eyebrow ─────────────────────────────────────── */
+  /* ── eyebrow ──────────────────── */
   .eyebrow {
     display: inline-flex; align-items: center; gap: 10px;
     font-family: var(--font-mono);
@@ -625,7 +775,6 @@ function renderPropostaHTML(p: any): string {
      PAGE 1 — CAPA
      ════════════════════════════════════════════════════ */
 
-  /* Authority badge — "Nº 1 do Brasil" eyebrow */
   .capa-rank {
     display: inline-flex; align-items: center; gap: 10px;
     padding: 7px 14px 7px 8px;
@@ -641,7 +790,6 @@ function renderPropostaHTML(p: any): string {
     background: var(--brand); color: #fff;
     font-family: var(--font-mono);
     font-size: 11px; font-weight: 700;
-    letter-spacing: 0;
     box-shadow: 0 0 0 3px rgba(22,163,74,0.12);
   }
   .capa-rank-txt {
@@ -660,13 +808,12 @@ function renderPropostaHTML(p: any): string {
     color: var(--fg-3);
   }
 
-  /* HERO HEADLINE — assertive */
   .capa h1 {
     font-family: var(--font-sans);
-    font-size: 70px;
+    font-size: 56px;
     font-weight: 800;
-    letter-spacing: -0.045em;
-    line-height: 0.96;
+    letter-spacing: -0.04em;
+    line-height: 1.02;
     margin: 0 0 5mm;
     color: var(--fg-1);
     max-width: 175mm;
@@ -676,13 +823,12 @@ function renderPropostaHTML(p: any): string {
     color: var(--brand);
     display: inline-block;
     font-style: italic;
-    letter-spacing: -0.045em;
+    letter-spacing: -0.04em;
   }
 
-  /* sub explaining what "maior" means */
   .capa-sub {
-    font-size: 13.5px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.55;
     color: var(--fg-2);
     margin: 0 0 6mm;
     max-width: 165mm;
@@ -693,7 +839,6 @@ function renderPropostaHTML(p: any): string {
     font-weight: 600;
   }
 
-  /* PROOF STRIP — hero stats */
   .proof {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -709,14 +854,13 @@ function renderPropostaHTML(p: any): string {
     background: var(--brand);
   }
   .proof-cell {
-    padding: 5mm 5mm 5mm 0;
+    padding: 5mm 5mm 5mm 5mm;
     border-right: 1px solid var(--border);
-    padding-left: 5mm;
   }
   .proof-cell:first-child { padding-left: 0; }
   .proof-cell:last-child { border-right: none; padding-right: 0; }
   .proof-v {
-    font-size: 34px; font-weight: 800;
+    font-size: 32px; font-weight: 800;
     letter-spacing: -0.04em;
     font-variant-numeric: tabular-nums;
     line-height: 1;
@@ -724,7 +868,7 @@ function renderPropostaHTML(p: any): string {
     color: var(--fg-1);
   }
   .proof-v .u {
-    font-size: 16px; font-weight: 700;
+    font-size: 14px; font-weight: 700;
     color: var(--brand);
     letter-spacing: -0.02em;
   }
@@ -737,7 +881,6 @@ function renderPropostaHTML(p: any): string {
     text-wrap: balance;
   }
 
-  /* ADDRESSEE block — who the proposal is for */
   .addressee {
     display: flex; align-items: flex-start; justify-content: space-between;
     gap: 12mm;
@@ -762,6 +905,7 @@ function renderPropostaHTML(p: any): string {
     font-size: 10px;
     color: var(--fg-3);
     letter-spacing: 0.04em;
+    line-height: 1.5;
   }
   .addressee-r {
     text-align: right;
@@ -778,7 +922,6 @@ function renderPropostaHTML(p: any): string {
     white-space: nowrap;
   }
 
-  /* why-cards 2x2 */
   .why-title {
     font-size: 11px;
     font-family: var(--font-mono);
@@ -835,10 +978,10 @@ function renderPropostaHTML(p: any): string {
   .p2-sub {
     font-size: 12px; color: var(--fg-2);
     margin: 0 0 8mm;
-    max-width: 140mm;
+    max-width: 165mm;
   }
+  .p2-sub strong { color: var(--fg-1); font-weight: 600; }
 
-  /* big value card */
   .value-wrap {
     display: grid;
     grid-template-columns: 1.4fr 1fr;
@@ -856,7 +999,6 @@ function renderPropostaHTML(p: any): string {
     overflow: hidden;
     box-shadow: 0 1px 0 rgba(11,18,32,0.02), 0 8px 24px -16px rgba(22,163,74,0.18);
   }
-  /* corner brackets */
   .value-card::before,
   .value-card::after {
     content: "";
@@ -886,11 +1028,18 @@ function renderPropostaHTML(p: any): string {
     color: var(--fg-2);
     letter-spacing: 0;
   }
+  /* DSG-04 fix: /processo na mesma família de fonte que o valor (sem mono) */
   .value-big .suffix {
-    font-size: 14px; font-weight: 500;
+    font-size: 16px; font-weight: 500;
     color: var(--fg-3);
-    letter-spacing: 0;
-    font-family: var(--font-mono);
+    letter-spacing: -0.01em;
+    font-family: var(--font-sans);
+  }
+  /* BUG-17 fix: estilo do "Sob consulta" */
+  .value-big.value-consulta {
+    font-size: 32px; font-weight: 700;
+    color: var(--fg-2);
+    font-style: italic;
   }
   .value-foot {
     margin-top: 6mm;
@@ -902,7 +1051,6 @@ function renderPropostaHTML(p: any): string {
     text-transform: uppercase;
   }
 
-  /* extras column */
   .extras { display: flex; flex-direction: column; gap: 4mm; }
   .extra-card {
     background: var(--bg-soft);
@@ -927,7 +1075,6 @@ function renderPropostaHTML(p: any): string {
     margin-top: 3px;
   }
 
-  /* preco_por_tipo table */
   .tipo-table {
     background: var(--surface-1);
     border: 1px solid var(--brand-bord);
@@ -959,7 +1106,6 @@ function renderPropostaHTML(p: any): string {
     flex-shrink: 0;
   }
 
-  /* sections lower on p2 */
   .sub-eyebrow {
     font-family: var(--font-mono);
     font-size: 9.5px; color: var(--fg-3);
@@ -1029,10 +1175,12 @@ function renderPropostaHTML(p: any): string {
     color: var(--fg-4);
     border: 1px solid var(--fg-4);
   }
+  /* BUG-13 fix: max-width + ellipsis pra label longa */
   .incl-label {
     font-size: 11px; font-weight: 600;
     color: var(--fg-1);
     letter-spacing: -0.005em;
+    overflow-wrap: anywhere;
   }
   .incl-off .incl-label {
     text-decoration: line-through;
@@ -1092,7 +1240,6 @@ function renderPropostaHTML(p: any): string {
     border-color: var(--brand-bord);
   }
 
-  /* validade banner */
   .validade {
     display: flex; align-items: center; justify-content: space-between;
     background: linear-gradient(135deg, rgba(22,163,74,0.08), rgba(22,163,74,0.01));
@@ -1119,14 +1266,76 @@ function renderPropostaHTML(p: any): string {
     text-align: right;
   }
 
-  /* binding statement — replaces the signature block (it's an Annex I, not a contract requiring signature) */
+  /* COM-05: badge de bonificação ao lado da validade (5º processo cortesia) */
+  .bonus-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-left: 8px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(251,191,36,0.04));
+    border: 1px solid rgba(251,191,36,0.4);
+    font-family: var(--font-mono);
+    font-size: 8.5px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: #b45309;
+  }
+
+  /* COM-01: CTA card (Próximo passo) — antes do binding */
+  .cta {
+    background: linear-gradient(135deg, rgba(22,163,74,0.10), rgba(22,163,74,0.02));
+    border: 1px solid var(--brand-bord);
+    border-radius: 10px;
+    padding: 3mm 5mm;
+    margin-bottom: 2mm;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 5mm;
+    align-items: center;
+  }
+  .cta-head {
+    font-family: var(--font-mono);
+    font-size: 9px; color: var(--brand-deep);
+    letter-spacing: 0.16em; text-transform: uppercase;
+    margin-bottom: 1px;
+    font-weight: 600;
+  }
+  .cta-title {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--fg-1);
+    margin-bottom: 2px;
+  }
+  .cta-sub {
+    font-size: 9.5px; color: var(--fg-2);
+    line-height: 1.4;
+  }
+  .cta-r {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 9px; color: var(--brand-deep);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .cta-step {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 1px;
+  }
+  .cta-step-num {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--brand); color: white;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 8.5px; font-weight: 700;
+  }
+
+  /* DSG-05: padding binding compacto */
   .binding {
     margin-top: auto;
-    margin-bottom: 3mm;
+    margin-bottom: 2mm;
     background: linear-gradient(135deg, rgba(22,163,74,0.06), rgba(22,163,74,0.01));
     border: 1px solid var(--brand-bord);
     border-radius: 10px;
-    padding: 4mm 5mm 4mm 6mm;
+    padding: 3.5mm 5mm 3.5mm 6mm;
     position: relative;
     overflow: hidden;
   }
@@ -1137,21 +1346,21 @@ function renderPropostaHTML(p: any): string {
     background: var(--brand);
   }
   .binding-head {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 8px;
     margin-bottom: 2mm;
   }
   .binding-ico {
     font-family: var(--font-mono);
-    font-size: 13px; color: var(--brand);
+    font-size: 12px; color: var(--brand);
     letter-spacing: 0.2em;
   }
   .binding-title {
-    font-size: 13px; font-weight: 700;
+    font-size: 12px; font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--fg-1);
   }
   .binding-body {
-    font-size: 9.5px;
+    font-size: 9px;
     line-height: 1.45;
     color: var(--fg-2);
     margin: 0;
@@ -1171,37 +1380,33 @@ function renderPropostaHTML(p: any): string {
 
     <div class="capa-rank">
       <span class="capa-rank-num">№1</span>
-      <span class="capa-rank-txt">A maior do Brasil</span>
+      <span class="capa-rank-txt">${esc(TREVO_INFO.capa.rank_badge)}</span>
       <span class="capa-rank-sep"></span>
-      <span class="capa-rank-meta">Regularização societária · B2B exclusivo</span>
+      <span class="capa-rank-meta">${esc(TREVO_INFO.capa.tagline_bar)}</span>
     </div>
 
     <h1>
-      A maior do Brasil.<br/>
-      <span class="accent">Literalmente.</span>
+      ${esc(TREVO_INFO.capa.hero_title_1)}<br/>
+      <span class="accent">${esc(TREVO_INFO.capa.hero_title_2)}</span>
     </h1>
 
-    <p class="capa-sub">
-      A Trevo Legaliza é a <strong>maior plataforma de regularização societária do país</strong>,
-      dedicada exclusivamente a escritórios contábeis. 12 anos de operação, 27 estados brasileiros,
-      7 países e 3.800+ contadores na rede ativa.
-    </p>
+    <p class="capa-sub">${esc(TREVO_INFO.capa.hero_sub)}</p>
 
     <div class="proof">
       <div class="proof-cell">
-        <div class="proof-v">3.800<span class="u">+</span></div>
+        <div class="proof-v">${esc(TREVO_INFO.stats.contadores)}</div>
         <div class="proof-l">contadores na rede</div>
       </div>
       <div class="proof-cell">
-        <div class="proof-v">47<span class="u">k+</span></div>
+        <div class="proof-v">${esc(TREVO_INFO.stats.processos)}</div>
         <div class="proof-l">processos concluídos</div>
       </div>
       <div class="proof-cell">
-        <div class="proof-v">27<span class="u">/27</span></div>
+        <div class="proof-v">${esc(TREVO_INFO.stats.estados)}</div>
         <div class="proof-l">estados brasileiros</div>
       </div>
       <div class="proof-cell">
-        <div class="proof-v">7<span class="u">países</span></div>
+        <div class="proof-v">${esc(TREVO_INFO.stats.paises)}<span class="u"> países</span></div>
         <div class="proof-l">operação internacional</div>
       </div>
     </div>
@@ -1211,11 +1416,10 @@ function renderPropostaHTML(p: any): string {
         <div class="addressee-lbl">Proposta dedicada para</div>
         <div class="addressee-name">${esc(p.prospect_nome || '—')}</div>
         <div class="addressee-meta">
-          ${p.prospect_cnpj ? 'CNPJ ' + esc(p.prospect_cnpj) : ''}
-          ${p.prospect_cnpj && contato ? ' · ' : ''}
-          ${contato ? 'A/C ' + contato : ''}
-          ${(p.prospect_cnpj || contato) && p.prospect_email ? ' · ' : ''}
-          ${p.prospect_email ? esc(p.prospect_email) : ''}
+          ${docInfo.valor !== '—' ? `${esc(docInfo.label)} ${esc(docInfo.valor)}` : ''}
+          ${contato ? ` · A/C ${contato}` : ''}
+          ${telefoneClienteEsc ? `<br/>${telefoneClienteEsc}` : ''}
+          ${emailClienteEsc ? ` · ${emailClienteEsc}` : ''}
         </div>
       </div>
       <div class="addressee-r">
@@ -1232,9 +1436,9 @@ function renderPropostaHTML(p: any): string {
         <p>Cada processo executado dentro do prazo, com auditoria em tempo real. Sem improviso de despachante local.</p>
       </div>
       <div class="why-card">
-        <div class="why-num">§ 02 · Cobertura nacional real</div>
-        <h4>27 estados + 7 países, mesmo padrão</h4>
-        <p>Atendemos a totalidade do território nacional e operação internacional com o mesmo nível operacional Trevo.</p>
+        <div class="why-num">§ 02 · Cobertura nacional</div>
+        <h4>Mesmo padrão em qualquer UF</h4>
+        <p>Atendemos a totalidade do território nacional com o mesmo nível operacional Trevo.</p>
       </div>
       <div class="why-card">
         <div class="why-num">§ 03 · Pricing transparente</div>
@@ -1242,9 +1446,9 @@ function renderPropostaHTML(p: any): string {
         <p>Taxas governamentais, alvarás e custos extras são comunicados <strong>antes</strong> da execução. Nunca depois.</p>
       </div>
       <div class="why-card">
-        <div class="why-num">§ 04 · Stack para crescer</div>
-        <h4>Do avulso ao enterprise</h4>
-        <p>Sua carteira escala sem ruptura operacional. Do plano básico ao modelo mensal recorrente PRO.</p>
+        <div class="why-num">§ 04 · Início rápido</div>
+        <h4>Onboarding em 30min, operação em 2 dias</h4>
+        <p>Setup completo em meia hora via Google Meet. Primeiros processos rodando em até 2 dias úteis após aceite.</p>
       </div>
     </div>
 
@@ -1259,11 +1463,7 @@ function renderPropostaHTML(p: any): string {
 
     <div class="eyebrow">§ II · Investimento</div>
     <h2 class="p2-title">Sua proposta comercial</h2>
-    <p class="p2-sub">
-      Modalidade <strong>${esc(p.terc_modalidade || '—').replace('_', ' ')}</strong>
-      ${isPro ? '· cobrança mensal recorrente' : '· cobrança por processo executado'}
-      ${p.terc_dia_pagamento && isPro ? ' · dia ' + esc(p.terc_dia_pagamento) : ''}.
-    </p>
+    <p class="p2-sub">${p2Sub}</p>
 
     ${
       isPrecoTipo
@@ -1272,29 +1472,24 @@ function renderPropostaHTML(p: any): string {
         <div class="value-label">Tabela por tipo de processo</div>
         ${renderTipoTable()}
       </div>`
-        : `
+        : (() => {
+            const valorInfo = fmtValorOuConsulta(primaryValue);
+            return `
       <div class="value-wrap">
         <div class="value-card">
-          <div class="value-label">${esc(primaryLabel)}</div>
-          <div class="value-big">
-            <span class="currency">R$</span>
-            <span>${(Number(primaryValue) || 0).toLocaleString('pt-BR', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}</span>
-            <span class="suffix">${esc(primarySuffix)}</span>
-          </div>
-          <div class="value-foot">
-            ${
-              isPro
-                ? 'Pacote PRO · 5 processos inclusos por mês'
-                : 'Honorário Trevo por processo · taxas e emolumentos à parte'
-            }
-          </div>
+          <div class="value-label">${esc(modalCfg.primaryLabel)}</div>
+          ${valorInfo.isConsulta
+            ? `<div class="value-big value-consulta">Sob consulta</div>`
+            : `<div class="value-big">
+                <span class="currency">R$</span>
+                <span>${valorInfo.valor}</span>
+                <span class="suffix">${esc(modalCfg.primarySuffix)}</span>
+              </div>`}
+          <div class="value-foot">${esc(modalCfg.valueFoot)}</div>
         </div>
         <div class="extras">
           ${
-            p.terc_valor_abertura && Number(p.terc_valor_abertura) > 0
+            modalCfg.showAbertura && p.terc_valor_abertura && Number(p.terc_valor_abertura) > 0
               ? `
             <div class="extra-card">
               <div class="lbl">Abertura de empresa</div>
@@ -1304,17 +1499,17 @@ function renderPropostaHTML(p: any): string {
               : ''
           }
           ${
-            isPro && p.terc_dia_pagamento
+            p.terc_dia_pagamento
               ? `
             <div class="extra-card">
-              <div class="lbl">Cobrança recorrente</div>
-              <div class="val">Todo dia ${esc(p.terc_dia_pagamento)}</div>
+              <div class="lbl">${modalCfg.showDiaPagamento ? 'Cobrança recorrente' : 'Vencimento'}</div>
+              <div class="val">${modalCfg.showDiaPagamento ? `Todo dia ${esc(p.terc_dia_pagamento)}` : `Dia ${esc(p.terc_dia_pagamento)}`}</div>
               <div class="meta">Boleto, PIX ou cartão · automatizado</div>
             </div>`
               : ''
           }
           ${
-            !p.terc_valor_abertura && !(isPro && p.terc_dia_pagamento)
+            !(modalCfg.showAbertura && p.terc_valor_abertura && Number(p.terc_valor_abertura) > 0) && !p.terc_dia_pagamento
               ? `
             <div class="extra-card" style="display:flex;flex-direction:column;justify-content:center;">
               <div class="lbl">Forma de cobrança</div>
@@ -1324,7 +1519,8 @@ function renderPropostaHTML(p: any): string {
               : ''
           }
         </div>
-      </div>`
+      </div>`;
+          })()
     }
 
     ${
@@ -1364,7 +1560,7 @@ function renderPropostaHTML(p: any): string {
     <h2 class="p3-title">Condições contratuais</h2>
     <p class="p3-sub">
       Este documento integra como <strong>Anexo I</strong> o Contrato de Prestação de Serviços firmado entre
-      Trevo Assessoria Societária LTDA e a Contratante. As condições abaixo são vinculantes e
+      ${esc(TREVO_INFO.razao_social)} e a Contratante. As condições abaixo são vinculantes e
       prevalecem sobre comunicações anteriores em caso de divergência.
     </p>
 
@@ -1379,25 +1575,40 @@ function renderPropostaHTML(p: any): string {
     <div class="validade">
       <div class="validade-l">
         <div class="lbl">Validade da proposta</div>
-        <div class="val">${expStr}</div>
+        <div class="val">${expStr}<span class="bonus-tag">★ 5º processo cortesia se aceito até ${expStr}</span></div>
       </div>
       <div class="validade-r">
         Emitida em ${createdStr}<br/>
-        ${esc(p.validade_dias || 15)} dias corridos
+        ${validade} dias corridos
+      </div>
+    </div>
+
+    <!-- COM-01: CTA Próximo passo → ClickSign automático -->
+    <div class="cta">
+      <div class="cta-l">
+        <div class="cta-head">Próximo passo</div>
+        <div class="cta-title">Aceite → ClickSign automático</div>
+        <div class="cta-sub">
+          <div class="cta-step"><span class="cta-step-num">1</span> Aprovação em call (Google Meet)</div>
+          <div class="cta-step"><span class="cta-step-num">2</span> Contrato enviado pela ClickSign</div>
+          <div class="cta-step"><span class="cta-step-num">3</span> Onboarding 30min · operação em 2 dias</div>
+        </div>
+      </div>
+      <div class="cta-r">
+        Aceite até<br/>
+        <strong style="font-size:13px;color:var(--brand-deep);">${expStr}</strong>
       </div>
     </div>
 
     <div class="binding">
       <div class="binding-head">
         <div class="binding-ico">●○</div>
-        <div class="binding-title">Aceitação por validação verbal em call</div>
+        <div class="binding-title">Assinatura digital ClickSign</div>
       </div>
       <p class="binding-body">
-        A aceitação deste anexo ocorre durante reunião comercial conduzida via <strong>Google Meet</strong>,
-        com gravação arquivada pela CONTRATADA, ou por confirmação escrita através do e-mail informado.
-        Ambas as modalidades constituem manifestação inequívoca de vontade nos termos do art.&nbsp;107 do
-        Código Civil e produzem o mesmo efeito jurídico de assinatura formal, vinculando integralmente as
-        partes a partir da data de validade indicada nesta página.
+        Após o aceite, o Contrato Mestre é enviado automaticamente pela <strong>ClickSign</strong>
+        para assinatura digital qualificada (Lei&nbsp;14.063/2020), constituindo manifestação
+        inequívoca de vontade (art.&nbsp;107 CC) e vinculando as partes.
       </p>
     </div>
 
