@@ -604,13 +604,19 @@ function renderPropostaHTML(p: any): string {
     </div>`;
 
   // BUG-09 fix: subtítulo p2 sem typo "executado ."
+  // 27/05: vencimento_tipo (3 valores) substitui interpretação por modalidade.
+  const vencTipo = p.terc_vencimento_tipo || (p.terc_dia_pagamento ? 'mensal_dia' : null);
   const p2Sub = (() => {
     const parts = [
       `Modalidade <strong>${esc(modalCfg.label)}</strong>`,
       modalCfg.pageSubLabel,
     ];
-    if (p.terc_dia_pagamento && (modalCfg.showDiaPagamento || isPro)) {
+    if (vencTipo === 'mensal_dia' && p.terc_dia_pagamento) {
       parts.push(`cobrança todo dia ${esc(p.terc_dia_pagamento)}`);
+    } else if (vencTipo === 'deferimento') {
+      parts.push('vencimento no deferimento do processo');
+    } else if (vencTipo === 'outros' && p.terc_vencimento_outros_texto) {
+      parts.push(`vencimento: ${esc(p.terc_vencimento_outros_texto)}`);
     }
     return parts.join(' · ') + '.';
   })();
@@ -1499,17 +1505,31 @@ function renderPropostaHTML(p: any): string {
               : ''
           }
           ${
-            p.terc_dia_pagamento
+            vencTipo === 'mensal_dia' && p.terc_dia_pagamento
               ? `
             <div class="extra-card">
               <div class="lbl">${modalCfg.showDiaPagamento ? 'Cobrança recorrente' : 'Vencimento'}</div>
               <div class="val">${modalCfg.showDiaPagamento ? `Todo dia ${esc(p.terc_dia_pagamento)}` : `Dia ${esc(p.terc_dia_pagamento)}`}</div>
               <div class="meta">Boleto, PIX ou cartão · automatizado</div>
             </div>`
+              : vencTipo === 'deferimento'
+              ? `
+            <div class="extra-card">
+              <div class="lbl">Vencimento</div>
+              <div class="val">No deferimento</div>
+              <div class="meta">Pagamento após conclusão do processo</div>
+            </div>`
+              : vencTipo === 'outros' && p.terc_vencimento_outros_texto
+              ? `
+            <div class="extra-card">
+              <div class="lbl">Vencimento</div>
+              <div class="val" style="font-size:14px;line-height:1.3;">${esc(p.terc_vencimento_outros_texto)}</div>
+              <div class="meta">Condição específica desta proposta</div>
+            </div>`
               : ''
           }
           ${
-            !(modalCfg.showAbertura && p.terc_valor_abertura && Number(p.terc_valor_abertura) > 0) && !p.terc_dia_pagamento
+            !(modalCfg.showAbertura && p.terc_valor_abertura && Number(p.terc_valor_abertura) > 0) && !vencTipo
               ? `
             <div class="extra-card" style="display:flex;flex-direction:column;justify-content:center;">
               <div class="lbl">Forma de cobrança</div>

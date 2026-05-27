@@ -73,7 +73,9 @@ interface State {
   desconto_custom: number | null;        // pra modalidade=custom
   precos_por_tipo: PrecosPorTipo;        // pra modalidade=preco_por_tipo
   valor_abertura: number | null;         // valor específico pra abertura (caso comum: maior que demais)
-  dia_pagamento: number | null;          // dia do mês pra cobrança (1-31)
+  dia_pagamento: number | null;          // dia do mês pra cobrança (1-31) — só se vencimento_tipo='mensal_dia'
+  vencimento_tipo: 'mensal_dia' | 'deferimento' | 'outros' | null;
+  vencimento_outros_texto: string;
 
   // Textos
   regras_rapidas_ativas: string[];       // ids do catálogo de cláusulas
@@ -112,7 +114,9 @@ function emptyState(): State {
     desconto_custom: null,
     precos_por_tipo: {},
     valor_abertura: null,            // 26/05: opcional, sobrescreve abertura
-    dia_pagamento: null,             // 26/05: dia do mês pra cobrança
+    dia_pagamento: null,             // 26/05: dia do mês pra cobrança (só se vencimento_tipo='mensal_dia')
+    vencimento_tipo: 'deferimento',  // 27/05: default pra avulso. Mensal só faz sentido em pro_5.
+    vencimento_outros_texto: '',
     regras_rapidas_ativas: REGRAS_RAPIDAS_ATIVAS_DEFAULT,
     observacoes_publicas: '',
     anotacoes_internas: '',
@@ -177,6 +181,9 @@ export default function PropostaComercialNova() {
         precos_por_tipo: (d.terc_precos_por_tipo && typeof d.terc_precos_por_tipo === 'object') ? d.terc_precos_por_tipo : {},
         valor_abertura: d.terc_valor_abertura ?? null,
         dia_pagamento: d.terc_dia_pagamento ?? null,
+        // 27/05: fallback retrocompatível — se tipo é null mas dia preenchido, é mensal legacy
+        vencimento_tipo: d.terc_vencimento_tipo ?? (d.terc_dia_pagamento ? 'mensal_dia' : 'deferimento'),
+        vencimento_outros_texto: d.terc_vencimento_outros_texto || '',
         regras_rapidas_ativas: Array.isArray(d.terc_regras_rapidas_ativas) ? d.terc_regras_rapidas_ativas : [],
         observacoes_publicas: d.terc_observacoes_publicas || '',
         anotacoes_internas: d.terc_anotacoes_internas || '',
@@ -291,7 +298,9 @@ export default function PropostaComercialNova() {
         terc_desconto_custom: state.desconto_custom,
         terc_precos_por_tipo: state.precos_por_tipo as any,
         terc_valor_abertura: state.valor_abertura,
-        terc_dia_pagamento: state.dia_pagamento,
+        terc_dia_pagamento: state.vencimento_tipo === 'mensal_dia' ? state.dia_pagamento : null,
+        terc_vencimento_tipo: state.vencimento_tipo,
+        terc_vencimento_outros_texto: state.vencimento_tipo === 'outros' ? (state.vencimento_outros_texto || null) : null,
         terc_regras_rapidas_ativas: state.regras_rapidas_ativas as any,
         terc_observacoes_publicas: state.observacoes_publicas || null,
         terc_anotacoes_internas: state.anotacoes_internas || null,
@@ -706,20 +715,56 @@ export default function PropostaComercialNova() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Dia de pagamento (do mês)</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={31}
-                    value={state.dia_pagamento ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setState({ ...state, dia_pagamento: v ? Math.max(1, Math.min(31, Number(v))) : null });
-                    }}
-                    placeholder="ex: 5, 10, 15..."
-                  />
+                  <Label>Tipo de vencimento</Label>
+                  <Select
+                    value={state.vencimento_tipo || 'deferimento'}
+                    onValueChange={(v) => setState({ ...state, vencimento_tipo: v as State['vencimento_tipo'] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="deferimento">No deferimento do processo</SelectItem>
+                      <SelectItem value="mensal_dia">Mensal · dia fixo</SelectItem>
+                      <SelectItem value="outros">Outros (texto livre)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
+
+              {/* Campos condicionais por tipo de vencimento */}
+              {state.vencimento_tipo === 'mensal_dia' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Dia do mês (1-31)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={state.dia_pagamento ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setState({ ...state, dia_pagamento: v ? Math.max(1, Math.min(31, Number(v))) : null });
+                      }}
+                      placeholder="ex: 5, 10, 15..."
+                    />
+                  </div>
+                </div>
+              )}
+
+              {state.vencimento_tipo === 'outros' && (
+                <div className="space-y-1.5">
+                  <Label>Descrição do vencimento (texto livre)</Label>
+                  <Input
+                    type="text"
+                    value={state.vencimento_outros_texto}
+                    onChange={(e) => setState({ ...state, vencimento_outros_texto: e.target.value })}
+                    placeholder='ex: "30 dias após emissão da NF" ou "À vista no aceite"'
+                    maxLength={120}
+                  />
+                  <p className="text-[11px] text-muted-foreground">Aparece literal na proposta e no PDF/contrato.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

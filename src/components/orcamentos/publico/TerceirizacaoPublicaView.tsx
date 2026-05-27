@@ -53,6 +53,8 @@ interface OrcTerc {
   terc_valor_final_override?: number | null;
   terc_valor_abertura?: number | null;
   terc_dia_pagamento?: number | null;
+  terc_vencimento_tipo?: 'mensal_dia' | 'deferimento' | 'outros' | null;
+  terc_vencimento_outros_texto?: string | null;
   terc_precos_por_tipo?: PrecosPorTipo | null;
   terc_regras_rapidas_ativas?: string[] | null;
   terc_observacoes_publicas?: string | null;
@@ -302,7 +304,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
 
         {/* Hero core */}
         <div className="relative max-w-5xl mx-auto px-6 py-16 md:py-20">
-          <div className="grid md:grid-cols-[1fr_360px] gap-10 items-center">
+          <div className="grid md:grid-cols-[1fr_400px] gap-10 items-center">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-6">
                 <Sparkles className="h-3.5 w-3.5 text-emerald-300" />
@@ -439,7 +441,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             <Diferencial
               icon={Zap}
               titulo="Estruturado pra escalar"
-              texto="Do plano básico ao enterprise, o modelo acompanha o crescimento do seu escritório sem precisar contratar um departamento societário interno."
+              texto="Modelo desenhado pra acompanhar o crescimento do seu escritório — sem precisar contratar um departamento societário interno nem treinar uma equipe do zero."
             />
           </div>
 
@@ -579,14 +581,11 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                     </p>
                   )}
                 </div>
-                {orc.terc_dia_pagamento && (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-emerald-800">
-                    <p className="text-[10px] uppercase tracking-wider font-bold flex items-center gap-1.5">
-                      <Calendar className="h-3 w-3" /> Vencimento mensal
-                    </p>
-                    <p className="text-2xl font-bold tabular-nums mt-1">dia {orc.terc_dia_pagamento}</p>
-                  </div>
-                )}
+                <VencimentoBadge
+                  tipo={orc.terc_vencimento_tipo}
+                  dia={orc.terc_dia_pagamento}
+                  texto={orc.terc_vencimento_outros_texto}
+                />
               </div>
 
               {orc.terc_valor_abertura && orc.terc_valor_abertura > 0 && orc.terc_valor_abertura !== valorPrincipal && (
@@ -633,14 +632,11 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                   ) : null
                 )}
               </div>
-              {orc.terc_dia_pagamento && (
-                <div className="mt-6 pt-6 border-t border-slate-200 flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-emerald-700" />
-                  <p className="text-sm text-slate-700">
-                    Cobrança recorrente todo dia <strong>{orc.terc_dia_pagamento}</strong> do mês
-                  </p>
-                </div>
-              )}
+              <VencimentoLinha
+                tipo={orc.terc_vencimento_tipo}
+                dia={orc.terc_dia_pagamento}
+                texto={orc.terc_vencimento_outros_texto}
+              />
             </div>
           )}
 
@@ -681,7 +677,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <ComoFunciona
               numero="01"
               titulo="Plataforma própria"
@@ -697,12 +693,23 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
               titulo="SLA formalizado"
               texto="Tempo de início garantido após documentação completa. Comunicação proativa em exigências. Acompanhamento até o deferimento final."
             />
+            <div className="relative p-6 rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white hover:border-emerald-400 transition-colors">
+              <p className="text-5xl font-bold text-emerald-200 leading-none mb-4">04</p>
+              <div className="flex items-center gap-2 mb-2">
+                <img src={logoDaniDark} alt="dani.ai" className="h-4 object-contain" />
+                <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-wider">24/7</span>
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Monitoramento por IA</h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Nossa IA própria varre Juntas, Receita, Prefeituras e órgãos competentes em tempo real e <strong className="text-slate-900">avisa o contador</strong> a cada movimentação — sem espera, sem ligação.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ─── CLÁUSULAS + OBSERVAÇÕES ─── */}
-      {(regrasObjetos.length > 0 || orc.terc_observacoes_publicas) && (
+      {(regrasObjetos.length > 0 || (orc.terc_observacoes_publicas && orc.terc_observacoes_publicas.trim())) && (
         <section className="py-16 bg-slate-50">
           <div className="max-w-5xl mx-auto px-6">
             <div className="max-w-2xl mb-10">
@@ -727,13 +734,13 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
               </div>
             )}
 
-            {orc.terc_observacoes_publicas && (
+            {orc.terc_observacoes_publicas && orc.terc_observacoes_publicas.trim() && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
                 <p className="text-[10px] uppercase tracking-wider font-bold text-amber-700 mb-2">
                   Observações específicas desta proposta
                 </p>
                 <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
-                  {orc.terc_observacoes_publicas}
+                  {orc.terc_observacoes_publicas.trim()}
                 </p>
               </div>
             )}
@@ -877,13 +884,13 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
 
 function Stat({ icon: Icon, value, label }: { icon: React.ComponentType<{ className?: string }>; value: string; label: string }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="shrink-0 h-9 w-9 rounded-lg bg-emerald-500/20 inline-flex items-center justify-center">
-        <Icon className="h-4.5 w-4.5 text-emerald-300" />
+    <div className="flex items-center gap-3">
+      <div className="shrink-0 h-11 w-11 rounded-xl bg-emerald-500/20 ring-1 ring-emerald-400/30 inline-flex items-center justify-center">
+        <Icon className="h-5 w-5 text-emerald-300" />
       </div>
       <div>
-        <p className="text-2xl md:text-3xl font-bold leading-none tracking-tight">{value}</p>
-        <p className="text-[10px] text-emerald-200/70 mt-1 leading-tight">{label}</p>
+        <p className="text-3xl md:text-4xl font-bold leading-none tracking-tight text-white">{value}</p>
+        <p className="text-[11px] text-emerald-200/80 mt-1.5 leading-tight font-medium">{label}</p>
       </div>
     </div>
   );
@@ -936,6 +943,49 @@ function ComoFunciona({ numero, titulo, texto }: { numero: string; titulo: strin
       <p className="text-5xl font-bold text-emerald-100 leading-none mb-4">{numero}</p>
       <h3 className="text-lg font-bold text-slate-900 mb-2">{titulo}</h3>
       <p className="text-sm text-slate-600 leading-relaxed">{texto}</p>
+    </div>
+  );
+}
+
+// ─── Badge/Linha de vencimento (3 tipos: mensal_dia, deferimento, outros) ────
+type VencProps = { tipo?: 'mensal_dia' | 'deferimento' | 'outros' | null; dia?: number | null; texto?: string | null };
+
+function VencimentoBadge({ tipo, dia, texto }: VencProps) {
+  const t = tipo || (dia ? 'mensal_dia' : null);
+  if (!t) return null;
+  if (t === 'mensal_dia' && !dia) return null;
+  if (t === 'outros' && !texto) return null;
+  return (
+    <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-emerald-800 min-w-[170px]">
+      <p className="text-[10px] uppercase tracking-wider font-bold flex items-center gap-1.5">
+        <Calendar className="h-3 w-3" /> Vencimento
+      </p>
+      {t === 'mensal_dia' && (
+        <p className="text-2xl font-bold tabular-nums mt-1">mensal · dia {dia}</p>
+      )}
+      {t === 'deferimento' && (
+        <p className="text-base font-bold mt-1 leading-tight">No deferimento<br/><span className="text-xs font-normal text-emerald-700">do processo</span></p>
+      )}
+      {t === 'outros' && texto && (
+        <p className="text-sm font-semibold mt-1 leading-snug">{texto}</p>
+      )}
+    </div>
+  );
+}
+
+function VencimentoLinha({ tipo, dia, texto }: VencProps) {
+  const t = tipo || (dia ? 'mensal_dia' : null);
+  if (!t) return null;
+  if (t === 'mensal_dia' && !dia) return null;
+  if (t === 'outros' && !texto) return null;
+  return (
+    <div className="mt-6 pt-6 border-t border-slate-200 flex items-center gap-3">
+      <Calendar className="h-5 w-5 text-emerald-700" />
+      <p className="text-sm text-slate-700">
+        {t === 'mensal_dia' && <>Cobrança recorrente todo dia <strong>{dia}</strong> do mês</>}
+        {t === 'deferimento' && <>Vencimento <strong>no deferimento do processo</strong></>}
+        {t === 'outros' && texto && <>Vencimento: <strong>{texto}</strong></>}
+      </p>
     </div>
   );
 }
@@ -1072,7 +1122,7 @@ function MapaBrasilAnimado() {
   }, [estadosComCentro.length]);
 
   return (
-    <div className="relative w-full max-w-[340px]">
+    <div className="relative w-full max-w-[380px]">
       {/* Badge topo */}
       <div className="flex items-center justify-center gap-2 mb-3">
         <span className="relative flex h-2 w-2">
