@@ -595,18 +595,12 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                       <Sparkles className="h-3 w-3" />
                       Diferencial Trevo
                     </div>
-                    <div className="flex items-center justify-between gap-4 flex-wrap mt-1">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-emerald-700 font-bold mb-1">Abertura de empresa</p>
-                        <p className="text-3xl font-bold tabular-nums text-emerald-700">{fmtBRL(orc.terc_valor_abertura)}</p>
-                        <p className="text-[11px] text-emerald-700/70 mt-1">
-                          <strong className="text-emerald-800">{Math.round((1 - orc.terc_valor_abertura / valorPrincipal) * 100)}% mais barato</strong> que os demais processos
-                        </p>
-                      </div>
-                      <div className="text-right text-[11px] text-slate-500 leading-relaxed">
-                        <p className="text-slate-400 line-through tabular-nums">{fmtBRL(valorPrincipal)}</p>
-                        <p>preço dos demais</p>
-                      </div>
+                    <div className="mt-1">
+                      <p className="text-[10px] uppercase tracking-wider text-emerald-700 font-bold mb-1">Abertura de empresa</p>
+                      <p className="text-3xl font-bold tabular-nums text-emerald-700">{fmtBRL(orc.terc_valor_abertura)}</p>
+                      <p className="text-[11px] text-emerald-700/70 mt-1">
+                        <strong className="text-emerald-800">{Math.round((1 - orc.terc_valor_abertura / valorPrincipal) * 100)}% mais barato</strong> que os demais processos
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1053,15 +1047,12 @@ function CardDaniAi() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-4 space-y-2.5 min-h-[200px]">
           <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
             <div className="relative shrink-0">
-              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 inline-flex items-center justify-center font-bold text-white text-base shadow-sm">
-                d
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 inline-flex items-center justify-center shadow-sm overflow-hidden p-1.5">
+                <img src={logoDaniLight} alt="dani.ai" className="h-full w-full object-contain" />
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
             </div>
-            <div className="leading-tight">
-              <img src={logoDaniDark} alt="dani.ai" className="h-4 object-contain mb-0.5" />
-              <p className="text-[10px] text-emerald-700 font-semibold">online · respondendo</p>
-            </div>
+            <p className="text-[11px] text-emerald-700 font-semibold">online · respondendo</p>
           </div>
 
           {/* Mensagem 1 */}
@@ -1096,20 +1087,26 @@ function CardDaniAi() {
 
 // ─── Mapa do Brasil animado (hero direito) ───────────────────────────────────
 // Paths reais dos 27 estados (CC-BY 4.0 — VictorCazanave/svg-maps).
+// Centros geográficos aproximados pro viewBox 0 0 613 639 (paths sao
+// RELATIVOS, então media de numeros nao da o centro real).
+const BRASIL_CENTROS: Record<string, [number, number]> = {
+  AC: [90, 280],  AL: [560, 260], AP: [340, 80],   AM: [200, 200],
+  BA: [430, 320], CE: [490, 200], DF: [370, 330],  ES: [490, 405],
+  GO: [350, 350], MA: [400, 200], MT: [270, 290],  MS: [290, 380],
+  MG: [430, 380], PA: [300, 180], PB: [550, 230],  PR: [320, 470],
+  PE: [520, 240], PI: [440, 230], RJ: [450, 430],  RN: [550, 210],
+  RS: [290, 560], RO: [170, 280], RR: [200, 90],   SC: [320, 520],
+  SP: [370, 430], SE: [520, 280], TO: [350, 260],
+};
+
 function MapaBrasilAnimado() {
-  // Centros aproximados de cada estado, pra ancorar checks/dots animados
   const estadosComCentro = useMemo(() =>
-    BRASIL_ESTADOS_PATHS.map((st) => {
-      const nums = st.d.match(/-?\d+\.?\d*/g)?.map(Number) || [];
-      const xs = nums.filter((_, i) => i % 2 === 0);
-      const ys = nums.filter((_, i) => i % 2 === 1);
-      return {
-        id: st.id,
-        d: st.d,
-        cx: xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 300,
-        cy: ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : 300,
-      };
-    }),
+    BRASIL_ESTADOS_PATHS.map((st) => ({
+      id: st.id,
+      d: st.d,
+      cx: BRASIL_CENTROS[st.id]?.[0] ?? 300,
+      cy: BRASIL_CENTROS[st.id]?.[1] ?? 300,
+    })),
   []);
 
   // Animação: "scan" sequencial por todos os estados (cada um acende ao chegar a vez)
