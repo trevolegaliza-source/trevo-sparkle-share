@@ -458,7 +458,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                 </p>
               </div>
 
-              <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight break-words">
                 {orc.prospect_nome}
               </h1>
               {orc.prospect_cnpj && (
@@ -734,9 +734,9 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                   <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">
                     {isPlanoMensal ? 'Investimento mensal' : 'Por processo / operação societária'}
                   </p>
-                  <p className="text-6xl md:text-7xl font-bold tabular-nums tracking-tight text-emerald-700">
+                  <p className="text-4xl sm:text-5xl md:text-7xl font-bold tabular-nums tracking-tight text-emerald-700 break-all">
                     {fmtBRL(valorPrincipal)}
-                    {isPlanoMensal && <span className="text-2xl font-normal text-slate-500 ml-1">/mês</span>}
+                    {isPlanoMensal && <span className="text-xl sm:text-2xl font-normal text-slate-500 ml-1">/mês</span>}
                   </p>
                   {isPlanoMensal && (
                     <p className="text-sm text-slate-500 mt-2">
@@ -1628,27 +1628,27 @@ function BlocoCalculadoraROI({ valorProcesso }: { valorProcesso: number }) {
             <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-200 font-bold mb-4">Seu retorno com a Trevo</p>
 
             <div className="space-y-4">
-              <div className="flex items-baseline justify-between gap-4 pb-3 border-b border-emerald-600/40">
-                <div>
+              <div className="flex items-baseline justify-between gap-3 pb-3 border-b border-emerald-600/40 flex-wrap">
+                <div className="min-w-0 flex-1">
                   <p className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-bold">Faturamento que você deixa de ganhar</p>
                   <p className="text-[10px] text-emerald-200/60 mt-0.5">{horasEmSocietario}h × R$ {horaFaturada}/h faturada</p>
                 </div>
-                <p className="text-2xl font-bold tabular-nums text-white">{fmtBRL(faturamentoPotencialPerdido)}</p>
+                <p className="text-xl sm:text-2xl font-bold tabular-nums text-white whitespace-nowrap">{fmtBRL(faturamentoPotencialPerdido)}</p>
               </div>
 
-              <div className="flex items-baseline justify-between gap-4 pb-3 border-b border-emerald-600/40">
-                <div>
+              <div className="flex items-baseline justify-between gap-3 pb-3 border-b border-emerald-600/40 flex-wrap">
+                <div className="min-w-0 flex-1">
                   <p className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-bold">Investimento na Trevo</p>
                   <p className="text-[10px] text-emerald-200/60 mt-0.5">{processosMes} × {fmtBRL(valorProcesso)}/processo</p>
                 </div>
-                <p className="text-2xl font-bold tabular-nums text-white">{fmtBRL(custoComTrevo)}</p>
+                <p className="text-xl sm:text-2xl font-bold tabular-nums text-white whitespace-nowrap">{fmtBRL(custoComTrevo)}</p>
               </div>
 
               <div className={`rounded-xl p-4 ring-1 ${ganhoReal > 0 ? 'bg-emerald-500/20 ring-emerald-400/40' : 'bg-amber-500/20 ring-amber-400/40'}`}>
                 <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200 font-bold mb-1">
                   {ganhoReal > 0 ? 'Ganho real terceirizando' : 'Análise reversa'}
                 </p>
-                <p className={`text-4xl font-bold tabular-nums ${ganhoReal > 0 ? 'text-emerald-100' : 'text-amber-100'}`}>
+                <p className={`text-3xl sm:text-4xl font-bold tabular-nums break-all ${ganhoReal > 0 ? 'text-emerald-100' : 'text-amber-100'}`}>
                   {ganhoReal > 0 ? '+' : ''}{fmtBRL(ganhoReal)}
                 </p>
                 <p className="text-[10px] text-emerald-200/70 mt-1 leading-relaxed">
