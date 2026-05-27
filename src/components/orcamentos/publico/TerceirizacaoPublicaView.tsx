@@ -29,6 +29,7 @@ import {
 import logoTrevo from '@/assets/logo-trevo.png';
 import logoDaniDark from '@/assets/dani-dark.png';
 import logoDaniLight from '@/assets/dani-light.png';
+import { BRASIL_ESTADOS_PATHS } from '@/assets/brasil-states-paths';
 
 const anonHeaders = {
   apikey: SUPABASE_PUBLISHABLE_KEY,
@@ -276,6 +277,8 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
         @keyframes scan-line { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
         .scan-line { animation: scan-line 3s ease-in-out infinite; }
         @keyframes fade-up { 0% { transform: translateY(8px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        @keyframes ring-expand { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(4); opacity: 0; } }
+        @keyframes scan-sweep { 0% { transform: translateY(-10%); } 100% { transform: translateY(110%); } }
       `}</style>
 
       <section className="relative bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-900 text-white overflow-hidden">
@@ -495,11 +498,12 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-bold text-slate-900">Dani.ai</p>
+                    <img src={logoDaniDark} alt="dani.ai" className="h-5 object-contain" />
                     <span className="px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-wider">IA proprietária</span>
                   </div>
-                  <p className="text-[11px] mt-0.5 leading-relaxed text-slate-600">
-                    Nossa IA consulta processos em tempo real e reporta atualizações instantaneamente ao cliente final do contador. Status, prazos e exigências sem você precisar abrir nada.
+                  <p className="text-[11px] mt-1 leading-relaxed text-slate-600">
+                    Nossa IA consulta processos em tempo real nas Juntas Comerciais e <strong className="text-slate-900">reporta atualizações instantaneamente ao contador</strong>.
+                    Status, prazos e exigências chegam pra você sem precisar abrir nada.
                   </p>
                 </div>
               </div>
@@ -816,7 +820,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
           </div>
           <div className="flex items-center gap-3 pl-0 md:pl-4 md:border-l border-slate-300">
             <div className="flex items-baseline">
-              <img src={logoDaniDark} alt="Dani.ai" className="h-10 object-contain" />
+              <img src={logoDaniDark} alt="dani.ai" className="h-10 object-contain" />
               <span className="text-[10px] text-slate-400 font-semibold ml-0.5" aria-label="marca registrada">®</span>
             </div>
             <div className="leading-tight">
@@ -968,13 +972,15 @@ function CardDaniAi() {
             <Sparkles className="h-3 w-3" />
             Inteligência Artificial Própria
           </div>
-          <h3 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight mb-3">
-            Conheça a <span className="text-emerald-700">Dani.ai</span> — sua aliada que nunca dorme.
+          <h3 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight mb-3 flex items-baseline flex-wrap gap-x-2">
+            <span>Conheça a</span>
+            <img src={logoDaniDark} alt="dani.ai" className="h-7 md:h-8 object-contain inline-block translate-y-1" />
+            <span>— sua aliada que nunca dorme.</span>
           </h3>
           <p className="text-sm text-slate-600 leading-relaxed mb-4">
             Nossa IA proprietária consulta o status dos processos em tempo real
-            nas Juntas Comerciais e <strong className="text-slate-900">reporta atualizações instantaneamente</strong> ao cliente final
-            do contador. Sem você precisar abrir nada, sem ligação, sem &ldquo;deixa eu checar&rdquo;.
+            nas Juntas Comerciais e <strong className="text-slate-900">reporta atualizações instantaneamente ao contador</strong>.
+            Sem você precisar abrir nada, sem ligação, sem &ldquo;deixa eu checar&rdquo;.
           </p>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
@@ -996,14 +1002,12 @@ function CardDaniAi() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-4 space-y-2.5 min-h-[200px]">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
             <div className="relative">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 inline-flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-white" />
-              </div>
+              <img src={logoDaniDark} alt="dani.ai" className="h-8 w-8 object-contain rounded-full" />
               <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
             </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900">Dani.ai</p>
-              <p className="text-[10px] text-emerald-600 font-semibold">online · respondendo</p>
+            <div className="leading-tight">
+              <img src={logoDaniDark} alt="dani.ai" className="h-3.5 object-contain" />
+              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">online · respondendo</p>
             </div>
           </div>
 
@@ -1038,52 +1042,34 @@ function CardDaniAi() {
 }
 
 // ─── Mapa do Brasil animado (hero direito) ───────────────────────────────────
-const BRASIL_ESTADOS: { id: string; d: string }[] = [
-  { id: 'AC', d: 'M95,280 L95,310 L120,315 L130,305 L125,285 L110,275 Z' },
-  { id: 'AM', d: 'M110,180 L90,200 L85,240 L95,270 L110,275 L130,280 L160,275 L200,260 L220,240 L230,210 L210,190 L180,180 L150,175 Z' },
-  { id: 'RR', d: 'M170,120 L155,140 L150,170 L170,175 L190,170 L200,150 L195,130 Z' },
-  { id: 'AP', d: 'M260,140 L245,155 L240,175 L255,190 L275,185 L280,165 L270,145 Z' },
-  { id: 'PA', d: 'M200,175 L220,195 L230,215 L250,220 L280,210 L300,200 L310,180 L290,170 L270,175 L255,185 L240,175 L230,185 L215,180 Z' },
-  { id: 'MA', d: 'M305,195 L310,180 L330,175 L345,185 L350,200 L340,215 L320,220 L310,210 Z' },
-  { id: 'TO', d: 'M290,225 L285,250 L280,280 L295,300 L310,295 L315,270 L310,245 L300,230 Z' },
-  { id: 'PI', d: 'M340,210 L345,185 L360,190 L370,210 L365,235 L350,245 L340,235 Z' },
-  { id: 'CE', d: 'M370,195 L385,185 L400,190 L405,210 L390,220 L375,215 Z' },
-  { id: 'RN', d: 'M400,205 L415,200 L425,210 L415,220 L400,215 Z' },
-  { id: 'PB', d: 'M395,220 L415,220 L425,230 L410,235 L395,230 Z' },
-  { id: 'PE', d: 'M365,235 L390,230 L410,235 L420,245 L400,250 L375,250 L360,245 Z' },
-  { id: 'AL', d: 'M400,250 L415,250 L420,260 L410,265 L400,260 Z' },
-  { id: 'SE', d: 'M395,265 L405,268 L410,278 L400,275 Z' },
-  { id: 'BA', d: 'M310,280 L330,260 L350,250 L370,255 L395,265 L400,280 L395,310 L380,330 L360,340 L340,330 L320,310 Z' },
-  { id: 'MT', d: 'M200,270 L220,260 L250,265 L275,280 L280,310 L260,330 L230,335 L210,320 L195,300 Z' },
-  { id: 'GO', d: 'M280,310 L300,305 L320,310 L325,335 L315,355 L295,360 L280,350 L275,330 Z' },
-  { id: 'DF', d: 'M310,340 L318,338 L320,345 L312,347 Z' },
-  { id: 'MS', d: 'M220,340 L245,335 L265,340 L275,360 L265,385 L245,390 L225,380 L215,360 Z' },
-  { id: 'MG', d: 'M310,340 L330,335 L355,345 L375,340 L385,355 L380,380 L360,395 L335,395 L315,385 L300,370 L295,355 Z' },
-  { id: 'ES', d: 'M385,355 L400,350 L405,370 L395,385 L385,375 Z' },
-  { id: 'RJ', d: 'M360,395 L380,390 L395,395 L390,410 L370,415 L355,405 Z' },
-  { id: 'SP', d: 'M275,370 L300,375 L325,390 L345,400 L355,405 L345,420 L320,425 L295,415 L275,400 L265,390 Z' },
-  { id: 'PR', d: 'M260,400 L280,405 L305,420 L315,430 L300,445 L275,445 L255,435 L250,420 Z' },
-  { id: 'SC', d: 'M270,445 L295,448 L305,460 L290,470 L270,465 Z' },
-  { id: 'RS', d: 'M255,465 L275,468 L290,475 L295,495 L280,510 L260,510 L245,500 L240,480 Z' },
-  { id: 'RO', d: 'M145,280 L170,275 L195,285 L200,310 L185,325 L160,320 L145,305 Z' },
-];
-
+// Paths reais dos 27 estados (CC-BY 4.0 — VictorCazanave/svg-maps).
 function MapaBrasilAnimado() {
-  // Centros aproximados de cada estado pra colocar dots pulsantes
-  const estadosComCentro = BRASIL_ESTADOS.map((st) => {
-    const coords = st.d.match(/[\d.]+/g)?.map(Number) || [];
-    const xs = coords.filter((_, i) => i % 2 === 0);
-    const ys = coords.filter((_, i) => i % 2 === 1);
-    return {
-      id: st.id,
-      d: st.d,
-      cx: xs.reduce((a, b) => a + b, 0) / xs.length,
-      cy: ys.reduce((a, b) => a + b, 0) / ys.length,
-    };
-  });
+  // Centros aproximados de cada estado, pra ancorar checks/dots animados
+  const estadosComCentro = useMemo(() =>
+    BRASIL_ESTADOS_PATHS.map((st) => {
+      const nums = st.d.match(/-?\d+\.?\d*/g)?.map(Number) || [];
+      const xs = nums.filter((_, i) => i % 2 === 0);
+      const ys = nums.filter((_, i) => i % 2 === 1);
+      return {
+        id: st.id,
+        d: st.d,
+        cx: xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 300,
+        cy: ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : 300,
+      };
+    }),
+  []);
+
+  // Animação: "scan" sequencial por todos os estados (cada um acende ao chegar a vez)
+  const [scanIdx, setScanIdx] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => {
+      setScanIdx((i) => (i + 1) % estadosComCentro.length);
+    }, 280);
+    return () => clearInterval(t);
+  }, [estadosComCentro.length]);
 
   return (
-    <div className="relative w-full max-w-[320px]">
+    <div className="relative w-full max-w-[340px]">
       {/* Badge topo */}
       <div className="flex items-center justify-center gap-2 mb-3">
         <span className="relative flex h-2 w-2">
@@ -1096,58 +1082,123 @@ function MapaBrasilAnimado() {
       </div>
 
       {/* SVG do Brasil com glow */}
-      <div className="relative">
+      <div className="relative aspect-[613/639]">
+        {/* halo de fundo */}
+        <div className="absolute inset-0 bg-emerald-500/15 blur-2xl rounded-full" />
+
         <svg
-          viewBox="60 100 380 430"
-          className="w-full h-auto brasil-svg"
+          viewBox="0 0 613 639"
+          className="relative w-full h-full"
           xmlns="http://www.w3.org/2000/svg"
           aria-label="Mapa do Brasil destacando atuação em todos os 26 estados e Distrito Federal"
         >
           <defs>
-            <linearGradient id="brasilGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(16,185,129,0.55)" />
-              <stop offset="50%" stopColor="rgba(16,185,129,0.35)" />
-              <stop offset="100%" stopColor="rgba(16,185,129,0.20)" />
+            <linearGradient id="brasilFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.85" />
+              <stop offset="55%" stopColor="#059669" stopOpacity="0.75" />
+              <stop offset="100%" stopColor="#047857" stopOpacity="0.65" />
             </linearGradient>
-            <radialGradient id="dotGrad" cx="50%" cy="50%" r="50%">
+            <linearGradient id="brasilHi" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#34d399" stopOpacity="1" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0.4" />
-            </radialGradient>
+              <stop offset="100%" stopColor="#10b981" stopOpacity="1" />
+            </linearGradient>
+            <filter id="brasilGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="b" />
+              <feMerge>
+                <feMergeNode in="b" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="checkGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2" result="b" />
+              <feMerge>
+                <feMergeNode in="b" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
 
-          {/* Estados preenchidos */}
-          {BRASIL_ESTADOS.map((st) => (
-            <path
-              key={`path-${st.id}`}
-              d={st.d}
-              fill="url(#brasilGrad)"
-              stroke="rgba(110,231,183,0.6)"
-              strokeWidth="1.2"
-              strokeLinejoin="round"
-            />
-          ))}
+          {/* Estados preenchidos com hover acende */}
+          <g filter="url(#brasilGlow)">
+            {estadosComCentro.map((st, idx) => {
+              const ativo = idx === scanIdx;
+              return (
+                <path
+                  key={`p-${st.id}`}
+                  d={st.d}
+                  fill={ativo ? 'url(#brasilHi)' : 'url(#brasilFill)'}
+                  stroke="#a7f3d0"
+                  strokeWidth={ativo ? '2.5' : '1.2'}
+                  strokeLinejoin="round"
+                  style={{ transition: 'fill 0.35s ease, stroke-width 0.35s ease' }}
+                />
+              );
+            })}
+          </g>
 
-          {/* Dots pulsantes em cada estado, com delays diferentes (onda) */}
+          {/* Checks pulsantes em cada estado, com delays diferentes (onda contínua) */}
           {estadosComCentro.map((st, idx) => (
-            <g key={`dot-${st.id}`} style={{ transformOrigin: `${st.cx}px ${st.cy}px` }}>
+            <g key={`chk-${st.id}`}>
+              {/* Círculo de pulse atrás do check */}
               <circle
                 cx={st.cx}
                 cy={st.cy}
-                r="3.5"
-                fill="url(#dotGrad)"
+                r="9"
+                fill="#10b981"
+                opacity="0.35"
                 style={{
-                  animation: `pulse-dot 2s ease-in-out ${(idx * 0.12) % 2}s infinite`,
+                  animation: `pulse-dot 2.4s ease-in-out ${(idx * 0.18) % 2.4}s infinite`,
                   transformOrigin: `${st.cx}px ${st.cy}px`,
                 }}
               />
-              <circle cx={st.cx} cy={st.cy} r="1.8" fill="#ecfdf5" />
+              {/* Bolinha branca de fundo */}
+              <circle cx={st.cx} cy={st.cy} r="6" fill="white" filter="url(#checkGlow)" />
+              {/* Check verde dentro */}
+              <path
+                d={`M ${st.cx - 3.2} ${st.cy} l 2.2 2.4 l 4.4 -4.6`}
+                stroke="#059669"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
             </g>
           ))}
+
+          {/* Anel expansivo no estado "ativo" do scan */}
+          {estadosComCentro[scanIdx] && (
+            <circle
+              key={`ring-${scanIdx}`}
+              cx={estadosComCentro[scanIdx].cx}
+              cy={estadosComCentro[scanIdx].cy}
+              r="6"
+              fill="none"
+              stroke="#34d399"
+              strokeWidth="2"
+              opacity="0.9"
+              style={{
+                animation: 'ring-expand 1s ease-out forwards',
+                transformOrigin: `${estadosComCentro[scanIdx].cx}px ${estadosComCentro[scanIdx].cy}px`,
+                transformBox: 'view-box',
+              }}
+            />
+          )}
         </svg>
+
+        {/* Indicador do estado ativo (canto direito) */}
+        <div className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-950/70 backdrop-blur border border-emerald-500/40">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inset-0 rounded-full bg-emerald-400 opacity-75 pulse-dot" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-300" />
+          </span>
+          <span className="text-[10px] font-mono font-bold text-emerald-200 tabular-nums">
+            {estadosComCentro[scanIdx]?.id || '--'}
+          </span>
+        </div>
       </div>
 
       {/* Badge inferior */}
-      <div className="mt-3 flex items-center justify-center gap-3">
+      <div className="mt-4 flex items-center justify-center gap-4">
         <div className="text-center">
           <p className="text-3xl font-bold text-emerald-300 tabular-nums leading-none">26<span className="text-emerald-400 text-xl">+1</span></p>
           <p className="text-[9px] uppercase tracking-wider text-emerald-200/70 font-bold mt-1">estados + DF</p>
