@@ -680,21 +680,9 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                   </p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-emerald-100/40 md:col-span-2">
-                <div className="shrink-0 h-5 w-5 rounded-full bg-emerald-600 inline-flex items-center justify-center">
-                  <Check className="h-3 w-3 text-white" strokeWidth={4} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <img src={logoDaniDark} alt="dani.ai" className="h-5 object-contain" />
-                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-wider">IA proprietária</span>
-                  </div>
-                  <p className="text-[11px] mt-1 leading-relaxed text-slate-600">
-                    Nossa IA consulta processos em tempo real nas Juntas Comerciais e <strong className="text-slate-900">reporta atualizações instantaneamente ao contador</strong>.
-                    Status, prazos e exigências chegam pra você sem precisar abrir nada.
-                  </p>
-                </div>
-              </div>
+              {/* COM-08 (27/05 noite): item dani.ai removido daqui — já aparece como
+                  card destaque no bloco diferenciais (CardDaniAi) + step 04 "Como
+                  funciona". Tripla menção virava ruído. */}
 
               {inclusos
                 .filter((it) => !/plataforma\s+trevo/i.test(it.label) && !/dani\.?ai/i.test(it.label))
@@ -820,21 +808,26 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             </div>
           )}
 
-          {/* Validade highlight */}
-          <div className="flex items-center justify-between gap-4 px-6 py-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-300" />
-              <p className="text-sm">
-                Esta proposta expira em{' '}
-                <strong className="text-amber-200">
-                  {expiracao.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                </strong>
-                {diasParaExpirar <= 5 && (
-                  <span className="ml-2 text-amber-300 font-bold">
-                    ({diasParaExpirar} {diasParaExpirar === 1 ? 'dia' : 'dias'})
-                  </span>
-                )}
-              </p>
+          {/* Validade highlight — COM-10 (27/05 noite): urgência ancorada (5º processo cortesia) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+            <div className="flex items-start sm:items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-300 shrink-0 mt-0.5 sm:mt-0" />
+              <div className="text-sm">
+                <p>
+                  Validade até{' '}
+                  <strong className="text-amber-200">
+                    {expiracao.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </strong>
+                  {diasParaExpirar <= 5 && (
+                    <span className="ml-2 text-amber-300 font-bold">
+                      ({diasParaExpirar} {diasParaExpirar === 1 ? 'dia restante' : 'dias restantes'})
+                    </span>
+                  )}
+                </p>
+                <p className="text-[11px] text-amber-100/70 mt-0.5">
+                  Aceitando até essa data, seu <strong className="text-amber-200">5º processo é cortesia</strong> (vide cláusulas).
+                </p>
+              </div>
             </div>
             <span className="hidden md:inline text-[10px] font-mono text-emerald-200/80">
               PROP-{String(orc.numero).padStart(4, '0')}
