@@ -43,7 +43,9 @@ const PDFSHIFT_API_KEY = Deno.env.get("PDFSHIFT_API_KEY") ?? "";
 const GOOGLE_SA_KEY = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY") ?? "";
 const BUCKET_NAME = "propostas-pdf";
 const TEMPLATE_DOC_ID = "1YN4a1emE7R9OADlMX-QCbdydyBBZHSdMW2N6xtfeStw";
-const PLACEHOLDER_VAZIO = "________________________";
+// 27/05: trocado de "________________________" pra travessão limpo.
+// Cliente preenche os campos vazios durante a assinatura via ClickSign.
+const PLACEHOLDER_VAZIO = "—";
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
@@ -502,8 +504,26 @@ function renderPropostaHTML(p: any): string {
       )
       .join('');
 
-  const renderInclusos = (items: any[]): string =>
-    (items || [])
+  const renderInclusos = (items: any[]): string => {
+    // 27/05: 2 cards institucionais SEMPRE no topo (match com landing pública).
+    // Filtra do array dinâmico pra não duplicar caso o banco já tenha esses labels.
+    const fixos = `
+      <div class="incl incl-feat">
+        <div class="incl-ico">✓</div>
+        <div class="incl-body">
+          <div class="incl-label">Plataforma Trevo Engine + Aplicativo Mobile</div>
+          <div class="incl-desc">Acesso completo à plataforma proprietária via web e app mobile (iOS/Android). Cartão dedicado por processo com timeline, documentos, notificações push e comunicação centralizada.</div>
+        </div>
+      </div>
+      <div class="incl incl-feat">
+        <div class="incl-ico">✓</div>
+        <div class="incl-body">
+          <div class="incl-label">dani.ai <span class="incl-badge">IA proprietária</span></div>
+          <div class="incl-desc">IA desenvolvida internamente pela Trevo: consulta Juntas Comerciais, Receita Federal, prefeituras e demais órgãos competentes em tempo real e reporta atualizações instantaneamente ao contador.</div>
+        </div>
+      </div>`;
+    const dinamicos = (items || [])
+      .filter((it) => !/plataforma\s+trevo/i.test(it.label || '') && !/dani\.?ai/i.test(it.label || ''))
       .map(
         (it) => `
         <div class="incl ${it.ativo ? 'incl-on' : 'incl-off'}">
@@ -515,6 +535,8 @@ function renderPropostaHTML(p: any): string {
         </div>`
       )
       .join('');
+    return fixos + dinamicos;
+  };
 
   const renderTipoTable = (): string => {
     const precos = p.terc_precos_por_tipo || {};
@@ -1161,6 +1183,27 @@ function renderPropostaHTML(p: any): string {
     grid-template-columns: 14px 1fr;
     gap: 8px;
     align-items: start;
+  }
+  /* 27/05: cards institucionais full-width (Plataforma Engine + dani.ai) */
+  .incl-feat {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, rgba(22,163,74,0.08), rgba(22,163,74,0.02));
+    border: 1.5px solid rgba(22,163,74,0.35);
+    border-left: 3px solid var(--brand);
+  }
+  .incl-feat .incl-label { font-weight: 700; font-size: 11.5px; }
+  .incl-badge {
+    display: inline-block;
+    background: var(--brand);
+    color: white;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 5px;
+    vertical-align: middle;
   }
   .incl-off {
     border-left-color: var(--fg-4);
