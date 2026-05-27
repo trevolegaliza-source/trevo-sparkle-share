@@ -17,8 +17,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Loader2, Check, ShieldCheck, MessageCircle, FileText, Building2,
-  Clock, Zap, Users, Award, Target, Layers, ArrowRight, Sparkles, ChevronDown,
-  Lock, Calendar, AlertCircle, CheckCircle2, X,
+  Clock, Zap, Users, Award, Target, Layers, ArrowRight, ArrowLeft, Sparkles, ChevronDown,
+  Lock, Calendar, AlertCircle, CheckCircle2, X, Download,
 } from 'lucide-react';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 import {
@@ -103,6 +103,10 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
   const [statusLocal, setStatusLocal] = useState(orc.status);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [recusarOpen, setRecusarOpen] = useState(false);
+  // 27/05: quando true, mostra a landing em modo "celebração" (mesmo após aceito)
+  // em vez da tela de sucesso. Usado quando cliente clica em "Voltar à proposta".
+  const [voltouAposAceite, setVoltouAposAceite] = useState(false);
+  const [confettiAtivo, setConfettiAtivo] = useState(false);
   // ITEM-024 fix: state local pra terc_pdf_url + polling automático quando
   // aceito e PDF ainda não está disponível (geração leva 15-25s assíncrona).
   const [pdfUrl, setPdfUrl] = useState<string | null>(orc.terc_pdf_url || null);
@@ -213,8 +217,8 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
     );
   }
 
-  // ─── Tela de sucesso (já aceito) ─────────────────────────────────────────
-  if (statusLocal === 'aceito') {
+  // ─── Tela de sucesso (já aceito + ainda não voltou pra landing) ─────────
+  if (statusLocal === 'aceito' && !voltouAposAceite) {
     // 60 partículas de confete com cores/posições/delays aleatórios mas estáveis
     const confettiCores = ['#10b981', '#059669', '#34d399', '#fbbf24', '#f59e0b', '#3b82f6', '#a78bfa'];
     const confetes = Array.from({ length: 60 }, (_, i) => ({
@@ -290,14 +294,40 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
               O PDF da proposta + contrato está sendo gerado e ficará disponível em segundos. Esta página atualiza sozinha.
             </p>
           )}
+
+          <div className="ts-fade-up-3 pt-1">
+            <button
+              onClick={() => {
+                setVoltouAposAceite(true);
+                setConfettiAtivo(true);
+                window.setTimeout(() => setConfettiAtivo(false), 4500);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="inline-flex items-center gap-2 text-xs text-slate-500 hover:text-emerald-700 underline-offset-2 hover:underline transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Voltar e visualizar proposta
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   // ─── HERO ────────────────────────────────────────────────────────────────
+  // 27/05: configuração de confete reutilizado entre tela de sucesso e modo "celebração"
+  const confettiCores = ['#10b981', '#059669', '#34d399', '#fbbf24', '#f59e0b', '#3b82f6', '#a78bfa'];
+  const confetes = useMemo(() => Array.from({ length: 60 }, (_, i) => ({
+    left: (i * 1.7 + Math.sin(i) * 5) % 100,
+    delay: (i * 0.08) % 2.5,
+    duration: 2.8 + (i % 5) * 0.3,
+    cor: confettiCores[i % confettiCores.length],
+    rotate: (i * 47) % 360,
+    shape: i % 3,
+  })), []);
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 font-sans relative">
       <style>{`
         html { scroll-behavior: smooth; }
         #proposta-detalhes { scroll-margin-top: 24px; }
@@ -320,6 +350,58 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
         @keyframes ring-expand { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(4); opacity: 0; } }
         @keyframes scan-sweep { 0% { transform: translateY(-10%); } 100% { transform: translateY(110%); } }
       `}</style>
+
+      {/* Confete overlay (apenas no modo "voltou após aceite") */}
+      {confettiAtivo && (
+        <div className="fixed inset-0 pointer-events-none z-[60] overflow-hidden">
+          {confetes.map((c, i) => (
+            <div
+              key={i}
+              className="ts-confetti"
+              style={{
+                left: `${c.left}%`,
+                width: c.shape === 0 ? '8px' : c.shape === 1 ? '10px' : '6px',
+                height: c.shape === 0 ? '12px' : c.shape === 1 ? '10px' : '14px',
+                background: c.cor,
+                borderRadius: c.shape === 1 ? '50%' : '2px',
+                animationDelay: `${c.delay}s`,
+                animationDuration: `${c.duration}s`,
+                transform: `rotate(${c.rotate}deg)`,
+              }}
+            />
+          ))}
+          <style>{`@keyframes confetti-fall { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+            .ts-confetti { position: absolute; top: 0; pointer-events: none; animation: confetti-fall linear forwards; }`}</style>
+        </div>
+      )}
+
+      {/* Banner "Proposta aceita" sticky topo (apenas em modo aceito) */}
+      {statusLocal === 'aceito' && (
+        <div className="sticky top-0 z-50 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg">
+          <div className="max-w-5xl mx-auto px-6 py-2.5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-full bg-white/20 inline-flex items-center justify-center shrink-0">
+                <Check className="h-4 w-4 text-white" strokeWidth={3} />
+              </div>
+              <p className="text-sm font-bold leading-tight">
+                Proposta aceita <span className="text-emerald-100/90 font-normal hidden sm:inline">· contrato indo pra ClickSign</span>
+              </p>
+            </div>
+            {pdfUrl && (
+              <a
+                href={pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-emerald-700 text-xs font-bold hover:bg-emerald-50 transition-all shrink-0"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Baixar PDF</span>
+                <span className="sm:hidden">PDF</span>
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       <section className="relative bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-900 text-white overflow-hidden">
         <div className="absolute inset-0 grain pointer-events-none" />
@@ -826,15 +908,35 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => setConfirmOpen(true)}
-              disabled={aceitando}
-              className="px-8 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-base font-bold inline-flex items-center justify-center gap-2 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 disabled:opacity-50"
-            >
-              <Check className="h-5 w-5" strokeWidth={3} />
-              Aceitar proposta
-              <ArrowRight className="h-4 w-4" />
-            </button>
+            {statusLocal === 'aceito' ? (
+              // Modo "aceito" — CTA vira download PDF
+              pdfUrl ? (
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-8 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-base font-bold inline-flex items-center justify-center gap-2 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5"
+                >
+                  <Download className="h-5 w-5" strokeWidth={2.5} />
+                  Baixar Proposta + Contrato (PDF)
+                </a>
+              ) : (
+                <div className="px-8 py-4 rounded-xl bg-emerald-500/30 text-emerald-100 text-base font-bold inline-flex items-center justify-center gap-2 cursor-wait">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Gerando PDF — quase pronto
+                </div>
+              )
+            ) : (
+              <button
+                onClick={() => setConfirmOpen(true)}
+                disabled={aceitando}
+                className="px-8 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-base font-bold inline-flex items-center justify-center gap-2 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 disabled:opacity-50"
+              >
+                <Check className="h-5 w-5" strokeWidth={3} />
+                Aceitar proposta
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            )}
             <a
               href="https://wa.me/5511934927001?text=Olá!%20Tenho%20uma%20dúvida%20sobre%20a%20proposta%20comercial."
               target="_blank"
@@ -842,18 +944,20 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
               className="px-6 py-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/20 text-white text-base font-semibold inline-flex items-center justify-center gap-2 transition-all"
             >
               <MessageCircle className="h-4 w-4" />
-              Tirar dúvidas no WhatsApp
+              {statusLocal === 'aceito' ? 'Falar com a Trevo' : 'Tirar dúvidas no WhatsApp'}
             </a>
           </div>
 
-          <div className="mt-4">
-            <button
-              onClick={() => setRecusarOpen(true)}
-              className="text-[11px] text-emerald-200/40 hover:text-emerald-100/80 underline-offset-2 hover:underline transition-colors"
-            >
-              Não tenho interesse — recusar com motivo
-            </button>
-          </div>
+          {statusLocal !== 'aceito' && (
+            <div className="mt-4">
+              <button
+                onClick={() => setRecusarOpen(true)}
+                className="text-[11px] text-emerald-200/40 hover:text-emerald-100/80 underline-offset-2 hover:underline transition-colors"
+              >
+                Não tenho interesse — recusar com motivo
+              </button>
+            </div>
+          )}
 
           {orc.terc_pdf_url && (
             <div className="mt-6">
