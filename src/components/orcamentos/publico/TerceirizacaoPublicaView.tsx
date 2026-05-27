@@ -978,8 +978,9 @@ function CardDaniAi() {
             <span>— sua aliada que nunca dorme.</span>
           </h3>
           <p className="text-sm text-slate-600 leading-relaxed mb-4">
-            Nossa IA proprietária consulta o status dos processos em tempo real
-            nas Juntas Comerciais e <strong className="text-slate-900">reporta atualizações instantaneamente ao contador</strong>.
+            <strong className="text-slate-900">Desenvolvida internamente pela Trevo</strong>, nossa IA consulta o status dos processos em tempo real
+            nas <strong className="text-slate-900">Juntas Comerciais, Receita Federal, Prefeituras, Secretarias estaduais</strong> e
+            demais órgãos competentes — e <strong className="text-slate-900">reporta atualizações instantaneamente ao contador</strong>.
             Sem você precisar abrir nada, sem ligação, sem &ldquo;deixa eu checar&rdquo;.
           </p>
           <div className="grid grid-cols-3 gap-3 text-center">
@@ -1000,14 +1001,16 @@ function CardDaniAi() {
 
         {/* Direita: simulação de chat */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-4 space-y-2.5 min-h-[200px]">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-            <div className="relative">
-              <img src={logoDaniDark} alt="dani.ai" className="h-8 w-8 object-contain rounded-full" />
+          <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+            <div className="relative shrink-0">
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 inline-flex items-center justify-center font-bold text-white text-base shadow-sm">
+                d
+              </div>
               <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" />
             </div>
             <div className="leading-tight">
-              <img src={logoDaniDark} alt="dani.ai" className="h-3.5 object-contain" />
-              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">online · respondendo</p>
+              <img src={logoDaniDark} alt="dani.ai" className="h-4 object-contain mb-0.5" />
+              <p className="text-[10px] text-emerald-700 font-semibold">online · respondendo</p>
             </div>
           </div>
 
@@ -1064,7 +1067,7 @@ function MapaBrasilAnimado() {
   useEffect(() => {
     const t = setInterval(() => {
       setScanIdx((i) => (i + 1) % estadosComCentro.length);
-    }, 280);
+    }, 700);
     return () => clearInterval(t);
   }, [estadosComCentro.length]);
 
