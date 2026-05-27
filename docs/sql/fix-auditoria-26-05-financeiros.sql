@@ -38,7 +38,8 @@ COMMENT ON INDEX public.uniq_lancamento_recorrente_mes IS
 -- Sem fix definitivo aqui — o refactor exige rever toda a RPC gerar_extrato_completo
 -- com SELECT FOR UPDATE no clientes (saldo_pre_pago). Vou só marcar com comentário
 -- na coluna pra prox dev ver o problema.
-COMMENT ON COLUMN public.clientes.saldo_pre_pago IS
+-- Coluna real é `saldo_prepago` (sem underscore entre "pre" e "pago")
+COMMENT ON COLUMN public.clientes.saldo_prepago IS
   'FIN-021 (26/05): TOC-TOU conhecido — dedução acontece FORA da RPC gerar_extrato_completo. Refactor pendente: mover dedução pra dentro da RPC com SELECT FOR UPDATE no clientes. Risco prático nulo (nunca houve cliente pré-pago em 5 anos).';
 
 -- ──────────────────────────────────────────────────────────────────────
