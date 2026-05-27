@@ -38,6 +38,7 @@ const PortfolioPublico = lazy(() => import("./pages/PortfolioPublico"));
 const ReconciliacaoTrello = lazy(() => import("./pages/ReconciliacaoTrello"));
 const PropostaPublica = lazy(() => import("./pages/PropostaPublica"));
 const CobrancaPublica = lazy(() => import("./pages/CobrancaPublica"));
+const Dani = lazy(() => import("./pages/Dani"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
@@ -224,6 +225,8 @@ const App = () => (
                 <Route path="/portfolio/:token" element={<PortfolioPublico />} />
                 <Route path="/proposta/:token" element={<PropostaPublica />} />
                 <Route path="/cobranca/:token" element={<CobrancaPublica />} />
+                {/* 27/05 noite: página dedicada da dani.ai (sem auth, sem token) */}
+                <Route path="/dani" element={<Dani />} />
                 {/* REL-019 (12/05/2026): rota pública pra recovery de senha.
                     Link enviado pelo email do Supabase aterriza aqui com hash. */}
                 <Route path="/reset-password" element={<ResetPassword />} />

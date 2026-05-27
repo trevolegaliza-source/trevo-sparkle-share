@@ -41,7 +41,9 @@ export class ErrorBoundary extends Component<Props, State> {
   // "Recarregar página" e link WhatsApp pra contato direto.
   isPublicRoute(): boolean {
     if (typeof window === "undefined") return false;
-    return /^\/(proposta|cobranca|portfolio)\//.test(window.location.pathname);
+    // 27/05 noite: /dani também é rota pública (sem auth, sem token)
+    const path = window.location.pathname;
+    return /^\/(proposta|cobranca|portfolio)\//.test(path) || path === '/dani' || path.startsWith('/dani/');
   }
 
   handleReset = () => {
