@@ -162,6 +162,19 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
       if (!res.ok) throw new Error(`erro ${res.status}`);
       setStatusLocal('aceito');
       setConfirmOpen(false);
+
+      // ITEM-04 (27/05 noite): com pré-gera-PDF, o PDF pode já estar pronto
+      // ANTES do aceite. Em vez de esperar polling de 5s, faz fetch imediato.
+      try {
+        const pdfRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_proposta_pdf_url`, {
+          method: 'POST', headers: anonHeaders,
+          body: JSON.stringify({ p_token: token }),
+        });
+        if (pdfRes.ok) {
+          const data = await pdfRes.json();
+          if (data?.found && data?.pdf_url) setPdfUrl(data.pdf_url);
+        }
+      } catch { /* ok, cai no polling abaixo */ }
     } catch {
       alert('Não conseguimos registrar seu aceite agora. Tente recarregar a página.');
     } finally {
@@ -173,6 +186,8 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
   // PDF leva ~15-25s pra gerar (Docs API + PDFShift + merge), então a primeira
   // tela de sucesso quase nunca tem PDF pronto. Sem polling, cliente precisa
   // dar F5 várias vezes. Com polling, atualiza sozinho ao detectar URL.
+  // ITEM-01 (27/05 noite): RPC dedicada get_proposta_pdf_url (não exige senha
+  // já que cliente passou pelo gate antes do aceite).
   useEffect(() => {
     if (statusLocal !== 'aceito') return;
     if (pdfUrl) return;
@@ -185,15 +200,14 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
         return;
       }
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_proposta_por_token`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_proposta_pdf_url`, {
           method: 'POST', headers: anonHeaders,
           body: JSON.stringify({ p_token: token }),
         });
         if (!res.ok) return;
-        const arr = await res.json();
-        const url = Array.isArray(arr) && arr[0]?.terc_pdf_url;
-        if (url) {
-          setPdfUrl(url);
+        const data = await res.json();
+        if (data?.found && data?.pdf_url) {
+          setPdfUrl(data.pdf_url);
           clearInterval(interval);
         }
       } catch { /* silencioso — tenta de novo */ }
@@ -339,9 +353,9 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                 window.setTimeout(() => setConfettiAtivo(false), 4500);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="inline-flex items-center gap-2 text-xs text-slate-500 hover:text-emerald-700 underline-offset-2 hover:underline transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-emerald-700 hover:bg-slate-50 rounded-lg transition-colors min-h-[44px]"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-4 w-4" />
               Voltar e visualizar proposta
             </button>
           </div>
@@ -374,6 +388,13 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
         @keyframes fade-up { 0% { transform: translateY(8px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
         @keyframes ring-expand { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(4); opacity: 0; } }
         @keyframes scan-sweep { 0% { transform: translateY(-10%); } 100% { transform: translateY(110%); } }
+        /* DSG-07 (27/05 noite): respeita prefers-reduced-motion */
+        @media (prefers-reduced-motion: reduce) {
+          .ts-confetti, .float-pulse, .pulse-dot, .brasil-svg, .dani-dot-1, .dani-dot-2, .dani-dot-3, .ts-ring-expand, .scan-line {
+            animation: none !important;
+          }
+          .ts-confetti { display: none !important; }
+        }
       `}</style>
 
       {/* Confete overlay (apenas no modo "voltou após aceite") */}
@@ -432,13 +453,13 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
         <div className="absolute inset-0 grain pointer-events-none" />
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
-        {/* Header */}
-        <div className="relative max-w-5xl mx-auto px-6 pt-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img src={logoTrevo} alt="Trevo Legaliza" className="h-28 w-28 md:h-36 md:w-36 object-contain drop-shadow-2xl" />
-            <div>
-              <p className="text-base md:text-lg font-bold tracking-tight">TREVO ASSESSORIA SOCIETÁRIA</p>
-              <p className="text-xs text-emerald-200/70 tabular-nums">CNPJ 39.969.412/0001-70 · Atuação Nacional</p>
+        {/* Header — DSG-01 (27/05 noite): mobile-safe layout */}
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <img src={logoTrevo} alt="Trevo Legaliza" className="h-16 w-16 sm:h-24 sm:w-24 md:h-36 md:w-36 object-contain drop-shadow-2xl shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm sm:text-base md:text-lg font-bold tracking-tight truncate">TREVO ASSESSORIA SOCIETÁRIA</p>
+              <p className="text-[11px] sm:text-xs text-emerald-200/80 tabular-nums truncate">CNPJ 39.969.412/0001-70 · Atuação Nacional</p>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-2 text-xs text-emerald-200/70">
@@ -470,7 +491,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                   Seu escritório contábil parou de crescer porque o departamento
                   societário virou o gargalo? <strong className="text-white">A gente resolve isso.</strong>
                 </p>
-                <p className="text-sm text-emerald-200/60 mt-4 leading-relaxed">
+                <p className="text-sm text-emerald-200/80 mt-4 leading-relaxed">
                   Somos o BPO societário em que escritórios de alto volume confiam:
                   SLA formalizado, rastreabilidade integral, plataforma própria e
                   operação 100% B2B. Do processo mais simples ao mais complexo.
@@ -734,9 +755,9 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                   <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">
                     {isPlanoMensal ? 'Investimento mensal' : 'Por processo / operação societária'}
                   </p>
-                  <p className="text-4xl sm:text-5xl md:text-7xl font-bold tabular-nums tracking-tight text-emerald-700 break-all">
-                    {fmtBRL(valorPrincipal)}
-                    {isPlanoMensal && <span className="text-xl sm:text-2xl font-normal text-slate-500 ml-1">/mês</span>}
+                  <p className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tabular-nums tracking-tight text-emerald-700 leading-none">
+                    <span className="whitespace-nowrap">{fmtBRL(valorPrincipal)}</span>
+                    {isPlanoMensal && <span className="block sm:inline text-lg sm:text-xl md:text-2xl font-normal text-slate-500 sm:ml-1 mt-1 sm:mt-0">/mês</span>}
                   </p>
                   {isPlanoMensal && (
                     <p className="text-sm text-slate-500 mt-2">
@@ -813,7 +834,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                 )}
               </p>
             </div>
-            <span className="hidden md:inline text-[10px] font-mono text-emerald-200/60">
+            <span className="hidden md:inline text-[10px] font-mono text-emerald-200/80">
               PROP-{String(orc.numero).padStart(4, '0')}
             </span>
           </div>
@@ -927,7 +948,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             Prestação de Serviços (MSA)</strong> entre as partes. O aceite implica
             concordância integral com os termos.
           </p>
-          <p className="text-sm text-emerald-200/60 leading-relaxed mb-10">
+          <p className="text-sm text-emerald-200/80 leading-relaxed mb-10">
             Após o aceite, você recebe acesso à plataforma em até 2 dias úteis
             e a equipe Trevo entra em contato pra iniciar o onboarding.
           </p>
@@ -977,7 +998,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             <div className="mt-4">
               <button
                 onClick={() => setRecusarOpen(true)}
-                className="text-[11px] text-emerald-200/40 hover:text-emerald-100/80 underline-offset-2 hover:underline transition-colors"
+                className="px-4 py-2 text-xs text-emerald-200/70 hover:text-emerald-100 hover:bg-white/5 rounded-md transition-colors min-h-[40px] inline-flex items-center"
               >
                 Não tenho interesse — recusar com motivo
               </button>
@@ -998,7 +1019,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             </div>
           )}
 
-          <p className="text-[11px] text-emerald-200/40 mt-12 flex items-center justify-center gap-1.5">
+          <p className="text-[11px] text-emerald-200/70 mt-12 flex items-center justify-center gap-1.5">
             <Lock className="h-3 w-3" />
             Documento gerado pela plataforma Trevo Engine ·  PROP-{String(orc.numero).padStart(4, '0')}
           </p>
@@ -1042,11 +1063,30 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                 <p className="text-xs text-slate-500">PROP-{String(orc.numero).padStart(4, '0')}</p>
               </div>
             </div>
-            <p className="text-sm text-slate-600 leading-relaxed mb-6">
-              Ao confirmar, você aceita integralmente os termos da proposta e
-              do contrato mestre (MSA). A equipe Trevo entrará em contato em
-              até 1 hora útil pra iniciar.
+            <p className="text-sm text-slate-600 leading-relaxed mb-4">
+              Ao confirmar, o Contrato Mestre (MSA) será enviado automaticamente pela
+              ClickSign pra sua assinatura digital. O aceite verbal já tem validade
+              legal (art. 107 CC + Lei 14.063/2020).
             </p>
+            {/* COM-05 (27/05 noite): bullets de reversibilidade pra reduzir fricção */}
+            <ul className="text-xs text-slate-700 space-y-2 mb-6 bg-emerald-50/60 border border-emerald-100 rounded-lg p-4">
+              <li className="flex items-start gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" strokeWidth={3} />
+                <span>Sem cobrança até o primeiro processo iniciar</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" strokeWidth={3} />
+                <span>Assinatura formal acontece depois — você ainda confere o MSA na ClickSign</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" strokeWidth={3} />
+                <span>Onboarding humano em até 1h útil pra tirar qualquer dúvida</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" strokeWidth={3} />
+                <span>Rescisão por qualquer motivo com aviso de 30 dias (cláusula 17)</span>
+              </li>
+            </ul>
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirmOpen(false)}
@@ -1061,7 +1101,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
                 className="flex-1 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {aceitando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Aceitar proposta
+                Aceitar e iniciar onboarding
               </button>
             </div>
           </div>
@@ -1396,24 +1436,25 @@ function MapaBrasilAnimado() {
             })}
           </g>
 
-          {/* Checks pulsantes em cada estado, com delays diferentes (onda contínua) */}
+          {/* DSG-04 (27/05 noite): checks estáticos em cada estado, exceto o "ativo" do scan
+              que pulsa. Antes: 27 pulse-dots infinite competindo. Agora: pulso só no scanIdx. */}
           {estadosComCentro.map((st, idx) => (
             <g key={`chk-${st.id}`}>
-              {/* Círculo de pulse atrás do check */}
-              <circle
-                cx={st.cx}
-                cy={st.cy}
-                r="9"
-                fill="#10b981"
-                opacity="0.35"
-                style={{
-                  animation: `pulse-dot 2.4s ease-in-out ${(idx * 0.18) % 2.4}s infinite`,
-                  transformOrigin: `${st.cx}px ${st.cy}px`,
-                }}
-              />
-              {/* Bolinha branca de fundo */}
+              {idx === scanIdx && (
+                <circle
+                  cx={st.cx}
+                  cy={st.cy}
+                  r="9"
+                  fill="#10b981"
+                  opacity="0.35"
+                  style={{
+                    animation: 'pulse-dot 2.4s ease-in-out infinite',
+                    transformOrigin: `${st.cx}px ${st.cy}px`,
+                    transformBox: 'view-box',
+                  }}
+                />
+              )}
               <circle cx={st.cx} cy={st.cy} r="6" fill="white" filter="url(#checkGlow)" />
-              {/* Check verde dentro */}
               <path
                 d={`M ${st.cx - 3.2} ${st.cy} l 2.2 2.4 l 4.4 -4.6`}
                 stroke="#059669"
@@ -1631,7 +1672,7 @@ function BlocoCalculadoraROI({ valorProcesso }: { valorProcesso: number }) {
               <div className="flex items-baseline justify-between gap-3 pb-3 border-b border-emerald-600/40 flex-wrap">
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-bold">Faturamento que você deixa de ganhar</p>
-                  <p className="text-[10px] text-emerald-200/60 mt-0.5">{horasEmSocietario}h × R$ {horaFaturada}/h faturada</p>
+                  <p className="text-[10px] text-emerald-200/80 mt-0.5">{horasEmSocietario}h × R$ {horaFaturada}/h faturada</p>
                 </div>
                 <p className="text-xl sm:text-2xl font-bold tabular-nums text-white whitespace-nowrap">{fmtBRL(faturamentoPotencialPerdido)}</p>
               </div>
@@ -1639,7 +1680,7 @@ function BlocoCalculadoraROI({ valorProcesso }: { valorProcesso: number }) {
               <div className="flex items-baseline justify-between gap-3 pb-3 border-b border-emerald-600/40 flex-wrap">
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-bold">Investimento na Trevo</p>
-                  <p className="text-[10px] text-emerald-200/60 mt-0.5">{processosMes} × {fmtBRL(valorProcesso)}/processo</p>
+                  <p className="text-[10px] text-emerald-200/80 mt-0.5">{processosMes} × {fmtBRL(valorProcesso)}/processo</p>
                 </div>
                 <p className="text-xl sm:text-2xl font-bold tabular-nums text-white whitespace-nowrap">{fmtBRL(custoComTrevo)}</p>
               </div>
@@ -1767,8 +1808,13 @@ function ModalRecusar({ token, numero, onClose, onRecusado }: {
         headers: anonHeaders,
         body: JSON.stringify({ p_token: token, p_motivo: motivo, p_texto: texto || null }),
       });
-      const data = await res.json();
-      if (!res.ok || data?.ok === false) {
+      // ITEM-02 (27/05 noite): checa res.ok ANTES de parsear body. Em 502/504
+      // gateway, body não é JSON e .json() lança antes de detectarmos o status.
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json().catch(() => null);
+      if (data?.ok === false) {
         throw new Error(data?.error || 'Erro ao registrar recusa');
       }
       onRecusado();
