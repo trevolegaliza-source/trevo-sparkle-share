@@ -14,7 +14,7 @@
  *  7. CTA final (aceitar + WhatsApp)
  *  8. Rodapé com validade
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Loader2, Check, ShieldCheck, MessageCircle, FileText, Building2,
   Clock, Zap, Users, Award, Target, Layers, ArrowRight, Sparkles, ChevronDown,
@@ -60,9 +60,13 @@ interface OrcTerc {
 }
 
 // ─── Helper de detecção de plataforma de vídeo ───────────────────────────────
+// ITEM-025 fix: validação de protocolo. Recusa qualquer URL que não seja
+// https:// (bloqueia `javascript:`, `data:`, `file:`, http inseguro, etc).
 function parseVideoUrl(url: string): { type: 'youtube' | 'vimeo' | 'mp4' | 'iframe'; embed: string } | null {
   if (!url || !url.trim()) return null;
   const trimmed = url.trim();
+  // Sanitização: só aceita https:// (protege contra javascript:/data:/file:/etc)
+  if (!/^https:\/\//i.test(trimmed)) return null;
   // YouTube
   const yt = trimmed.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
   if (yt) return { type: 'youtube', embed: `https://www.youtube.com/embed/${yt[1]}?rel=0&modestbranding=1` };
@@ -71,7 +75,7 @@ function parseVideoUrl(url: string): { type: 'youtube' | 'vimeo' | 'mp4' | 'ifra
   if (vm) return { type: 'vimeo', embed: `https://player.vimeo.com/video/${vm[1]}?title=0&byline=0&portrait=0` };
   // MP4/WebM/OGG direto
   if (/\.(mp4|webm|ogg|m4v)(\?.*)?$/i.test(trimmed)) return { type: 'mp4', embed: trimmed };
-  // fallback: iframe genérico
+  // fallback: iframe (só com https) — recusado se vier de domínio inseguro
   return { type: 'iframe', embed: trimmed };
 }
 
@@ -84,6 +88,9 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
   const [aceitando, setAceitando] = useState(false);
   const [statusLocal, setStatusLocal] = useState(orc.status);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // ITEM-024 fix: state local pra terc_pdf_url + polling automático quando
+  // aceito e PDF ainda não está disponível (geração leva 15-25s assíncrona).
+  const [pdfUrl, setPdfUrl] = useState<string | null>(orc.terc_pdf_url || null);
 
   const modalidadeCfg = PLANOS[orc.terc_modalidade as keyof typeof PLANOS];
   const expiracao = useMemo(() => {
@@ -131,6 +138,38 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
     }
   };
 
+  // ITEM-024 fix: polling automático do PDF quando aceito e ainda não disponível.
+  // PDF leva ~15-25s pra gerar (Docs API + PDFShift + merge), então a primeira
+  // tela de sucesso quase nunca tem PDF pronto. Sem polling, cliente precisa
+  // dar F5 várias vezes. Com polling, atualiza sozinho ao detectar URL.
+  useEffect(() => {
+    if (statusLocal !== 'aceito') return;
+    if (pdfUrl) return;
+    let tentativas = 0;
+    const MAX_TENTATIVAS = 24; // 24 × 5s = 2 minutos no máximo
+    const interval = setInterval(async () => {
+      tentativas++;
+      if (tentativas > MAX_TENTATIVAS) {
+        clearInterval(interval);
+        return;
+      }
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_proposta_por_token`, {
+          method: 'POST', headers: anonHeaders,
+          body: JSON.stringify({ p_token: token }),
+        });
+        if (!res.ok) return;
+        const arr = await res.json();
+        const url = Array.isArray(arr) && arr[0]?.terc_pdf_url;
+        if (url) {
+          setPdfUrl(url);
+          clearInterval(interval);
+        }
+      } catch { /* silencioso — tenta de novo */ }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [statusLocal, pdfUrl, token]);
+
   // ─── Tela de sucesso (já aceito) ─────────────────────────────────────────
   if (statusLocal === 'aceito') {
     return (
@@ -149,9 +188,9 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             <p className="text-xs font-mono text-muted-foreground">PROP-{String(orc.numero).padStart(4, '0')}</p>
             <p className="text-sm font-semibold text-slate-900">{orc.prospect_nome}</p>
           </div>
-          {orc.terc_pdf_url ? (
+          {pdfUrl ? (
             <a
-              href={orc.terc_pdf_url}
+              href={pdfUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-lg hover:shadow-xl transition-all"
@@ -160,9 +199,9 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
               Baixar Proposta + Contrato (PDF)
             </a>
           ) : (
-            <p className="text-xs text-muted-foreground italic">
-              O PDF da proposta + contrato está sendo gerado e ficará disponível em alguns segundos.
-              Atualize a página em ~30s.
+            <p className="text-xs text-muted-foreground italic flex items-center gap-2 justify-center">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              O PDF da proposta + contrato está sendo gerado e ficará disponível em segundos. Esta página atualiza sozinha.
             </p>
           )}
         </div>

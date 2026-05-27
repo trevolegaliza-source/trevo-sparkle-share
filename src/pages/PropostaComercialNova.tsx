@@ -11,7 +11,7 @@
  *    (sticky). No mobile, preview vira card no topo.
  *  - Sem toggle de tipo — esta page É proposta comercial.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select';
 import {
   ArrowLeft, Building2, FileText, ListChecks, DollarSign,
-  Lock, Loader2, Save, Send, Sparkles,
+  Lock, Loader2, Save, Send, Sparkles, User, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { useSaveOrcamento } from '@/hooks/useOrcamentos';
 import { toast } from 'sonner';
@@ -38,7 +38,11 @@ import {
 import { ListaEditavel } from '@/components/proposta-comercial/ListaEditavel';
 import { RegrasRapidas } from '@/components/proposta-comercial/RegrasRapidas';
 import { PrecosPorTipoProcesso } from '@/components/proposta-comercial/PrecosPorTipoProcesso';
+import { isValidCNPJ } from '@/lib/cnpj';
 import { cn } from '@/lib/utils';
+
+// ITEM-010 fix: regex simples de email (RFC 5322 simplificado).
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface State {
   // Prospect (cliente)
@@ -47,6 +51,15 @@ interface State {
   prospect_contato: string;
   prospect_email: string;
   prospect_telefone: string;
+
+  // Dados extras pro contrato MSA (opcionais — preenchem placeholders no PDF)
+  prospect_endereco: string;             // endereço da empresa contratante
+  prospect_rep_cpf: string;              // CPF do representante
+  prospect_rep_rg: string;               // RG do representante
+  prospect_rep_nacionalidade: string;    // default "Brasileira"
+  prospect_rep_estado_civil: string;     // ex: "Solteiro(a)", "Casado(a)"
+  prospect_rep_profissao: string;        // ex: "Contador", "Empresário"
+  prospect_rep_endereco: string;         // endereço residencial do representante
 
   // Escopo (editável)
   servicos: ItemEditavel[];
@@ -81,9 +94,18 @@ function emptyState(): State {
     prospect_contato: '',
     prospect_email: '',
     prospect_telefone: '',
-    servicos: SERVICOS_DEFAULT,
-    naturezas: NATUREZAS_DEFAULT,
-    inclusos: INCLUSOS_DEFAULT,
+    prospect_endereco: '',
+    prospect_rep_cpf: '',
+    prospect_rep_rg: '',
+    prospect_rep_nacionalidade: 'Brasileira',
+    prospect_rep_estado_civil: '',
+    prospect_rep_profissao: '',
+    prospect_rep_endereco: '',
+    // ITEM-006 fix: spread pra não compartilhar referência com o módulo —
+    // se algum lugar mutar o array direto, novas propostas não herdam.
+    servicos: SERVICOS_DEFAULT.map((s) => ({ ...s })),
+    naturezas: NATUREZAS_DEFAULT.map((n) => ({ ...n })),
+    inclusos: INCLUSOS_DEFAULT.map((i) => ({ ...i })),
     modalidade: 'avulso',
     valor_final_override: 680,       // 26/05: pré-preenchido em R$ 680
     volume_custom: null,
@@ -114,6 +136,7 @@ export default function PropostaComercialNova() {
 
   const saveMutation = useSaveOrcamento();
   const [salvando, setSalvando] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState(false); // ITEM-004: trava botão durante geração
 
   // ─── Load existente (edit) ───────────────────────────────────────────────
   useEffect(() => {
@@ -136,9 +159,17 @@ export default function PropostaComercialNova() {
         prospect_contato: d.prospect_contato || '',
         prospect_email: d.prospect_email || '',
         prospect_telefone: d.prospect_telefone || '',
-        servicos: Array.isArray(d.terc_servicos) ? d.terc_servicos : SERVICOS_DEFAULT,
-        naturezas: Array.isArray(d.terc_naturezas) ? d.terc_naturezas : NATUREZAS_DEFAULT,
-        inclusos: Array.isArray(d.terc_inclusos) ? d.terc_inclusos : INCLUSOS_DEFAULT,
+        prospect_endereco: d.prospect_endereco || '',
+        prospect_rep_cpf: d.prospect_rep_cpf || '',
+        prospect_rep_rg: d.prospect_rep_rg || '',
+        prospect_rep_nacionalidade: d.prospect_rep_nacionalidade || 'Brasileira',
+        prospect_rep_estado_civil: d.prospect_rep_estado_civil || '',
+        prospect_rep_profissao: d.prospect_rep_profissao || '',
+        prospect_rep_endereco: d.prospect_rep_endereco || '',
+        // ITEM-006 fix: spread no fallback pra não compartilhar referência
+        servicos: Array.isArray(d.terc_servicos) ? d.terc_servicos : SERVICOS_DEFAULT.map((s) => ({ ...s })),
+        naturezas: Array.isArray(d.terc_naturezas) ? d.terc_naturezas : NATUREZAS_DEFAULT.map((n) => ({ ...n })),
+        inclusos: Array.isArray(d.terc_inclusos) ? d.terc_inclusos : INCLUSOS_DEFAULT.map((i) => ({ ...i })),
         modalidade: d.terc_modalidade || 'avulso',
         valor_final_override: d.terc_valor_final_override ?? null,
         volume_custom: d.terc_volume_custom ?? null,
@@ -176,6 +207,16 @@ export default function PropostaComercialNova() {
       return false;
     }
     if (statusAlvo !== 'rascunho') {
+      // ITEM-009 fix: valida CNPJ (mod-11) antes de enviar pro cliente
+      if (state.prospect_cnpj.trim() && !isValidCNPJ(state.prospect_cnpj)) {
+        toast.error('CNPJ inválido. Verifique os 14 dígitos.');
+        return false;
+      }
+      // ITEM-010 fix: valida formato de email
+      if (state.prospect_email.trim() && !EMAIL_RE.test(state.prospect_email.trim())) {
+        toast.error('Email com formato inválido.');
+        return false;
+      }
       const algumServico = state.servicos.some((s) => s.ativo);
       const algumIncluso = state.inclusos.some((i) => i.ativo);
       if (!algumServico) {
@@ -201,6 +242,13 @@ export default function PropostaComercialNova() {
         prospect_email: state.prospect_email || null,
         prospect_telefone: state.prospect_telefone || null,
         prospect_contato: state.prospect_contato || null,
+        prospect_endereco: state.prospect_endereco || null,
+        prospect_rep_cpf: state.prospect_rep_cpf || null,
+        prospect_rep_rg: state.prospect_rep_rg || null,
+        prospect_rep_nacionalidade: state.prospect_rep_nacionalidade || null,
+        prospect_rep_estado_civil: state.prospect_rep_estado_civil || null,
+        prospect_rep_profissao: state.prospect_rep_profissao || null,
+        prospect_rep_endereco: state.prospect_rep_endereco || null,
         destinatario: 'contador',
         servicos: [] as any,
         naturezas: [] as any,
@@ -265,11 +313,24 @@ export default function PropostaComercialNova() {
   };
 
   // ─── Autosave ────────────────────────────────────────────────────────────
+  // ITEM-012 fix: ref pra evitar criar duplicata. Quando o componente cria
+  // a primeira proposta, ele dispara navigate('/editar/{id}') que causa remount.
+  // Entre o setTimeout enfileirado e o remount, o useEffect pode disparar de
+  // novo e criar 2ª proposta. A ref `criandoRef` previne isso.
+  const criandoRef = useRef(false);
   useEffect(() => {
     if (!state.prospect_nome.trim()) return;
     if (orcamentoStatus !== 'rascunho' && propostaId) return;
     if (salvando) return;
-    const t = setTimeout(() => handleSave('rascunho'), 5000);
+    if (criandoRef.current && !propostaId) return; // proteção contra duplicata
+    // Atraso maior na criação inicial (8s vs 5s no edit) — dá tempo de digitar
+    // razão social completa antes de criar registro.
+    const delay = propostaId ? 5000 : 8000;
+    const t = setTimeout(async () => {
+      if (!propostaId) criandoRef.current = true;
+      try { await handleSave('rascunho'); }
+      finally { criandoRef.current = false; }
+    }, delay);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, orcamentoStatus]);
@@ -287,7 +348,12 @@ export default function PropostaComercialNova() {
       {/* ─── Header ─── */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/propostas-comerciais')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/propostas-comerciais')}
+            aria-label="Voltar para listagem de propostas comerciais"
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -389,6 +455,97 @@ export default function PropostaComercialNova() {
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Dados pro contrato MSA — colapsável (opcional, preenche placeholders no PDF) */}
+          <Card>
+            <CardContent className="pt-6">
+              <details className="group">
+                <summary className="flex items-center gap-2 text-sm font-semibold text-muted-foreground cursor-pointer list-none select-none">
+                  <ChevronRight className="h-4 w-4 group-open:hidden" />
+                  <ChevronDown className="h-4 w-4 hidden group-open:block" />
+                  <User className="h-4 w-4" />
+                  DADOS PRO CONTRATO MSA (OPCIONAL)
+                  <Badge variant="outline" className="ml-auto text-[10px] font-normal">
+                    Preenche placeholders no PDF
+                  </Badge>
+                </summary>
+                <div className="pt-4 space-y-4 border-t mt-4">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Se preenchidos, esses campos substituem os <code className="text-[10px] bg-muted px-1 py-0.5 rounded">________________</code> em branco no PDF do contrato.
+                    Cliente pode preencher manualmente depois na assinatura.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label>Endereço completo da empresa</Label>
+                      <Input
+                        placeholder="Rua, número, bairro, cidade/UF, CEP"
+                        value={state.prospect_endereco}
+                        onChange={(e) => setState({ ...state, prospect_endereco: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>CPF do representante</Label>
+                      <Input
+                        placeholder="000.000.000-00"
+                        value={state.prospect_rep_cpf}
+                        onChange={(e) => setState({ ...state, prospect_rep_cpf: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>RG do representante</Label>
+                      <Input
+                        placeholder="00.000.000-0"
+                        value={state.prospect_rep_rg}
+                        onChange={(e) => setState({ ...state, prospect_rep_rg: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Nacionalidade</Label>
+                      <Input
+                        value={state.prospect_rep_nacionalidade}
+                        onChange={(e) => setState({ ...state, prospect_rep_nacionalidade: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Estado civil</Label>
+                      <Select
+                        value={state.prospect_rep_estado_civil}
+                        onValueChange={(v) => setState({ ...state, prospect_rep_estado_civil: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Solteiro(a)">Solteiro(a)</SelectItem>
+                          <SelectItem value="Casado(a)">Casado(a)</SelectItem>
+                          <SelectItem value="Divorciado(a)">Divorciado(a)</SelectItem>
+                          <SelectItem value="Viúvo(a)">Viúvo(a)</SelectItem>
+                          <SelectItem value="União estável">União estável</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Profissão</Label>
+                      <Input
+                        placeholder="Ex: Contador, Empresário"
+                        value={state.prospect_rep_profissao}
+                        onChange={(e) => setState({ ...state, prospect_rep_profissao: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label>Endereço residencial do representante</Label>
+                      <Input
+                        placeholder="Rua, número, bairro, cidade/UF, CEP"
+                        value={state.prospect_rep_endereco}
+                        onChange={(e) => setState({ ...state, prospect_rep_endereco: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </details>
             </CardContent>
           </Card>
 
@@ -690,9 +847,11 @@ export default function PropostaComercialNova() {
                   variant="outline"
                   size="sm"
                   className="w-full"
+                  disabled={gerandoPdf || !propostaId}
                   onClick={async () => {
-                    if (!propostaId) return;
-                    toast.info('Gerando PDF... aguarde 5-10 segundos.');
+                    if (!propostaId || gerandoPdf) return;
+                    setGerandoPdf(true);
+                    toast.info('Gerando PDF... aguarde 15-25 segundos.');
                     try {
                       const { data, error } = await supabase.functions.invoke('gerar-proposta-msa-pdf', {
                         body: { orcamento_id: propostaId, force: true },
@@ -706,11 +865,16 @@ export default function PropostaComercialNova() {
                       }
                     } catch (e: any) {
                       toast.error('Falha ao gerar PDF: ' + (e.message || ''));
+                    } finally {
+                      setGerandoPdf(false);
                     }
                   }}
                 >
-                  <FileText className="h-3.5 w-3.5 mr-1" />
-                  Gerar / baixar PDF
+                  {gerandoPdf ? (
+                    <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Gerando...</>
+                  ) : (
+                    <><FileText className="h-3.5 w-3.5 mr-1" /> Gerar / baixar PDF</>
+                  )}
                 </Button>
               </CardContent>
             </Card>

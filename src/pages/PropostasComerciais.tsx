@@ -24,6 +24,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { SkeletonList } from '@/components/ui/skeleton-patterns';
 import { EmptyState } from '@/components/ui/empty-state';
 import { copyToClipboard } from '@/lib/clipboard';
+import { MODALIDADE_LABEL } from '@/lib/terceirizacao-engine';
 
 const getPropostaPublicUrl = (token: string) => `${window.location.origin}/proposta/${token}`;
 import { toast } from 'sonner';
@@ -41,12 +42,8 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   expirado: { label: 'Expirado', color: 'bg-slate-100 text-slate-600' },
 };
 
-const MODALIDADE_LABEL: Record<string, string> = {
-  avulso: 'Avulso',
-  pro_5: 'PRO (5/mês)',
-  enterprise_10: 'ENTERPRISE (10/mês)',
-  custom: 'Customizado',
-};
+// ITEM-033: import da fonte única `MODALIDADE_LABEL` do engine — antes
+// estava duplicado aqui sem a entry 'preco_por_tipo' (mostrava '—').
 
 const CATEGORIA_STATUS: Record<string, string[]> = {
   em_andamento: ['rascunho', 'enviado', 'aceito', 'aguardando_pagamento'],
@@ -83,7 +80,16 @@ export default function PropostasComerciais() {
       return;
     }
     const url = getPropostaPublicUrl(orc.share_token);
-    const telefone = (orc.prospect_telefone || '').replace(/\D/g, '').replace(/^/, '55').replace(/^5555/, '55');
+    // ITEM-017 fix: regex simples e seguro. Normaliza pra formato E.164 brasileiro
+    // (55 + DDD + número). Antes era `.replace(/^/, '55').replace(/^5555/, '55')`
+    // que prependia 55 sempre e tentava corrigir — gerava `wa.me/55` se vazio.
+    const digits = (orc.prospect_telefone || '').replace(/\D/g, '');
+    if (digits.length < 10) {
+      toast.error('Telefone inválido — precisa ter DDD + número (mín. 10 dígitos).');
+      return;
+    }
+    // Se já vem com 55 no início (12+ dígitos), mantém. Senão prefixa.
+    const telefone = digits.length >= 12 && digits.startsWith('55') ? digits : `55${digits}`;
     const msg = encodeURIComponent(
       `Olá! Segue sua proposta comercial de terceirização do departamento societário: ${url}`
     );

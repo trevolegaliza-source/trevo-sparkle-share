@@ -70,6 +70,17 @@ export const PLANOS: Record<'avulso' | 'pro_5', PlanoConfig> = {
   pro_5:  { modalidade: 'pro_5',  label: 'Plano PRO',        badge: 'PLANO PRO',        volumeProcessos: 5, descontoPercent: 15 },
 };
 
+// ITEM-033 fix: fonte única de labels de modalidade. Antes estava duplicado
+// em 3 arquivos (PropostasComerciais.tsx, edge function, este). Usar este
+// daqui pra frente em todos os lugares de exibição.
+export const MODALIDADE_LABEL: Record<string, string> = {
+  avulso: 'Avulso',
+  pro_5: 'PRO (5/mês)',
+  enterprise_10: 'ENTERPRISE (10/mês)',
+  preco_por_tipo: 'Preço por tipo',
+  custom: 'Customizado',
+};
+
 // ─── Preço por tipo de processo ─────────────────────────────────────────────
 // Modalidade nova: valores DIFERENTES por categoria de processo.
 
