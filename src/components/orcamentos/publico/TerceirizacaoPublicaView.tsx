@@ -123,6 +123,18 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
     return Math.max(0, Math.ceil(ms / 86400000));
   }, [expiracao]);
 
+  // 27/05: configuração de confete movida pra ANTES dos early returns
+  // (React #310 — hooks devem ser chamados na MESMA ordem todo render)
+  const confettiCores = ['#10b981', '#059669', '#34d399', '#fbbf24', '#f59e0b', '#3b82f6', '#a78bfa'];
+  const confetes = useMemo(() => Array.from({ length: 60 }, (_, i) => ({
+    left: (i * 1.7 + Math.sin(i) * 5) % 100,
+    delay: (i * 0.08) % 2.5,
+    duration: 2.8 + (i % 5) * 0.3,
+    cor: confettiCores[i % confettiCores.length],
+    rotate: (i * 47) % 360,
+    shape: i % 3,
+  })), []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const servicos = Array.isArray(orc.terc_servicos) ? orc.terc_servicos : [];
   const naturezas = Array.isArray(orc.terc_naturezas) ? orc.terc_naturezas : [];
   const inclusos = Array.isArray(orc.terc_inclusos) ? orc.terc_inclusos : [];
@@ -339,17 +351,6 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
   }
 
   // ─── HERO ────────────────────────────────────────────────────────────────
-  // 27/05: configuração de confete reutilizado entre tela de sucesso e modo "celebração"
-  const confettiCores = ['#10b981', '#059669', '#34d399', '#fbbf24', '#f59e0b', '#3b82f6', '#a78bfa'];
-  const confetes = useMemo(() => Array.from({ length: 60 }, (_, i) => ({
-    left: (i * 1.7 + Math.sin(i) * 5) % 100,
-    delay: (i * 0.08) % 2.5,
-    duration: 2.8 + (i % 5) * 0.3,
-    cor: confettiCores[i % confettiCores.length],
-    rotate: (i * 47) % 360,
-    shape: i % 3,
-  })), []);
-
   return (
     <div className="min-h-screen bg-slate-50 font-sans relative">
       <style>{`

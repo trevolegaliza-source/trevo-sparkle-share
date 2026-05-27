@@ -35,17 +35,31 @@ export class ErrorBoundary extends Component<Props, State> {
     );
   }
 
+  // 27/05: detecta se a rota é pública (cliente externo, sem auth).
+  // Pra essas, "Voltar ao Dashboard" não faz sentido (caía em login da Trevo
+  // — confuso e sugeria acesso indevido). Em rotas públicas mostramos
+  // "Recarregar página" e link WhatsApp pra contato direto.
+  isPublicRoute(): boolean {
+    if (typeof window === "undefined") return false;
+    return /^\/(proposta|cobranca|portfolio)\//.test(window.location.pathname);
+  }
+
   handleReset = () => {
     this.setState({ hasError: false, error: null });
   };
 
   handleGoHome = () => {
-    window.location.href = "/";
+    if (this.isPublicRoute()) {
+      window.location.reload();
+    } else {
+      window.location.href = "/";
+    }
   };
 
   render() {
     if (this.state.hasError) {
       const message = this.state.error?.message ?? "Erro desconhecido";
+      const publica = this.isPublicRoute();
       return (
         <div className="flex min-h-[60vh] items-center justify-center px-4 py-10">
           <div className="text-center max-w-md">
@@ -56,8 +70,10 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="mb-4 text-sm text-muted-foreground">
               {this.props.scope
                 ? `Falha ao carregar a tela de ${this.props.scope}.`
+                : publica
+                ? "Encontramos um erro inesperado ao carregar esta página. Tente recarregar — se persistir, fale com a Trevo pelo WhatsApp."
                 : "A tela encontrou um erro inesperado."}{" "}
-              Tente novamente. Se persistir, recarregue a página.
+              {!publica && "Tente novamente. Se persistir, recarregue a página."}
             </p>
             <pre className="mb-6 max-h-32 overflow-auto rounded bg-muted p-3 text-left text-xs text-muted-foreground">
               {message}
@@ -69,9 +85,19 @@ export class ErrorBoundary extends Component<Props, State> {
               </Button>
               <Button onClick={this.handleGoHome}>
                 <Home className="mr-2 h-4 w-4" />
-                Voltar ao Dashboard
+                {publica ? "Recarregar página" : "Voltar ao Dashboard"}
               </Button>
             </div>
+            {publica && (
+              <a
+                href="https://wa.me/5511934927001?text=Ol%C3%A1!%20Tive%20um%20erro%20ao%20abrir%20uma%20proposta%20da%20Trevo."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-4 text-xs text-emerald-700 hover:text-emerald-900 underline-offset-2 hover:underline"
+              >
+                Falar com a Trevo no WhatsApp
+              </a>
+            )}
           </div>
         </div>
       );
