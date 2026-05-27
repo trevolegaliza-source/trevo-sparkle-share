@@ -104,23 +104,61 @@ export function useOrcamentoKPIs(tipoProposta: 'servico_pontual' | 'terceirizaca
   return useQuery({
     queryKey: ['orcamento_kpis', tipoProposta],
     queryFn: async () => {
+      // 27/05: select expandido pra calcular tempo médio até aceite + breakdown
+      // de motivos de recusa (terceirização tem campos novos)
+      const cols = tipoProposta === 'terceirizacao'
+        ? 'status, valor_final, created_at, terc_aceito_em, terc_recusado_em, terc_recusa_motivo'
+        : 'status, valor_final, created_at';
       const { data, error } = await supabase
         .from('orcamentos')
-        .select('status, valor_final')
+        .select(cols)
         .eq('tipo_proposta' as any, tipoProposta);
       if (error) throw error;
-      const all = (data || []) as unknown as { status: string; valor_final: number }[];
+      const all = (data || []) as unknown as {
+        status: string;
+        valor_final: number;
+        created_at: string;
+        terc_aceito_em?: string | null;
+        terc_recusado_em?: string | null;
+        terc_recusa_motivo?: string | null;
+      }[];
       const total = all.length;
       const enviados = all.filter(o => o.status === 'enviado').length;
-      const aprovados = all.filter(o => o.status === 'aprovado').length;
+      const aprovados = all.filter(o => ['aprovado', 'aceito'].includes(o.status)).length;
       const aguardandoPgto = all.filter(o => o.status === 'aguardando_pagamento').length;
       const convertidos = all.filter(o => o.status === 'convertido').length;
       const recusados = all.filter(o => o.status === 'recusado').length;
       const taxa = total > 0 ? Math.round(((aprovados + aguardandoPgto + convertidos) / total) * 100) : 0;
-      // C47 — guard contra NULL/undefined; antes Number(undefined) = NaN
-      // contaminava o reduce e zerava o KPI inteiro silenciosamente.
       const valorTotal = all.reduce((s, o) => s + Number(o.valor_final ?? 0), 0);
-      return { total, enviados, aprovados, aguardandoPgto, convertidos, recusados, taxa, valorTotal };
+
+      // Tempo médio até aceite (em dias) — só pra terceirizacao
+      let tempoMedioAceite = 0;
+      if (tipoProposta === 'terceirizacao') {
+        const aceitosComDelta = all
+          .filter(o => o.terc_aceito_em && o.created_at)
+          .map(o => {
+            const dCriado = new Date(o.created_at).getTime();
+            const dAceito = new Date(o.terc_aceito_em!).getTime();
+            return (dAceito - dCriado) / 86400000;
+          })
+          .filter(d => d >= 0 && d <= 365); // sanity
+        if (aceitosComDelta.length > 0) {
+          tempoMedioAceite = +(aceitosComDelta.reduce((a, b) => a + b, 0) / aceitosComDelta.length).toFixed(1);
+        }
+      }
+
+      // Breakdown de motivos de recusa
+      const motivosRecusa: Record<string, number> = { preco: 0, escopo: 0, timing: 0, outro: 0 };
+      all.forEach(o => {
+        if (o.status === 'recusado' && o.terc_recusa_motivo && o.terc_recusa_motivo in motivosRecusa) {
+          motivosRecusa[o.terc_recusa_motivo]++;
+        }
+      });
+
+      return {
+        total, enviados, aprovados, aguardandoPgto, convertidos, recusados,
+        taxa, valorTotal, tempoMedioAceite, motivosRecusa,
+      };
     },
   });
 }

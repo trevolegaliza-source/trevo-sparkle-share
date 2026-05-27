@@ -76,6 +76,7 @@ interface State {
   dia_pagamento: number | null;          // dia do mês pra cobrança (1-31) — só se vencimento_tipo='mensal_dia'
   vencimento_tipo: 'mensal_dia' | 'deferimento' | 'outros' | null;
   vencimento_outros_texto: string;
+  senha_link: string;  // 27/05: senha opcional pra proteger link público
 
   // Textos
   regras_rapidas_ativas: string[];       // ids do catálogo de cláusulas
@@ -117,6 +118,7 @@ function emptyState(): State {
     dia_pagamento: null,             // 26/05: dia do mês pra cobrança (só se vencimento_tipo='mensal_dia')
     vencimento_tipo: 'deferimento',  // 27/05: default pra avulso. Mensal só faz sentido em pro_5.
     vencimento_outros_texto: '',
+    senha_link: '',
     regras_rapidas_ativas: REGRAS_RAPIDAS_ATIVAS_DEFAULT,
     observacoes_publicas: '',
     anotacoes_internas: '',
@@ -184,6 +186,7 @@ export default function PropostaComercialNova() {
         // 27/05: fallback retrocompatível — se tipo é null mas dia preenchido, é mensal legacy
         vencimento_tipo: d.terc_vencimento_tipo ?? (d.terc_dia_pagamento ? 'mensal_dia' : 'deferimento'),
         vencimento_outros_texto: d.terc_vencimento_outros_texto || '',
+        senha_link: d.senha_link || '',
         regras_rapidas_ativas: Array.isArray(d.terc_regras_rapidas_ativas) ? d.terc_regras_rapidas_ativas : [],
         observacoes_publicas: d.terc_observacoes_publicas || '',
         anotacoes_internas: d.terc_anotacoes_internas || '',
@@ -281,7 +284,7 @@ export default function PropostaComercialNova() {
         beneficios_capa: [] as any,
         headline_cenario: null,
         cenarios: [] as any,
-        senha_link: null,
+        senha_link: state.senha_link && state.senha_link.trim() ? state.senha_link.trim() : null,
         status: statusAlvo,
         pdf_url: null,
         terc_modalidade: state.modalidade,
@@ -781,11 +784,38 @@ export default function PropostaComercialNova() {
               <Input
                 value={state.video_url}
                 onChange={(e) => setState({ ...state, video_url: e.target.value })}
-                placeholder="https://youtube.com/watch?v=... ou https://vimeo.com/..."
+                placeholder="https://youtube.com/watch?v=... ou https://vimeo.com/... ou https://open.spotify.com/episode/..."
               />
               {state.video_url && (
                 <p className="text-[11px] text-emerald-700">
-                  ✓ Vídeo será exibido pro cliente
+                  ✓ Vídeo/podcast será exibido pro cliente
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Senha opcional pra proteger o link público */}
+          <Card>
+            <CardContent className="pt-6 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <Lock className="h-4 w-4" /> SENHA DE ACESSO (opcional)
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Ativa uma tela de senha antes da proposta carregar. Útil pra clientes
+                grandes que não querem o link visto por qualquer um. Combine a senha
+                com o cliente pelo WhatsApp.
+              </p>
+              <Input
+                type="text"
+                value={state.senha_link}
+                onChange={(e) => setState({ ...state, senha_link: e.target.value })}
+                placeholder="ex: trevo2026"
+                maxLength={50}
+                autoComplete="off"
+              />
+              {state.senha_link && state.senha_link.trim() && (
+                <p className="text-[11px] text-emerald-700">
+                  ✓ Cliente precisará digitar &ldquo;{state.senha_link.trim()}&rdquo; pra ver a proposta
                 </p>
               )}
             </CardContent>

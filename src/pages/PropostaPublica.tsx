@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, CheckCircle, XCircle, Download, FileText, Lock as LockIcon, Lightbulb, AlertTriangle, GitBranch, ListChecks, Package, Sparkles, ChevronRight, Send, Hash, Clock, ShieldCheck, ArrowLeft, CreditCard } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Download, FileText, Lock as LockIcon, Lightbulb, AlertTriangle, GitBranch, ListChecks, Package, Sparkles, ChevronRight, Send, Hash, Clock, ShieldCheck, ArrowLeft, CreditCard, MessageCircle } from 'lucide-react';
 import { normalizeItem, type OrcamentoItem, type CenarioOrcamento } from '@/components/orcamentos/types';
 import DOMPurify from 'dompurify';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY as SUPABASE_KEY } from '@/integrations/supabase/client';
@@ -909,19 +909,36 @@ export default function PropostaPublica() {
     </>
   );
 
-  if (error) return (
-    <>
-      <style>{fonts}</style>
-      <style>{buildStyles(accent, accentDark)}</style>
-      <div className="pp-center">
-        <div className="pp-center-card">
-          <div className="pp-center-ico danger"><XCircle style={{ height: 32, width: 32 }} /></div>
-          <h2 className="pp-center-title">Proposta Indisponível</h2>
-          <p className="pp-center-desc">{error}</p>
+  if (error) {
+    const isExpirada = /expirou|expirad/i.test(error);
+    return (
+      <>
+        <style>{fonts}</style>
+        <style>{buildStyles(accent, accentDark)}</style>
+        <div className="pp-center">
+          <div className="pp-center-card">
+            <div className="pp-center-ico danger">
+              {isExpirada ? <Clock style={{ height: 32, width: 32 }} /> : <XCircle style={{ height: 32, width: 32 }} />}
+            </div>
+            <h2 className="pp-center-title">{isExpirada ? 'Proposta expirou' : 'Proposta indisponível'}</h2>
+            <p className="pp-center-desc">{error}</p>
+            <div className="pp-center-actions" style={{ marginTop: 16 }}>
+              <a
+                href="https://wa.me/5511934927001?text=Ol%C3%A1!%20Recebi%20um%20link%20de%20proposta%20da%20Trevo%20que%20j%C3%A1%20expirou.%20Pode%20me%20enviar%20uma%20nova%3F"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pp-btn pp-btn-approve"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              >
+                <MessageCircle style={{ height: 16, width: 16 }} />
+                {isExpirada ? 'Solicitar nova proposta' : 'Falar com a Trevo'}
+              </a>
+            </div>
+          </div>
         </div>
-      </div>
-    </>
-  );
+      </>
+    );
+  }
 
   if (senhaRequerida && !autenticado) return (
     <>

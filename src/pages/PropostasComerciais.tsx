@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Plus, MoreHorizontal, Link as LinkIcon, MessageCircle, Trash2,
-  Sparkles, Send, CheckCircle, TrendingUp,
+  Sparkles, Send, CheckCircle, TrendingUp, Clock, XCircle,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { SkeletonList } from '@/components/ui/skeleton-patterns';
@@ -128,6 +128,57 @@ export default function PropostasComerciais() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Segunda linha: tempo médio + recusas detalhadas */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Tempo médio até aceite</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {kpis?.tempoMedioAceite ? `${kpis.tempoMedioAceite} dias` : '—'}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {kpis?.tempoMedioAceite
+                  ? kpis.tempoMedioAceite < 1
+                    ? 'Aceite no mesmo dia em média'
+                    : 'Da emissão até o aceite verbal'
+                  : 'Sem aceites suficientes ainda'}
+              </p>
+            </div>
+            <Clock className="h-5 w-5 text-emerald-500 opacity-50" />
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Recusas por motivo</p>
+                <p className="text-2xl font-bold text-rose-600">{kpis?.recusados ?? 0}</p>
+              </div>
+              <XCircle className="h-5 w-5 text-rose-500 opacity-50" />
+            </div>
+            {kpis?.motivosRecusa && (kpis.recusados ?? 0) > 0 ? (
+              <div className="grid grid-cols-4 gap-2 text-center">
+                {[
+                  { id: 'preco', label: 'Preço', color: 'text-amber-600 bg-amber-50' },
+                  { id: 'escopo', label: 'Escopo', color: 'text-blue-600 bg-blue-50' },
+                  { id: 'timing', label: 'Timing', color: 'text-violet-600 bg-violet-50' },
+                  { id: 'outro', label: 'Outro', color: 'text-slate-600 bg-slate-50' },
+                ].map(m => (
+                  <div key={m.id} className={`rounded-lg p-2 ${m.color}`}>
+                    <p className="text-lg font-bold">{kpis.motivosRecusa[m.id] ?? 0}</p>
+                    <p className="text-[10px] uppercase tracking-wider opacity-80">{m.label}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground italic">Nenhuma recusa registrada ainda.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
