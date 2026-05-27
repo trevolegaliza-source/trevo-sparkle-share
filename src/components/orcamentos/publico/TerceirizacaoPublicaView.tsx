@@ -283,16 +283,40 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
               href={pdfUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-lg hover:shadow-xl transition-all ts-fade-up-3"
+              className="ts-fade-up-3 inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-lg hover:shadow-xl transition-all"
             >
-              <FileText className="h-4 w-4" />
+              <Download className="h-4 w-4" strokeWidth={2.5} />
               Baixar Proposta + Contrato (PDF)
             </a>
           ) : (
-            <p className="text-xs text-muted-foreground italic flex items-center gap-2 justify-center ts-fade-up-3">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              O PDF da proposta + contrato está sendo gerado e ficará disponível em segundos. Esta página atualiza sozinha.
-            </p>
+            <div className="ts-fade-up-3 w-full">
+              <div className="inline-flex flex-col items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-50 border-2 border-emerald-200 w-full">
+                <div className="flex items-center gap-2.5 text-emerald-700">
+                  <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.5} />
+                  <span className="text-sm font-bold">Gerando Proposta + Contrato</span>
+                </div>
+                {/* Progress bar fake — animação visual de 25s */}
+                <div className="w-full h-1.5 bg-emerald-100 rounded-full overflow-hidden mt-1">
+                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full ts-progress-fake" />
+                </div>
+                <p className="text-[11px] text-emerald-700/80 mt-1 leading-snug">
+                  Pode levar até <strong>30 segundos</strong>. <strong>Não feche essa aba</strong> — o botão aparece automaticamente quando pronto.
+                </p>
+              </div>
+              <style>{`
+                @keyframes ts-progress-fake {
+                  0% { width: 0%; }
+                  20% { width: 25%; }
+                  50% { width: 55%; }
+                  75% { width: 78%; }
+                  95% { width: 92%; }
+                  100% { width: 95%; }
+                }
+                .ts-progress-fake {
+                  animation: ts-progress-fake 25s cubic-bezier(.3,.7,.4,1) forwards;
+                }
+              `}</style>
+            </div>
           )}
 
           <div className="ts-fade-up-3 pt-1">
