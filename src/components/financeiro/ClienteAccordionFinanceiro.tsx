@@ -1782,6 +1782,9 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
                 {selectedPagar.size} de {cliente.lancamentos.length} · {fmt(valorSelecionado)}
               </span>
             </div>
+            {/* 27/05 noite: grid enxuto na bulk toolbar do AguardandoItem.
+                Compartilhar / Editar vencimento / Copiar WhatsApp / Baixar
+                consolidados dentro do "Ver cobrança". */}
             <div className="grid grid-cols-2 sm:flex gap-2 mt-3 sm:flex-wrap">
               <WhatsappLinkButton
                 phone={cliente.cliente_telefone || ''}
@@ -1791,10 +1794,10 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
               />
               <Button
                 size="sm"
-                variant="outline"
+                variant="default"
                 onClick={() => setDetalhesOpen(true)}
                 disabled={!cobrancaIdAtiva}
-                className="h-11 sm:h-9 text-primary border-primary/40 hover:bg-primary/10"
+                className="h-11 sm:h-9 bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 <Eye className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Ver cobrança</span>
@@ -1803,22 +1806,6 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
               <Button size="sm" variant="outline" onClick={handleCopiarLinkCobrancaAguardando} className="h-11 sm:h-9">
                 <LinkIcon className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Copiar Link</span><span className="sm:hidden">Link</span>
               </Button>
-              <Button size="sm" variant="outline" onClick={handleCompartilharAguardando} className="gap-1 h-11 sm:h-9">
-                <Share2 className="h-4 w-4" /> <span className="hidden sm:inline">Compartilhar</span><span className="sm:hidden">Enviar</span>
-              </Button>
-              <EditarVencimentoButton
-                cobrancaId={cobrancaIdAtiva}
-                dataAtual={cliente.lancamentos[0]?.data_vencimento || null}
-                className="h-11 sm:h-9"
-              />
-              <Button size="sm" variant="outline" onClick={handleCopiarCobranca} className="h-11 sm:h-9">
-                <Copy className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">{temVencidos ? 'Reenviar Cobrança' : 'Copiar WhatsApp'}</span><span className="sm:hidden">{temVencidos ? 'Reenviar' : 'Copiar'}</span>
-              </Button>
-              {(cliente.lancamentos.some(l => l.extrato_id) || cliente.extrato_mais_recente) && (
-                <Button size="sm" variant="outline" onClick={handleBaixarExtrato} disabled={loadingExtrato} className="h-11 sm:h-9">
-                  <Download className="h-4 w-4 mr-1" /> {loadingExtrato ? 'Baixando...' : 'Baixar'}
-                </Button>
-              )}
               <Button size="sm" onClick={() => setShowPago(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white col-span-2 h-11 sm:h-9">
                 <CheckCircle className="h-4 w-4 mr-1" /> {selectedPagar.size > 0 ? `Pagar (${selectedPagar.size})` : 'Marcar como Pago'}
               </Button>
@@ -1979,6 +1966,10 @@ function AguardandoItem({ cliente, contestarLancamento }: { cliente: ClienteFina
         clienteNome={cliente.cliente_apelido || cliente.cliente_nome}
         clienteTelefone={cliente.cliente_telefone}
         total={cliente.total_faturado}
+        onCompartilhar={handleCompartilharAguardando}
+        onCopiarMensagemWhatsapp={handleCopiarCobranca}
+        onBaixarExtrato={(cliente.lancamentos.some(l => l.extrato_id) || cliente.extrato_mais_recente) ? handleBaixarExtrato : undefined}
+        baixarLoading={loadingExtrato}
       />
     </>
   );
