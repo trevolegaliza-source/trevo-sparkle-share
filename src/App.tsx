@@ -37,6 +37,7 @@ const RelatoriosFluxoCaixa = lazy(() => import("./pages/RelatoriosFluxoCaixa"));
 const Tarefas = lazy(() => import("./pages/Tarefas"));
 const PortfolioPublico = lazy(() => import("./pages/PortfolioPublico"));
 const ReconciliacaoTrello = lazy(() => import("./pages/ReconciliacaoTrello"));
+const TrelloCardsPendentes = lazy(() => import("./pages/TrelloCardsPendentes"));
 const PropostaPublica = lazy(() => import("./pages/PropostaPublica"));
 const CobrancaPublica = lazy(() => import("./pages/CobrancaPublica"));
 const Dani = lazy(() => import("./pages/Dani"));
@@ -218,6 +219,15 @@ const App = () => (
                        Protegida com modulo='configuracoes' (admin-only). */
                     <RequirePermission modulo="configuracoes">
                       <ReconciliacaoTrello />
+                    </RequirePermission>
+                  } />
+                  {/* 29/05/2026: revisão manual dos processos sem trello_card_id
+                      (ambíguos + sem_match do backfill automático). Master-only —
+                      mexe em link de processo↔card que vai impactar automação
+                      de deferimento. Página gate via role no componente. */}
+                  <Route path="/admin/trello-cards-pendentes" element={
+                    <RequirePermission modulo="configuracoes">
+                      <TrelloCardsPendentes />
                     </RequirePermission>
                   } />
                   {/* 25/05/2026: Tarefas — checklist sem gate de modulo
