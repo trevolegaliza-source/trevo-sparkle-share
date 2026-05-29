@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import {
   ChevronLeft, ChevronRight, Plus, ArrowLeft, Trash2, CreditCard,
@@ -272,8 +273,20 @@ export default function CartaoDetalhe() {
           )}
 
           {/* Lista de compras */}
+          {/* AUDIT-023 (29/05): Skeleton em vez de texto plano */}
           {isLoading ? (
-            <div className="p-6 text-sm text-muted-foreground text-center">Carregando…</div>
+            <ul className="divide-y">
+              {[1, 2, 3, 4].map((i) => (
+                <li key={i} className="p-4 flex items-start gap-3">
+                  <Skeleton className="h-3 w-10" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <Skeleton className="h-4 w-16" />
+                </li>
+              ))}
+            </ul>
           ) : comprasFatura.length === 0 ? (
             <div className="p-8 text-center space-y-2">
               <p className="text-sm text-muted-foreground">Nenhuma compra nesta fatura.</p>

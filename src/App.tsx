@@ -97,12 +97,16 @@ const App = () => (
                   <Route path="/processos" element={<Navigate to="/processos-ativos" replace />} />
                   <Route path="/processos-ativos" element={
                     <RequirePermission modulo="processos">
-                      <ProcessosAtivosDetalhe />
+                      <ErrorBoundary scope="Processos Ativos">
+                        <ProcessosAtivosDetalhe />
+                      </ErrorBoundary>
                     </RequirePermission>
                   } />
                   <Route path="/faturamento" element={
                     <RequirePermission modulo="financeiro">
-                      <FaturamentoDetalhe />
+                      <ErrorBoundary scope="Faturamento">
+                        <FaturamentoDetalhe />
+                      </ErrorBoundary>
                     </RequirePermission>
                   } />
                   <Route path="/clientes" element={
@@ -112,7 +116,9 @@ const App = () => (
                   } />
                   <Route path="/clientes/:id" element={
                     <RequirePermission modulo="clientes">
-                      <ClienteDetalhe />
+                      <ErrorBoundary scope="Cliente Detalhe">
+                        <ClienteDetalhe />
+                      </ErrorBoundary>
                     </RequirePermission>
                   } />
                   <Route path="/orcamentos" element={
@@ -151,13 +157,17 @@ const App = () => (
                   } />
                   <Route path="/financeiro" element={
                     <RequirePermission modulo="financeiro">
-                      <Financeiro />
+                      <ErrorBoundary scope="Financeiro">
+                        <Financeiro />
+                      </ErrorBoundary>
                     </RequirePermission>
                   } />
                   {/* FIN-005 (27/05 noite): dashboard decisional separado pra master ver DSO/churn/forecast */}
                   <Route path="/financeiro/dashboard" element={
                     <RequirePermission modulo="financeiro">
-                      <FinanceiroDashboardDecisional />
+                      <ErrorBoundary scope="Dashboard Decisional">
+                        <FinanceiroDashboardDecisional />
+                      </ErrorBoundary>
                     </RequirePermission>
                   } />
                   <Route path="/mrr" element={
@@ -173,7 +183,9 @@ const App = () => (
                   <Route path="/contas-receber" element={<Navigate to="/financeiro" replace />} />
                   <Route path="/contas-pagar" element={
                     <RequirePermission modulo="contas_pagar">
-                      <ContasPagar />
+                      <ErrorBoundary scope="Contas a Pagar">
+                        <ContasPagar />
+                      </ErrorBoundary>
                     </RequirePermission>
                   } />
                   <Route path="/cartao" element={

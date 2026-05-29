@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, CreditCard, Pencil, Archive, Repeat, AlertCircle } from 'lucide-react';
 import { useCartoes, useDeleteCartao } from '@/hooks/useCartoes';
 import { supabase } from '@/integrations/supabase/client';
@@ -151,12 +152,22 @@ export default function Cartao() {
         </Card>
       )}
 
+      {/* AUDIT-023 (29/05): Skeleton em vez de texto plano */}
       {isLoading && (
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">
-            Carregando cartões…
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4 flex items-center gap-4">
+                <Skeleton className="h-10 w-10 rounded-md" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+                <Skeleton className="h-8 w-20" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {!isLoading && ativos.length === 0 && (

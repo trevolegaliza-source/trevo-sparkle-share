@@ -54,17 +54,32 @@ function similarity(a: string, b: string): number {
   return inter / Math.max(setA.size, setB.size);
 }
 
+// AUDIT-025 (29/05/2026): AbortController 10s pra evitar travar wall-time
+const TRELLO_FETCH_TIMEOUT_MS = 10_000;
+
 async function trelloGet<T>(path: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`https://api.trello.com${path}`);
   url.searchParams.set("key", TRELLO_KEY);
   url.searchParams.set("token", TRELLO_TOKEN);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Trello ${path} ${res.status}: ${txt.substring(0, 200)}`);
+
+  const ctrl = new AbortController();
+  const timeoutId = setTimeout(() => ctrl.abort(), TRELLO_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url.toString(), { signal: ctrl.signal });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Trello ${path} ${res.status}: ${txt.substring(0, 200)}`);
+    }
+    return await res.json();
+  } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new Error(`Trello timeout ${TRELLO_FETCH_TIMEOUT_MS}ms em ${path}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return res.json();
 }
 
 Deno.serve(async (req) => {

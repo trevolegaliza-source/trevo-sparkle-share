@@ -52,13 +52,30 @@ const CARDS_EVENTS_URL = `${SUPABASE_URL}/functions/v1/trello-cards-events`;
 // ────────────────────────────────────────────────
 // Trello API helpers
 // ────────────────────────────────────────────────
+// AUDIT-025 (29/05/2026): AbortController 10s pra cada fetch Trello.
+// Setup roda em loop por todos boards — se algum board travar, sem timeout
+// a edge inteira fica pendurada até wall-time 400s.
+const TRELLO_FETCH_TIMEOUT_MS = 10_000;
+
 async function trelloCall(method: string, path: string, params: Record<string, string> = {}) {
   const url = new URL(`https://api.trello.com${path}`);
   url.searchParams.set("key", TRELLO_KEY);
   url.searchParams.set("token", TRELLO_TOKEN);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const res = await fetch(url.toString(), { method });
-  return res;
+
+  const ctrl = new AbortController();
+  const timeoutId = setTimeout(() => ctrl.abort(), TRELLO_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url.toString(), { method, signal: ctrl.signal });
+    return res;
+  } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new Error(`Trello timeout ${TRELLO_FETCH_TIMEOUT_MS}ms em ${method} ${path}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function trelloGet<T>(path: string, params: Record<string, string> = {}): Promise<T> {

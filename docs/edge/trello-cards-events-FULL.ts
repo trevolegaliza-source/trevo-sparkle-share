@@ -134,18 +134,33 @@ async function verifySignature(req: Request, rawBody: string): Promise<Signature
 
 // ────────────────────────────────────────────────
 // Trello API helper (pra puxar cor da capa do card)
+// AUDIT-025 (29/05/2026): AbortController 10s pra evitar travar wall-time
 // ────────────────────────────────────────────────
+const TRELLO_FETCH_TIMEOUT_MS = 10_000;
+
 async function trelloGet<T>(path: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`https://api.trello.com${path}`);
   url.searchParams.set("key", TRELLO_KEY);
   url.searchParams.set("token", TRELLO_TOKEN);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Trello ${path} ${res.status}: ${txt.substring(0, 200)}`);
+
+  const ctrl = new AbortController();
+  const timeoutId = setTimeout(() => ctrl.abort(), TRELLO_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url.toString(), { signal: ctrl.signal });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Trello ${path} ${res.status}: ${txt.substring(0, 200)}`);
+    }
+    return await res.json();
+  } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new Error(`Trello timeout após ${TRELLO_FETCH_TIMEOUT_MS}ms (${path})`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return res.json();
 }
 
 // ────────────────────────────────────────────────
@@ -433,8 +448,16 @@ Deno.serve(async (req) => {
 
   const sigCheck = await verifySignature(req, rawBody);
   if (!sigCheck.valid) {
+    // AUDIT-026 (29/05/2026): retorna 401 em HMAC inválido (antes era 200
+    // mascarando incidentes). Trello pode desabilitar o webhook após 3 falhas
+    // consecutivas — isso é DESEJADO se houver ataque ativo; o monitoramento
+    // do master deve verificar manualmente via /admin/trello-cards-pendentes
+    // antes de reativar.
     console.warn("[trello-cards-events] invalid signature:", sigCheck.reason);
-    return new Response("ok", { status: 200, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({ error: "invalid_signature" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   // @ts-ignore EdgeRuntime existe no Supabase Edge Runtime
