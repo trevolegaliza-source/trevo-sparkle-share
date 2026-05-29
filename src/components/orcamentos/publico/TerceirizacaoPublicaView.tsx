@@ -19,29 +19,37 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Loader2, Check, ShieldCheck, MessageCircle, FileText, Building2,
-  Clock, Zap, Users, Award, Target, Layers, ArrowRight, ArrowLeft, Sparkles, ChevronDown,
-  Lock, Calendar, AlertCircle, CheckCircle2, X, Download,
+  Check, ShieldCheck,
+  Clock, Users, Target, Layers, Sparkles, ChevronDown,
+  Download,
 } from 'lucide-react';
 import { SUPABASE_URL } from '@/integrations/supabase/client';
 import {
-  PLANOS, REGRAS_RAPIDAS_CATALOGO, TIPO_PROCESSO_PRECO_LABELS,
+  PLANOS, REGRAS_RAPIDAS_CATALOGO,
   fmtBRL,
 } from '@/lib/terceirizacao-engine';
 import logoTrevo from '@/assets/logo-trevo.png';
-import logoDaniDark from '@/assets/dani-dark.png';
 import { anonHeaders, CONFETTI_CORES } from './terceirizacao/constants';
 import type { OrcTerc } from './terceirizacao/types';
 import { parseVideoUrl } from './terceirizacao/videoUtils';
-import { Stat, Diferencial, CardEscopo, ComoFunciona } from './terceirizacao/atoms';
-import { VencimentoBadge, VencimentoLinha } from './terceirizacao/Vencimento';
-import { CardDaniAi } from './terceirizacao/CardDaniAi';
+import { Stat } from './terceirizacao/atoms';
 import { MapaBrasilAnimado } from './terceirizacao/MapaBrasilAnimado';
 import { BlocoAntesDepois } from './terceirizacao/BlocoAntesDepois';
 import { BlocoCalculadoraROI } from './terceirizacao/BlocoCalculadoraROI';
 import { BlocoDepoimentos } from './terceirizacao/BlocoDepoimentos';
 import { ModalUpsellMensal } from './terceirizacao/ModalUpsellMensal';
 import { ModalRecusar } from './terceirizacao/ModalRecusar';
+import { ModalConfirmarAceite } from './terceirizacao/ModalConfirmarAceite';
+import { TelaRecusado } from './terceirizacao/TelaRecusado';
+import { TelaSucesso } from './terceirizacao/TelaSucesso';
+import { BlocoVideoPodcast } from './terceirizacao/BlocoVideoPodcast';
+import { BlocoDiferenciais } from './terceirizacao/BlocoDiferenciais';
+import { BlocoComoFunciona } from './terceirizacao/BlocoComoFunciona';
+import { BlocoClausulasObservacoes } from './terceirizacao/BlocoClausulasObservacoes';
+import { BlocoEscopo } from './terceirizacao/BlocoEscopo';
+import { BlocoCondicoesFinanceiras } from './terceirizacao/BlocoCondicoesFinanceiras';
+import { CtaFinal } from './terceirizacao/CtaFinal';
+import { FooterLanding } from './terceirizacao/FooterLanding';
 
 interface Props {
   orc: OrcTerc;
@@ -168,150 +176,23 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
 
   // ─── Tela "Recusado" ────────────────────────────────────────────────────
   if (statusLocal === 'recusado') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
-        <div className="max-w-md text-center space-y-5">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-200">
-            <X className="h-10 w-10 text-slate-500" strokeWidth={2.5} />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Recusa registrada</h1>
-          <p className="text-slate-600 leading-relaxed">
-            Obrigado pelo retorno. Sua resposta foi anotada e ajuda a Trevo a
-            evoluir. Se mudar de ideia ou quiser revisar o escopo, fale com a
-            gente pelo WhatsApp.
-          </p>
-          <a
-            href="https://wa.me/5511934927001"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Falar com a Trevo
-          </a>
-        </div>
-      </div>
-    );
+    return <TelaRecusado />;
   }
 
   // ─── Tela de sucesso (já aceito + ainda não voltou pra landing) ─────────
   if (statusLocal === 'aceito' && !voltouAposAceite) {
-    // 60 partículas de confete com cores/posições/delays aleatórios mas estáveis
-    const confettiCores = ['#10b981', '#059669', '#34d399', '#fbbf24', '#f59e0b', '#3b82f6', '#a78bfa'];
-    const confetes = Array.from({ length: 60 }, (_, i) => ({
-      left: (i * 1.7 + Math.sin(i) * 5) % 100,
-      delay: (i * 0.08) % 2.5,
-      duration: 2.8 + (i % 5) * 0.3,
-      cor: confettiCores[i % confettiCores.length],
-      rotate: (i * 47) % 360,
-      shape: i % 3,
-    }));
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50/60 flex items-center justify-center p-4 relative overflow-hidden">
-        <style>{`
-          @keyframes confetti-fall { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
-          .ts-confetti { position: absolute; top: 0; pointer-events: none; animation: confetti-fall linear forwards; }
-          @keyframes check-pop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-          .ts-check-pop { animation: check-pop 0.6s cubic-bezier(.34,1.56,.64,1) both; }
-          @keyframes ring-expand { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(2.5); opacity: 0; } }
-          .ts-ring-expand { animation: ring-expand 1.8s ease-out infinite; }
-          @keyframes fade-up { 0% { transform: translateY(10px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
-          .ts-fade-up { animation: fade-up 0.6s ease-out 0.3s both; }
-          .ts-fade-up-2 { animation: fade-up 0.6s ease-out 0.5s both; }
-          .ts-fade-up-3 { animation: fade-up 0.6s ease-out 0.7s both; }
-        `}</style>
-
-        {/* Confete */}
-        {confetes.map((c, i) => (
-          <div
-            key={i}
-            className="ts-confetti"
-            style={{
-              left: `${c.left}%`,
-              width: c.shape === 0 ? '8px' : c.shape === 1 ? '10px' : '6px',
-              height: c.shape === 0 ? '12px' : c.shape === 1 ? '10px' : '14px',
-              background: c.cor,
-              borderRadius: c.shape === 1 ? '50%' : '2px',
-              animationDelay: `${c.delay}s`,
-              animationDuration: `${c.duration}s`,
-              transform: `rotate(${c.rotate}deg)`,
-            }}
-          />
-        ))}
-
-        <div className="max-w-md text-center space-y-5 relative z-10">
-          <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-emerald-100 ring-8 ring-emerald-50 ts-check-pop">
-            <span className="absolute inset-0 rounded-full bg-emerald-400/40 ts-ring-expand" />
-            <span className="absolute inset-0 rounded-full bg-emerald-400/30 ts-ring-expand" style={{ animationDelay: '0.6s' }} />
-            <Check className="h-12 w-12 text-emerald-600 relative" strokeWidth={3} />
-          </div>
-          <h1 className="text-3xl font-bold text-slate-900 ts-fade-up">Proposta aceita! 🍀</h1>
-          <p className="text-slate-600 leading-relaxed ts-fade-up-2">
-            Excelente decisão. A equipe Trevo recebeu seu aceite e o contrato
-            está sendo enviado pela <strong className="text-emerald-700">ClickSign</strong> automaticamente
-            para sua assinatura digital. Você também receberá contato pelo WhatsApp em até 1h útil para iniciar o onboarding.
-          </p>
-          <div className="bg-white rounded-lg border p-4 text-left space-y-2 ts-fade-up-3">
-            <p className="text-xs font-mono text-muted-foreground">PROP-{String(orc.numero).padStart(4, '0')}</p>
-            <p className="text-sm font-semibold text-slate-900">{orc.prospect_nome}</p>
-          </div>
-          {pdfUrl ? (
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ts-fade-up-3 inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-lg hover:shadow-xl transition-all"
-            >
-              <Download className="h-4 w-4" strokeWidth={2.5} />
-              Baixar Proposta + Contrato (PDF)
-            </a>
-          ) : (
-            <div className="ts-fade-up-3 w-full">
-              <div className="inline-flex flex-col items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-50 border-2 border-emerald-200 w-full">
-                <div className="flex items-center gap-2.5 text-emerald-700">
-                  <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.5} />
-                  <span className="text-sm font-bold">Gerando Proposta + Contrato</span>
-                </div>
-                {/* Progress bar fake — animação visual de 25s */}
-                <div className="w-full h-1.5 bg-emerald-100 rounded-full overflow-hidden mt-1">
-                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full ts-progress-fake" />
-                </div>
-                <p className="text-[11px] text-emerald-700/80 mt-1 leading-snug">
-                  Pode levar até <strong>30 segundos</strong>. <strong>Não feche essa aba</strong> — o botão aparece automaticamente quando pronto.
-                </p>
-              </div>
-              <style>{`
-                @keyframes ts-progress-fake {
-                  0% { width: 0%; }
-                  20% { width: 25%; }
-                  50% { width: 55%; }
-                  75% { width: 78%; }
-                  95% { width: 92%; }
-                  100% { width: 95%; }
-                }
-                .ts-progress-fake {
-                  animation: ts-progress-fake 25s cubic-bezier(.3,.7,.4,1) forwards;
-                }
-              `}</style>
-            </div>
-          )}
-
-          <div className="ts-fade-up-3 pt-1">
-            <button
-              onClick={() => {
-                setVoltouAposAceite(true);
-                setConfettiAtivo(true);
-                window.setTimeout(() => setConfettiAtivo(false), 4500);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-emerald-700 hover:bg-slate-50 rounded-lg transition-colors min-h-[44px]"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Voltar e visualizar proposta
-            </button>
-          </div>
-        </div>
-      </div>
+      <TelaSucesso
+        numero={orc.numero}
+        prospectNome={orc.prospect_nome}
+        pdfUrl={pdfUrl}
+        onVoltarParaLanding={() => {
+          setVoltouAposAceite(true);
+          setConfettiAtivo(true);
+          window.setTimeout(() => setConfettiAtivo(false), 4500);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
     );
   }
 
@@ -489,97 +370,10 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
       </section>
 
       {/* ─── VÍDEO / PODCAST (se houver) ─── */}
-      {video && (
-        <section className="py-16 md:py-20 bg-gradient-to-b from-emerald-950 to-slate-50">
-          <div className="max-w-4xl mx-auto px-6">
-            <div className="text-center mb-8">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">
-                {video.type === 'spotify' || video.type === 'anchor' ? 'Conheça nosso CEO no podcast' : 'Conheça a Trevo em 2 minutos'}
-              </p>
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">
-                {video.type === 'spotify' || video.type === 'anchor'
-                  ? 'Como pensamos a operação societária do Brasil.'
-                  : 'Quem é, como atende, por que confiar.'}
-              </h2>
-            </div>
-            <div className={`relative rounded-2xl overflow-hidden shadow-2xl bg-black ${video.type === 'spotify' || video.type === 'anchor' ? '' : 'aspect-video'}`}>
-              {video.type === 'mp4' && (
-                <video
-                  src={video.embed}
-                  controls
-                  className="w-full h-full"
-                  playsInline
-                  preload="metadata"
-                >
-                  Seu navegador não suporta vídeo HTML5.
-                </video>
-              )}
-              {(video.type === 'youtube' || video.type === 'vimeo' || video.type === 'iframe') && (
-                <iframe
-                  src={video.embed}
-                  title="Trevo Legaliza — vídeo institucional"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  className="w-full h-full"
-                />
-              )}
-              {(video.type === 'spotify' || video.type === 'anchor') && (
-                <iframe
-                  src={video.embed}
-                  title="Trevo Legaliza — podcast"
-                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                  loading="lazy"
-                  className="w-full"
-                  style={{ height: '232px', border: 0 }}
-                />
-              )}
-            </div>
-          </div>
-        </section>
-      )}
+      {video && <BlocoVideoPodcast video={video} />}
 
       {/* ─── DIFERENCIAIS ─── */}
-      <section className="py-20 bg-white">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="max-w-2xl mb-12">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">Por que a Trevo Legaliza</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">
-              Não somos só mais um. Somos a infraestrutura.
-            </h2>
-            <p className="text-slate-600 mt-4 leading-relaxed">
-              Há 12 anos só fazemos isso. E só atendemos quem faz o que você faz.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Diferencial
-              icon={Users}
-              titulo="Você para de perder tempo"
-              texto="Não gerencie processos societários sem controle. Nós assumimos, executamos e entregamos dentro do SLA — você foca no seu cliente."
-            />
-            <Diferencial
-              icon={Target}
-              titulo="Qualquer estado, mesmo padrão"
-              texto="Atendemos 26 estados. Seu cliente em São Paulo ou no Pará recebe o mesmo nível de execução, acompanhamento e rastreabilidade."
-            />
-            <Diferencial
-              icon={FileText}
-              titulo="Zero surpresa financeira"
-              texto="Taxas, emolumentos e custos extras são informados antes da execução. Sem cobrança surpresa para você, sem atrito com seu cliente final."
-            />
-            <Diferencial
-              icon={Zap}
-              titulo="Estruturado pra escalar"
-              texto="Modelo desenhado pra acompanhar o crescimento do seu escritório — sem precisar contratar um departamento societário interno nem treinar uma equipe do zero."
-            />
-          </div>
-
-          {/* Card destaque Dani.ai (full-width) */}
-          <div className="mt-6">
-            <CardDaniAi />
-          </div>
-        </div>
-      </section>
+      <BlocoDiferenciais />
 
       {/* ─── ANTES vs DEPOIS TREVO ─── */}
       <BlocoAntesDepois />
@@ -588,475 +382,64 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
       <BlocoCalculadoraROI valorProcesso={valorPrincipal} />
 
       {/* ─── ESCOPO CUSTOMIZADO ─── */}
-      <section id="proposta-detalhes" className="py-20 bg-slate-50">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="max-w-2xl mb-12">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">Anexo I — Escopo</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">
-              O que vamos executar para você
-            </h2>
-            <p className="text-slate-600 mt-4 leading-relaxed">
-              Escopo definido em conjunto na nossa reunião. Itens marcados são
-              entregues dentro do contrato. Itens riscados são fora de escopo —
-              se precisar, orçamos à parte.
-            </p>
-          </div>
-
-          {/* Serviços + Naturezas em 2 colunas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <CardEscopo titulo="Serviços Societários" itens={servicos} corChip="bg-slate-900 text-white border-slate-900" labelInativos="Fora de escopo" />
-            <CardEscopo titulo="Natureza Jurídica Atendida" itens={naturezas} corChip="bg-emerald-600 text-white border-emerald-600" labelInativos="Demais naturezas geram orçamento condicional" />
-          </div>
-
-          {/* O que está incluso */}
-          <div className="bg-white rounded-2xl border p-6 md:p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold">O que está incluso</p>
-                <h3 className="text-xl font-bold text-slate-900 mt-1">Cada processo entregue inclui</h3>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Itens institucionais sempre presentes (não vêm do banco) */}
-              <div className="flex items-start gap-3 p-3 rounded-lg border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-emerald-100/40 md:col-span-2">
-                <div className="shrink-0 h-5 w-5 rounded-full bg-emerald-600 inline-flex items-center justify-center">
-                  <Check className="h-3 w-3 text-white" strokeWidth={4} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-900">Plataforma Trevo Engine + Aplicativo Mobile</p>
-                  <p className="text-[11px] mt-0.5 leading-relaxed text-slate-600">
-                    Acesso completo à plataforma proprietária via web e app mobile (iOS/Android). Cartão dedicado por processo com timeline, documentos, notificações push e comunicação centralizada.
-                  </p>
-                </div>
-              </div>
-              {/* COM-08 (27/05 noite): item dani.ai removido daqui — já aparece como
-                  card destaque no bloco diferenciais (CardDaniAi) + step 04 "Como
-                  funciona". Tripla menção virava ruído. */}
-
-              {inclusos
-                .filter((it) => !/plataforma\s+trevo/i.test(it.label) && !/dani\.?ai/i.test(it.label))
-                .map((it) => (
-                <div
-                  key={it.id}
-                  className={
-                    it.ativo
-                      ? 'flex items-start gap-3 p-3 rounded-lg border border-emerald-200 bg-emerald-50/30'
-                      : 'flex items-start gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50/30 opacity-50'
-                  }
-                >
-                  <div className={
-                    it.ativo
-                      ? 'shrink-0 h-5 w-5 rounded-full bg-emerald-600 inline-flex items-center justify-center'
-                      : 'shrink-0 h-5 w-5 rounded-full bg-slate-300 inline-flex items-center justify-center'
-                  }>
-                    {it.ativo
-                      ? <Check className="h-3 w-3 text-white" strokeWidth={4} />
-                      : <X className="h-3 w-3 text-white" strokeWidth={4} />
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold ${it.ativo ? 'text-slate-900' : 'text-slate-400 line-through'}`}>
-                      {it.label}
-                    </p>
-                    {it.descricao && (
-                      <p className={`text-[11px] mt-0.5 leading-relaxed ${it.ativo ? 'text-slate-600' : 'text-slate-400'}`}>
-                        {it.descricao}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      <BlocoEscopo servicos={servicos} naturezas={naturezas} inclusos={inclusos} />
 
       {/* ─── CONDIÇÕES FINANCEIRAS ─── */}
-      <section className="py-20 bg-emerald-950 text-white relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl -translate-x-1/3 pointer-events-none" />
-        <div className="relative max-w-5xl mx-auto px-6">
-          <div className="max-w-2xl mb-12">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-300 font-bold mb-2">Anexo II — Condições financeiras</p>
-            <h2 className="text-3xl md:text-4xl font-bold leading-tight">
-              Investimento previsível, sem surpresa
-            </h2>
-            <p className="text-emerald-100/80 mt-4 leading-relaxed">
-              Modalidade <strong className="text-white">{modalidadeCfg?.label || (isPrecoPorTipo ? 'Preço por tipo de processo' : 'Customizada')}</strong>.
-              Valor já considerando o escopo combinado.
-            </p>
-          </div>
-
-          {/* Card principal de valor */}
-          {!isPrecoPorTipo && (
-            <div className="bg-white text-slate-900 rounded-2xl p-8 md:p-10 shadow-2xl mb-6">
-              <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">
-                    {isPlanoMensal ? 'Investimento mensal' : 'Por processo / operação societária'}
-                  </p>
-                  <p className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tabular-nums tracking-tight text-emerald-700 leading-none">
-                    <span className="whitespace-nowrap">{fmtBRL(valorPrincipal)}</span>
-                    {isPlanoMensal && <span className="block sm:inline text-lg sm:text-xl md:text-2xl font-normal text-slate-500 sm:ml-1 mt-1 sm:mt-0">/mês</span>}
-                  </p>
-                  {isPlanoMensal && (
-                    <p className="text-sm text-slate-500 mt-2">
-                      5 processos inclusos por mês · 15% de desconto por processo
-                    </p>
-                  )}
-                </div>
-                <VencimentoBadge
-                  tipo={orc.terc_vencimento_tipo}
-                  dia={orc.terc_dia_pagamento}
-                  texto={orc.terc_vencimento_outros_texto}
-                />
-              </div>
-
-              {orc.terc_valor_abertura && orc.terc_valor_abertura > 0 && orc.terc_valor_abertura !== valorPrincipal && (
-                <div className="mt-6 pt-6 border-t border-slate-200">
-                  <div className="relative rounded-xl bg-gradient-to-br from-emerald-50 via-emerald-100/50 to-emerald-50 border-2 border-emerald-400 p-5">
-                    <div className="absolute -top-3 left-5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider shadow-md">
-                      <Sparkles className="h-3 w-3" />
-                      Diferencial Trevo
-                    </div>
-                    <div className="mt-1">
-                      <p className="text-[10px] uppercase tracking-wider text-emerald-700 font-bold mb-1">Abertura de empresa</p>
-                      <p className="text-3xl font-bold tabular-nums text-emerald-700">{fmtBRL(orc.terc_valor_abertura)}</p>
-                      <p className="text-[11px] text-emerald-700/70 mt-1">
-                        <strong className="text-emerald-800">{Math.round((1 - orc.terc_valor_abertura / valorPrincipal) * 100)}% mais barato</strong> que os demais processos
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Preço por tipo */}
-          {isPrecoPorTipo && (
-            <div className="bg-white text-slate-900 rounded-2xl p-8 md:p-10 shadow-2xl mb-6">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-6">
-                Tabela de honorários por tipo de processo
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {Object.entries(precosPorTipo).map(([tipo, valor]) =>
-                  valor && valor > 0 ? (
-                    <div key={tipo} className="flex items-center justify-between p-4 rounded-lg bg-emerald-50/50 border border-emerald-200">
-                      <span className="text-sm font-semibold text-slate-900">
-                        {TIPO_PROCESSO_PRECO_LABELS[tipo as keyof typeof TIPO_PROCESSO_PRECO_LABELS] || tipo}
-                      </span>
-                      <span className="text-xl font-bold tabular-nums text-emerald-700">{fmtBRL(valor)}</span>
-                    </div>
-                  ) : null
-                )}
-              </div>
-              <VencimentoLinha
-                tipo={orc.terc_vencimento_tipo}
-                dia={orc.terc_dia_pagamento}
-                texto={orc.terc_vencimento_outros_texto}
-              />
-            </div>
-          )}
-
-          {/* Validade highlight — COM-10 (27/05 noite): urgência ancorada (5º processo cortesia) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
-            <div className="flex items-start sm:items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-300 shrink-0 mt-0.5 sm:mt-0" />
-              <div className="text-sm">
-                <p>
-                  Validade até{' '}
-                  <strong className="text-amber-200">
-                    {expiracao.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                  </strong>
-                  {diasParaExpirar <= 5 && (
-                    <span className="ml-2 text-amber-300 font-bold">
-                      ({diasParaExpirar} {diasParaExpirar === 1 ? 'dia restante' : 'dias restantes'})
-                    </span>
-                  )}
-                </p>
-                <p className="text-[11px] text-amber-100/70 mt-0.5">
-                  Aceitando até essa data, seu <strong className="text-amber-200">5º processo é cortesia</strong> (vide cláusulas).
-                </p>
-              </div>
-            </div>
-            <span className="hidden md:inline text-[10px] font-mono text-emerald-200/80">
-              PROP-{String(orc.numero).padStart(4, '0')}
-            </span>
-          </div>
-        </div>
-      </section>
+      <BlocoCondicoesFinanceiras
+        modalidadeLabel={modalidadeCfg?.label || (isPrecoPorTipo ? 'Preço por tipo de processo' : 'Customizada')}
+        isPrecoPorTipo={isPrecoPorTipo}
+        isPlanoMensal={isPlanoMensal}
+        valorPrincipal={valorPrincipal}
+        valorAbertura={orc.terc_valor_abertura}
+        precosPorTipo={precosPorTipo}
+        vencimento={{
+          tipo: orc.terc_vencimento_tipo,
+          dia: orc.terc_dia_pagamento,
+          texto: orc.terc_vencimento_outros_texto,
+        }}
+        expiracao={expiracao}
+        diasParaExpirar={diasParaExpirar}
+        numero={orc.numero}
+      />
 
       {/* ─── COMO FUNCIONA ─── */}
-      <section className="py-20 bg-white">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="max-w-2xl mb-12">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">Operação</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight">
-              Você vê tudo. Em tempo real.
-            </h2>
-            <p className="text-slate-600 mt-4 leading-relaxed">
-              Sem ligação pra saber onde está o processo. Sem &ldquo;deixa eu checar
-              com o pessoal&rdquo;. Você abre o aplicativo e vê.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <ComoFunciona
-              numero="01"
-              titulo="Plataforma própria"
-              texto="Acesso à plataforma Trevo via app ou web. Cada processo tem cartão dedicado com timeline, documentos anexados e comunicação centralizada."
-            />
-            <ComoFunciona
-              numero="02"
-              titulo="Esteira de especialistas"
-              texto="Equipes dedicadas por etapa: viabilidade, DBE, contrato, junta comercial, inscrições. Cada processo passa pelo especialista certo da etapa certa."
-            />
-            <ComoFunciona
-              numero="03"
-              titulo="SLA formalizado"
-              texto="Tempo de início garantido após documentação completa. Comunicação proativa em exigências. Acompanhamento até o deferimento final."
-            />
-            <div className="relative p-6 rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white hover:border-emerald-400 transition-colors">
-              <p className="text-5xl font-bold text-emerald-200 leading-none mb-4">04</p>
-              <div className="flex items-center gap-2 mb-2">
-                <img src={logoDaniDark} alt="dani.ai" loading="lazy" decoding="async" className="h-4 object-contain" />
-                <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-wider">24/7</span>
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Monitoramento por IA</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Nossa IA própria varre Juntas, Receita, Prefeituras e órgãos competentes em tempo real e <strong className="text-slate-900">avisa o contador</strong> a cada movimentação — sem espera, sem ligação.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <BlocoComoFunciona />
 
       {/* ─── CLÁUSULAS + OBSERVAÇÕES ─── */}
-      {(regrasObjetos.length > 0 || (orc.terc_observacoes_publicas && orc.terc_observacoes_publicas.trim())) && (
-        <section className="py-16 bg-slate-50">
-          <div className="max-w-5xl mx-auto px-6">
-            <div className="max-w-2xl mb-10">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-bold mb-2">Condições operacionais</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">
-                Regras claras desde o início
-              </h2>
-            </div>
-
-            {regrasObjetos.length > 0 && (
-              <div className="bg-white rounded-2xl border p-6 md:p-8 mb-4">
-                <div className="space-y-4">
-                  {regrasObjetos.map((r) => (
-                    <div key={r.id} className="flex items-start gap-3">
-                      <div className="shrink-0 h-6 w-6 rounded-full bg-emerald-100 text-emerald-700 inline-flex items-center justify-center text-[10px] font-bold">
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                      </div>
-                      <p className="text-sm text-slate-700 leading-relaxed flex-1">{r.texto}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {orc.terc_observacoes_publicas && orc.terc_observacoes_publicas.trim() && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-amber-700 mb-2">
-                  Observações específicas desta proposta
-                </p>
-                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
-                  {orc.terc_observacoes_publicas.trim()}
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+      <BlocoClausulasObservacoes regras={regrasObjetos} observacoes={orc.terc_observacoes_publicas} />
 
       {/* ─── DEPOIMENTOS ─── */}
       <BlocoDepoimentos />
 
       {/* ─── VINCULAÇÃO + CTA FINAL ─── */}
-      <section className="py-20 bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 text-white relative overflow-hidden">
-        <div className="absolute inset-0 grain pointer-events-none" />
-        <div className="relative max-w-3xl mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-6">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
-            <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-200 font-semibold">
-              Documento vinculante
-            </p>
-          </div>
-
-          <h2 className="text-3xl md:text-5xl font-bold leading-tight mb-6">
-            Vamos começar?
-          </h2>
-          <p className="text-emerald-100/80 leading-relaxed mb-3">
-            Esta proposta é parte integrante do <strong className="text-white">Contrato Mestre de
-            Prestação de Serviços (MSA)</strong> entre as partes. O aceite implica
-            concordância integral com os termos.
-          </p>
-          <p className="text-sm text-emerald-200/80 leading-relaxed mb-10">
-            Após o aceite, você recebe acesso à plataforma em até 2 dias úteis
-            e a equipe Trevo entra em contato pra iniciar o onboarding.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            {statusLocal === 'aceito' ? (
-              // Modo "aceito" — CTA vira download PDF
-              pdfUrl ? (
-                <a
-                  href={pdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-8 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-base font-bold inline-flex items-center justify-center gap-2 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5"
-                >
-                  <Download className="h-5 w-5" strokeWidth={2.5} />
-                  Baixar Proposta + Contrato (PDF)
-                </a>
-              ) : (
-                <div className="px-8 py-4 rounded-xl bg-emerald-500/30 text-emerald-100 text-base font-bold inline-flex items-center justify-center gap-2 cursor-wait">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Gerando PDF — quase pronto
-                </div>
-              )
-            ) : (
-              <button
-                onClick={() => {
-                  // 27/05 noite: se modalidade=avulso, abre upsell primeiro
-                  if (orc.terc_modalidade === 'avulso') {
-                    setUpsellOpen(true);
-                  } else {
-                    setConfirmOpen(true);
-                  }
-                }}
-                disabled={aceitando}
-                className="px-8 py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-base font-bold inline-flex items-center justify-center gap-2 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 disabled:opacity-50"
-              >
-                <Check className="h-5 w-5" strokeWidth={3} />
-                Aceitar proposta
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            )}
-            <a
-              href="https://wa.me/5511934927001?text=Olá!%20Tenho%20uma%20dúvida%20sobre%20a%20proposta%20comercial."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/20 text-white text-base font-semibold inline-flex items-center justify-center gap-2 transition-all"
-            >
-              <MessageCircle className="h-4 w-4" />
-              {statusLocal === 'aceito' ? 'Falar com a Trevo' : 'Tirar dúvidas no WhatsApp'}
-            </a>
-          </div>
-
-          {statusLocal !== 'aceito' && (
-            <div className="mt-4">
-              <button
-                onClick={() => setRecusarOpen(true)}
-                className="px-4 py-2 text-xs text-emerald-200/70 hover:text-emerald-100 hover:bg-white/5 rounded-md transition-colors min-h-[40px] inline-flex items-center"
-              >
-                Não tenho interesse — recusar com motivo
-              </button>
-            </div>
-          )}
-
-          {orc.terc_pdf_url && (
-            <div className="mt-6">
-              <a
-                href={orc.terc_pdf_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-emerald-200/80 hover:text-white underline inline-flex items-center gap-1.5"
-              >
-                <FileText className="h-3 w-3" />
-                Pré-visualizar proposta + contrato em PDF
-              </a>
-            </div>
-          )}
-
-          <p className="text-[11px] text-emerald-200/70 mt-12 flex items-center justify-center gap-1.5">
-            <Lock className="h-3 w-3" />
-            Documento gerado pela plataforma Trevo Engine ·  PROP-{String(orc.numero).padStart(4, '0')}
-          </p>
-        </div>
-      </section>
+      <CtaFinal
+        numero={orc.numero}
+        statusLocal={statusLocal}
+        aceitando={aceitando}
+        pdfUrl={pdfUrl}
+        preExistingPdfUrl={orc.terc_pdf_url}
+        onSolicitarAceite={() => {
+          // 27/05 noite: se modalidade=avulso, abre upsell primeiro
+          if (orc.terc_modalidade === 'avulso') {
+            setUpsellOpen(true);
+          } else {
+            setConfirmOpen(true);
+          }
+        }}
+        onAbrirRecusa={() => setRecusarOpen(true)}
+      />
 
       {/* ─── FOOTER ─── */}
-      <footer className="bg-slate-100 border-t border-slate-200">
-        <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-6 items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center gap-4">
-            <img src={logoTrevo} alt="Trevo Legaliza" loading="lazy" decoding="async" className="h-16 w-16 object-contain opacity-90" />
-            <div>
-              <p className="font-bold text-slate-700">TREVO ASSESSORIA SOCIETÁRIA LTDA</p>
-              <p>CNPJ 39.969.412/0001-70 · São Bernardo do Campo / SP</p>
-              <p className="mt-1 text-[10px]">© Trevo Legaliza · 12 anos cuidando do societário</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 pl-0 md:pl-4 md:border-l border-slate-300">
-            <div className="flex items-baseline">
-              <img src={logoDaniDark} alt="dani.ai" loading="lazy" decoding="async" className="h-10 object-contain" />
-              <span className="text-[10px] text-slate-400 font-semibold ml-0.5" aria-label="marca registrada">®</span>
-            </div>
-            <div className="leading-tight">
-              <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Powered by</p>
-              <p className="text-xs font-bold text-slate-700">Trevo Legaliza</p>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <FooterLanding />
 
       {/* ─── MODAL CONFIRMAR ACEITE ─── */}
       {confirmOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-12 w-12 rounded-full bg-emerald-100 inline-flex items-center justify-center">
-                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Confirmar aceite</h3>
-                <p className="text-xs text-slate-500">PROP-{String(orc.numero).padStart(4, '0')}</p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-600 leading-relaxed mb-4">
-              Ao confirmar, o Contrato Mestre (MSA) será enviado automaticamente pela
-              ClickSign pra sua assinatura digital. O aceite verbal já tem validade
-              legal (art. 107 CC + Lei 14.063/2020).
-            </p>
-            {/* COM-05 (27/05 noite): bullets de reversibilidade pra reduzir fricção */}
-            <ul className="text-xs text-slate-700 space-y-2 mb-6 bg-emerald-50/60 border border-emerald-100 rounded-lg p-4">
-              <li className="flex items-start gap-2">
-                <Check className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" strokeWidth={3} />
-                <span>Sem cobrança até o primeiro processo iniciar</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" strokeWidth={3} />
-                <span>Assinatura formal acontece depois — você ainda confere o MSA na ClickSign</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" strokeWidth={3} />
-                <span>Onboarding humano em até 1h útil pra tirar qualquer dúvida</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" strokeWidth={3} />
-                <span>Rescisão por qualquer motivo com aviso de 30 dias (cláusula 17)</span>
-              </li>
-            </ul>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmOpen(false)}
-                disabled={aceitando}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAceitar}
-                disabled={aceitando}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {aceitando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Aceitar e iniciar onboarding
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalConfirmarAceite
+          numero={orc.numero}
+          aceitando={aceitando}
+          onCancelar={() => setConfirmOpen(false)}
+          onConfirmar={handleAceitar}
+        />
       )}
 
       {/* ─── MODAL RECUSAR COM MOTIVO ─── */}
