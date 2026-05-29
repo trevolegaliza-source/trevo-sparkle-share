@@ -495,7 +495,22 @@ Deno.serve(async (req) => {
 
   const sigCheck = await verifySignature(req, rawBody);
   if (!sigCheck.valid) {
-    console.warn("[trello-cards-events] invalid signature:", sigCheck.reason);
+    // DEBUG: agora que GRANT está OK, grava info detalhada do HMAC fail
+    console.warn("[trello-cards-events] HMAC fail:", JSON.stringify(sigCheck));
+    try {
+      await admin.from("trello_card_events").insert({
+        action_id: `hmacfail_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        action_type: payload?.action?.type ?? "unknown",
+        card_id: payload?.action?.data?.card?.id ?? null,
+        card_name: payload?.action?.data?.card?.name ?? null,
+        board_id: payload?.action?.data?.board?.id ?? null,
+        raw_action: { sigCheck, action: payload?.action ?? null },
+        acao_aplicada: "hmac_fail_debug",
+        acao_detalhe: `expected=${sigCheck.expected_hash_prefix} received=${sigCheck.received_hash_prefix} url=${sigCheck.callback_url_used}`,
+      } as any);
+    } catch (e) {
+      console.error("[trello-cards-events] failed to log hmac fail:", e);
+    }
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
