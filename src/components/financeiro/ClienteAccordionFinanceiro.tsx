@@ -405,6 +405,18 @@ function ClienteHeaderBadges({ cliente }: { cliente: ClienteFinanceiro }) {
       {/* FIN-004 (27/05 noite): score de pagamento aparece em TODOS os contextos
           (Faturar, Em andamento, Aguardando, Pagos) via este componente. */}
       <ScorePagamentoBadge score={cliente.cliente_score_pagamento} atrasoMedio={cliente.cliente_atraso_medio_dias} />
+      {/* FIN-008 (27/05 noite): alerta de limite de crédito excedido */}
+      {cliente.cliente_limite_credito != null
+       && cliente.cliente_saldo_aberto != null
+       && cliente.cliente_saldo_aberto > cliente.cliente_limite_credito && (
+        <Badge
+          variant="outline"
+          className="bg-rose-500/10 text-rose-600 border-rose-500/30 text-[10px] sm:text-xs whitespace-nowrap"
+          title={`Saldo aberto R$ ${cliente.cliente_saldo_aberto.toFixed(0)} excede limite R$ ${cliente.cliente_limite_credito.toFixed(0)}`}
+        >
+          ⚠️ Limite excedido
+        </Badge>
+      )}
     </>
   );
 }

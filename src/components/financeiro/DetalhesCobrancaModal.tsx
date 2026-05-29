@@ -67,6 +67,26 @@ export default function DetalhesCobrancaModal({
   // C19/C20 — confirm() nativo bloqueia main thread + UX inconsistente
   const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
   const { data: asaasInfo, isLoading: loadingAsaas } = useCobrancaAsaas(cobrancaId);
+  // FIN-009 (27/05 noite): histórico de auditoria da cobrança
+  const [historico, setHistorico] = useState<Array<{ id: string; acao: string; user_id: string | null; created_at: string }>>([]);
+  const [showHistorico, setShowHistorico] = useState(false);
+
+  // FIN-009 (27/05 noite): carrega histórico de auditoria quando expandido
+  useEffect(() => {
+    if (!showHistorico || !cobrancaId) return;
+    let cancel = false;
+    supabase
+      .from('cobrancas_auditoria' as any)
+      .select('id, acao, user_id, created_at')
+      .eq('cobranca_id', cobrancaId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (cancel) return;
+        setHistorico((data as any[]) || []);
+      });
+    return () => { cancel = true; };
+  }, [showHistorico, cobrancaId]);
 
   useEffect(() => {
     if (!open || !cobrancaId) {
@@ -313,6 +333,33 @@ export default function DetalhesCobrancaModal({
                 >
                   <FileBadge className="h-4 w-4" /> Gerar Boleto / PIX (Asaas)
                 </button>
+              )}
+            </div>
+
+            {/* FIN-009 (27/05 noite): Histórico de auditoria da cobrança (log imutável) */}
+            <div className="space-y-1.5 pt-3 border-t border-zinc-800">
+              <button
+                onClick={() => setShowHistorico((v) => !v)}
+                className="flex items-center justify-between w-full text-[10px] uppercase tracking-wider text-zinc-500 font-semibold hover:text-zinc-300"
+              >
+                <span>Histórico de auditoria</span>
+                <span>{showHistorico ? '▼' : '▶'}</span>
+              </button>
+              {showHistorico && (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {historico.length === 0 ? (
+                    <p className="text-xs text-zinc-500 italic">Sem histórico registrado ainda. (Triggers começam a popular após o SQL ser aplicado.)</p>
+                  ) : (
+                    historico.map((h) => (
+                      <div key={h.id} className="flex items-center justify-between text-[11px] text-zinc-400 px-2 py-1.5 rounded bg-zinc-900/40 border border-zinc-800">
+                        <span className="font-mono uppercase text-emerald-400">{h.acao}</span>
+                        <span className="text-zinc-500">
+                          {new Date(h.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
 

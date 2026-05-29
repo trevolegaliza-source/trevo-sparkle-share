@@ -20,6 +20,7 @@ const FaturamentoDetalhe = lazy(() => import("./pages/FaturamentoDetalhe"));
 const Clientes = lazy(() => import("./pages/Clientes"));
 const ClienteDetalhe = lazy(() => import("./pages/ClienteDetalhe"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
+const FinanceiroDashboardDecisional = lazy(() => import("./pages/FinanceiroDashboardDecisional"));
 const ContasPagar = lazy(() => import("./pages/ContasPagar"));
 const Cartao = lazy(() => import("./pages/Cartao"));
 const CartaoDetalhe = lazy(() => import("./pages/CartaoDetalhe"));
@@ -150,6 +151,12 @@ const App = () => (
                   <Route path="/financeiro" element={
                     <RequirePermission modulo="financeiro">
                       <Financeiro />
+                    </RequirePermission>
+                  } />
+                  {/* FIN-005 (27/05 noite): dashboard decisional separado pra master ver DSO/churn/forecast */}
+                  <Route path="/financeiro/dashboard" element={
+                    <RequirePermission modulo="financeiro">
+                      <FinanceiroDashboardDecisional />
                     </RequirePermission>
                   } />
                   <Route path="/mrr" element={

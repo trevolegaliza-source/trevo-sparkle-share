@@ -40,6 +40,10 @@ export interface ClienteFinanceiro {
    *  🟢 (>=80) / 🟡 (50-79) / 🔴 (<50). */
   cliente_score_pagamento: number | null;
   cliente_atraso_medio_dias: number | null;
+  /** FIN-008 (27/05 noite): limite de crédito do cliente + saldo em aberto.
+   *  UI badge ⚠️ "Limite excedido" quando saldo_aberto > limite_credito. */
+  cliente_limite_credito: number | null;
+  cliente_saldo_aberto: number | null;
 }
 
 export interface LancamentoFinanceiro {
@@ -344,7 +348,7 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
           ? supabase.from('processos').select('id, razao_social, tipo, etapa, notas, valor, created_at, etiquetas, data_deferimento').in('id', processoIds)
           : { data: [], error: null },
         clienteIds.length > 0
-          ? supabase.from('clientes').select('id, nome, apelido, codigo_identificador, cnpj, tipo, momento_faturamento, dia_cobranca, dia_vencimento_mensal, telefone, email, nome_contador, valor_base, desconto_progressivo, valor_limite_desconto, nome_contato_financeiro, telefone_financeiro, score_pagamento, atraso_medio_dias').in('id', clienteIds)
+          ? supabase.from('clientes').select('id, nome, apelido, codigo_identificador, cnpj, tipo, momento_faturamento, dia_cobranca, dia_vencimento_mensal, telefone, email, nome_contador, valor_base, desconto_progressivo, valor_limite_desconto, nome_contato_financeiro, telefone_financeiro, score_pagamento, atraso_medio_dias, limite_credito').in('id', clienteIds)
           : { data: [], error: null },
         processoIds.length > 0
           ? supabase.from('valores_adicionais').select('processo_id, valor').in('processo_id', processoIds)
@@ -424,6 +428,8 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
             cobranca_visualizada_em: null,
             cliente_score_pagamento: cliente?.score_pagamento ?? null,
             cliente_atraso_medio_dias: cliente?.atraso_medio_dias ?? null,
+            cliente_limite_credito: cliente?.limite_credito ?? null,
+            cliente_saldo_aberto: 0, // populado no loop adiante somando lancamentos pendentes
           });
         }
 
@@ -433,6 +439,11 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
         const visEm = visualizadaMap.get(l.id);
         if (visEm && (!c.cobranca_visualizada_em || visEm > c.cobranca_visualizada_em)) {
           c.cobranca_visualizada_em = visEm;
+        }
+
+        // FIN-008: agrega saldo em aberto (lancamentos pendentes do cliente)
+        if (l.status !== 'pago') {
+          c.cliente_saldo_aberto = (c.cliente_saldo_aberto ?? 0) + Number(l.valor || 0);
         }
 
         const etiquetas: string[] = processo?.etiquetas || [];
