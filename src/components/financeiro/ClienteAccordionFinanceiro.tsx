@@ -770,7 +770,24 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
       const now = new Date();
       const lancamentoIds = selecionados.map(l => l.id);
       const datasVenc = selecionados.map(l => l.data_vencimento).filter(Boolean).sort();
-      const dataVencimento = datasVenc[0] || null;
+      // FIN bugfix 29/05/2026 (caso ZYGOS — "Asaas não gerou sozinho com 5
+      // processos"): selecionados podem ter data_vencimento NO PASSADO (lanç
+      // que vence antes do extrato ser gerado — comum em extrato retroativo).
+      // datasVenc[0] = MAIS ANTIGA. Se já passou, Asaas /payments retorna 400
+      // ("dueDate cannot be in the past") → edge devolve 500 → toast warning
+      // e auto-Asaas falha silenciosamente. Antes precisava clicar manual e
+      // escolher data nova no modal. Agora clampamos: data passada → hoje+3
+      // (mesmo fallback que a edge usa quando data_vencimento é null).
+      const todayStr = new Date().toISOString().split('T')[0];
+      const hojeMais3 = (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 3);
+        return d.toISOString().split('T')[0];
+      })();
+      const dataVencimentoRaw = datasVenc[0] || null;
+      const dataVencimento = dataVencimentoRaw && dataVencimentoRaw < todayStr
+        ? hojeMais3
+        : dataVencimentoRaw;
       const { getCobrancaPublicUrl } = await import('@/lib/cobranca-url');
 
       let cobrancaUrl: string | undefined;
