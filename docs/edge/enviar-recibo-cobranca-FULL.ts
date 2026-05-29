@@ -19,15 +19,46 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// AUDIT-005 (29/05/2026): token interno pra autenticar trigger pg_net.
+const INTERNAL_TRIGGER_TOKEN = Deno.env.get("INTERNAL_TRIGGER_TOKEN") ?? "";
+
 function fmtBRL(v: number | null | undefined): string {
   const n = Number(v ?? 0);
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+// AUDIT-005 (29/05/2026): comparação resistente a timing attacks
+function timingSafeEqual(a: string, b: string): boolean {
+  const len = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < len; i++) {
+    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  }
+  return diff === 0;
 }
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // AUDIT-005 (29/05/2026): adicionada auth — token interno (trigger pg_net).
+  // FAIL-CLOSED: sem INTERNAL_TRIGGER_TOKEN nos secrets, rejeita.
+  if (!INTERNAL_TRIGGER_TOKEN) {
+    console.error("[enviar-recibo-cobranca] CRITICAL: INTERNAL_TRIGGER_TOKEN não configurado; rejeitando");
+    return new Response(JSON.stringify({ error: "INTERNAL_AUTH_NOT_CONFIGURED" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const providedToken = req.headers.get("x-internal-token") ?? "";
+  if (!providedToken || !timingSafeEqual(providedToken, INTERNAL_TRIGGER_TOKEN)) {
+    console.warn("[enviar-recibo-cobranca] token inválido ou ausente — rejeitado");
+    return new Response(JSON.stringify({ error: "UNAUTHORIZED" }), {
+      status: 401,
       headers: { "Content-Type": "application/json" },
     });
   }

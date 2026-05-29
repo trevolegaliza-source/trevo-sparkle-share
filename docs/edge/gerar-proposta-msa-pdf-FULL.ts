@@ -39,6 +39,8 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// AUDIT-006 (29/05/2026): ANON KEY pra criar client autenticado e validar JWT do caller.
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const PDFSHIFT_API_KEY = Deno.env.get("PDFSHIFT_API_KEY") ?? "";
 const GOOGLE_SA_KEY = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY") ?? "";
 const BUCKET_NAME = "propostas-pdf";
@@ -1728,6 +1730,37 @@ Deno.serve(async (req) => {
   if (!PDFSHIFT_API_KEY) return jsonResponse(503, { error: "PDFSHIFT_API_KEY_MISSING" });
   if (!GOOGLE_SA_KEY) return jsonResponse(503, { error: "GOOGLE_SERVICE_ACCOUNT_KEY_MISSING" });
 
+  // AUDIT-006 (29/05/2026): adicionada auth — JWT obrigatório + role master/gerente.
+  // Antes a edge era pública: qualquer um conhecendo um orcamento_id válido podia
+  // gerar PDF (consome PDFShift cota e expõe dados do prospect). Agora:
+  //   1. JWT do caller deve ser válido
+  //   2. role do caller ∈ {master, gerente}
+  //   3. orcamento.empresa_id == caller.empresa_id (validado depois do load)
+  const authHeader = req.headers.get("Authorization") || "";
+  if (!authHeader) {
+    return jsonResponse(401, { error: "MISSING_AUTH" });
+  }
+  const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error: userError } = await userClient.auth.getUser();
+  if (userError || !user) {
+    return jsonResponse(401, { error: "INVALID_SESSION" });
+  }
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("role, empresa_id, ativo")
+    .eq("id", user.id)
+    .single();
+  if (!profile || !(profile as any).ativo) {
+    return jsonResponse(403, { error: "USER_INACTIVE" });
+  }
+  const callerRole = (profile as any).role;
+  const callerEmpresaId = (profile as any).empresa_id;
+  if (!["master", "gerente"].includes(callerRole)) {
+    return jsonResponse(403, { error: "FORBIDDEN_ROLE" });
+  }
+
   let body: { orcamento_id?: string; force?: boolean };
   try { body = await req.json(); } catch { return jsonResponse(400, { error: "INVALID_JSON" }); }
   const { orcamento_id, force } = body;
@@ -1742,6 +1775,12 @@ Deno.serve(async (req) => {
 
     if (orcErr || !orc) {
       return jsonResponse(404, { error: "ORCAMENTO_NOT_FOUND" });
+    }
+
+    // AUDIT-006 (29/05/2026): isolamento por empresa — caller só pode gerar
+    // PDF de orçamento da própria empresa.
+    if ((orc as any).empresa_id && (orc as any).empresa_id !== callerEmpresaId) {
+      return jsonResponse(403, { error: "ORCAMENTO_EMPRESA_MISMATCH" });
     }
 
     // 2. Idempotência (1ª camada — checa antes de fazer trabalho caro)
