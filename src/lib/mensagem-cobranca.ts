@@ -37,8 +37,14 @@ const CONFIG_FALLBACK: EmpresaConfigCobranca = {
   pix_chave: '39.969.412/0001-70',
   pix_banco: 'C6 Bank',
   whatsapp: '5511934927001',
-  site: 'trevolegaliza.com.br',
+  site: 'trevolegaliza.com', // 27/05 noite: era trevolegaliza.com.br
 };
+
+/** Primeiro nome do remetente (ex: "Letícia Tonelli" → "Letícia"). */
+function primeiroNome(s: string | undefined | null): string {
+  if (!s) return '';
+  return s.trim().split(/\s+/)[0] || '';
+}
 
 function nomeCurto(cfg: EmpresaConfigCobranca): string {
   return cfg.nome_fantasia && cfg.nome_fantasia.trim().length > 0
@@ -136,7 +142,8 @@ export function gerarMensagemCobranca(params: {
   data_vencimento: string;
   diasAtraso: number;
   processosAdicionais?: ProcessoCobranca[];
-  /** @deprecated mantido por compatibilidade; não é mais exibido */
+  /** Nome do user logado que tá enviando a cobrança. Personaliza abertura +
+   *  assinatura. Quando vazio, usa fallback institucional ("Aqui é do dept..."). */
   nomeRemetente?: string;
   honorarios?: number;
   taxasExtras?: number;
@@ -161,36 +168,46 @@ export function gerarMensagemCobranca(params: {
   const dataFmt = formatarData(params.data_vencimento);
 
   if (params.diasAtraso > 0) {
-    return gerarMensagemRecobranca(allProcessos, valorTotal, dataFmt, params.diasAtraso, cfg);
+    return gerarMensagemRecobranca(allProcessos, valorTotal, dataFmt, params.diasAtraso, cfg, params.nomeRemetente);
   }
 
   const blocos = allProcessos.map(renderProcessoBlock).join('\n\n');
   const obsBlock = params.observacao ? `\n📝 _${params.observacao}_\n` : '';
   const comprovantesBlock = temAlgumaTaxa(allProcessos)
     ? `\nOs comprovantes de pagamento das taxas reembolsáveis estão registrados no processo dentro da nossa plataforma.\n`
-    : '';
+    : '\n';
 
   const nome = nomeCurto(cfg);
   const tel = formatarTelefoneBR(cfg.whatsapp);
 
-  return `Olá! Aqui é do departamento financeiro da ${formatarNegrito(nome)} 🍀
+  // 27/05 noite — refatorada com base no feedback Thales:
+  // - Abertura usa primeiro nome do remetente ("Sou a Leticia") ou fallback institucional
+  // - Removido PIX/Banco/boleto da mensagem (cobrança já tem link/Asaas próprios)
+  // - Acrescentado lembrete "no próprio link você pode baixar o extrato"
+  // - Assinatura final: "Leticia - Trevo Legaliza 🍀"
+  const remNome = primeiroNome(params.nomeRemetente);
+  const abertura = remNome
+    ? `Olá! Sou a ${remNome} do departamento financeiro da ${formatarNegrito(nome)} 🍀`
+    : `Olá! Aqui é do departamento financeiro da ${formatarNegrito(nome)} 🍀`;
+  const assinatura = remNome
+    ? `${remNome} - ${formatarNegrito(nome)} 🍀`
+    : `${formatarNegrito(nome)} 🍀`;
 
-Segue o faturamento referente ao(s) processo(s) do mês:
+  return `${abertura}
+
+Segue o faturamento referente aos processos do mês:
 
 ${blocos}
 
 ${formatarNegrito('Total: ' + formatarValor(valorTotal))}
 ${formatarNegrito('Vencimento: ' + dataFmt)}
 ${obsBlock}${comprovantesBlock}
-${formatarNegrito('Chave PIX (CNPJ):')} ${cfg.pix_chave}
-${formatarNegrito('Banco:')} ${cfg.pix_banco}
-
-Se preferir pagamento via ${formatarNegrito('boleto bancário')}, é só solicitar por aqui! 📄
+Lembrando que no próprio link, você pode baixar o extrato detalhado da fatura.
 
 Qualquer dúvida, estamos à disposição.
 
-${formatarNegrito(nome)} 🍀
-Assessoria societária · Atuação nacional
+${assinatura}
+Assessoria Societária · Atuação nacional
 ${tel} · ${cfg.site}`;
 }
 
@@ -203,31 +220,37 @@ function gerarMensagemRecobranca(
   dataVencimento: string,
   _diasAtraso: number,
   cfg: EmpresaConfigCobranca,
+  nomeRemetente?: string,
 ) {
   const blocos = processos.map(renderProcessoBlock).join('\n\n');
   const comprovantesBlock = temAlgumaTaxa(processos)
     ? `\nOs comprovantes de pagamento das taxas reembolsáveis estão registrados no processo dentro da nossa plataforma.\n`
-    : '';
+    : '\n';
 
   const nome = nomeCurto(cfg);
   const tel = formatarTelefoneBR(cfg.whatsapp);
 
-  return `Olá! Aqui é do departamento financeiro da ${formatarNegrito(nome)} 🍀
+  const remNome = primeiroNome(nomeRemetente);
+  const abertura = remNome
+    ? `Olá! Sou a ${remNome} do departamento financeiro da ${formatarNegrito(nome)} 🍀`
+    : `Olá! Aqui é do departamento financeiro da ${formatarNegrito(nome)} 🍀`;
+  const assinatura = remNome
+    ? `${remNome} - ${formatarNegrito(nome)} 🍀`
+    : `${formatarNegrito(nome)} 🍀`;
 
-Gostaríamos de verificar o pagamento referente ao(s) processo(s) abaixo, com vencimento em ${formatarNegrito(dataVencimento)}:
+  return `${abertura}
+
+Gostaríamos de verificar o pagamento referente aos processos abaixo, com vencimento em ${formatarNegrito(dataVencimento)}:
 
 ${blocos}
 
 ${formatarNegrito('Total: ' + formatarValor(valorTotal))}
 ${comprovantesBlock}
-${formatarNegrito('Chave PIX (CNPJ):')} ${cfg.pix_chave}
-${formatarNegrito('Banco:')} ${cfg.pix_banco}
-
-Se preferir ${formatarNegrito('boleto bancário')}, é só solicitar! 📄
+Lembrando que no próprio link, você pode baixar o extrato detalhado da fatura.
 
 Caso já tenha efetuado o pagamento, por favor desconsidere esta mensagem e nos envie o comprovante.
 
-${formatarNegrito(nome)} 🍀
-Assessoria societária · Atuação nacional
+${assinatura}
+Assessoria Societária · Atuação nacional
 ${tel} · ${cfg.site}`;
 }

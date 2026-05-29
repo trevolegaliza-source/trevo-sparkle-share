@@ -144,6 +144,9 @@ interface MsgBuilderParams {
   diasAtraso: number;
   nomeRemetente: string;
   observacao?: string;
+  /** 27/05 noite: data vencimento da cobrança (vinda do Asaas ou ajustada
+   *  manualmente). Quando passada, sobrescreve a data do lançamento. */
+  dataVencimentoOverride?: string | null;
 }
 
 function getTipoProcessoLabel(tipo: string) {
@@ -219,7 +222,7 @@ function getLancamentosDoExtrato(cliente: ClienteFinanceiro, extratoId?: string 
   return lancamentos.length > 0 ? lancamentos : cliente.lancamentos;
 }
 
-export function buildMensagemFromLancamentos({ lancamentos, vaMap, vaDetalhadoMap, diasAtraso, nomeRemetente, observacao }: MsgBuilderParams): string {
+export function buildMensagemFromLancamentos({ lancamentos, vaMap, vaDetalhadoMap, diasAtraso, nomeRemetente, observacao, dataVencimentoOverride }: MsgBuilderParams): string {
   const l = lancamentos[0];
   if (!l) return '';
   const honorarios = l.valor;
@@ -254,7 +257,7 @@ export function buildMensagemFromLancamentos({ lancamentos, vaMap, vaDetalhadoMa
     honorarios,
     taxasExtras,
     taxasDetalhadas,
-    data_vencimento: l.data_vencimento,
+    data_vencimento: dataVencimentoOverride || l.data_vencimento,
     diasAtraso,
     nomeRemetente,
     observacao: obsConsolidada,
@@ -2094,7 +2097,17 @@ export function ModalPosExtrato({
         const vaMap = await buildValoresAdicionaisMap(lancsForMsg);
         const vaDetalhadoMap = await buildValoresAdicionaisDetalhadosMap(lancsForMsg);
 
-        let msg = buildMensagemFromLancamentos({ lancamentos: lancsForMsg, vaMap, vaDetalhadoMap, diasAtraso: 0, nomeRemetente });
+        // 27/05 noite: usa data_vencimento da cobrança (asaas) se disponível —
+        // assim a msg reflete a data que o user marcou ao gerar boleto, não
+        // a data padrão do lançamento.
+        let msg = buildMensagemFromLancamentos({
+          lancamentos: lancsForMsg,
+          vaMap,
+          vaDetalhadoMap,
+          diasAtraso: 0,
+          nomeRemetente,
+          dataVencimentoOverride: asaasInfo?.data_vencimento,
+        });
         if (extratoGerado.cobrancaUrl) {
           msg += `\n\n🔗 Ver cobrança completa: ${extratoGerado.cobrancaUrl}`;
         }
@@ -2117,7 +2130,9 @@ export function ModalPosExtrato({
     return () => {
       active = false;
     };
-  }, [extratoGerado]);
+    // 27/05 noite: depende de asaasInfo?.data_vencimento pra refazer a msg
+    // quando o Asaas terminar (e atualizar cobrancas.data_vencimento).
+  }, [extratoGerado, asaasInfo?.data_vencimento]);
 
   function handleClose() {
     extratoGerado.cleanup?.();
