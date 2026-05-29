@@ -35,6 +35,11 @@ export interface ClienteFinanceiro {
    *  cobrança ativa do cliente. NULL = cliente ainda não abriu. UI mostra badge
    *  "📬 Cliente abriu há Xh" pra Letícia ligar no momento certo. */
   cobranca_visualizada_em: string | null;
+  /** FIN-004 (27/05 noite): score 0-100 de pontualidade nos pagamentos
+   *  (últimos 6 meses). NULL = sem histórico suficiente. UI: badge colorido
+   *  🟢 (>=80) / 🟡 (50-79) / 🔴 (<50). */
+  cliente_score_pagamento: number | null;
+  cliente_atraso_medio_dias: number | null;
 }
 
 export interface LancamentoFinanceiro {
@@ -339,7 +344,7 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
           ? supabase.from('processos').select('id, razao_social, tipo, etapa, notas, valor, created_at, etiquetas, data_deferimento').in('id', processoIds)
           : { data: [], error: null },
         clienteIds.length > 0
-          ? supabase.from('clientes').select('id, nome, apelido, codigo_identificador, cnpj, tipo, momento_faturamento, dia_cobranca, dia_vencimento_mensal, telefone, email, nome_contador, valor_base, desconto_progressivo, valor_limite_desconto, nome_contato_financeiro, telefone_financeiro').in('id', clienteIds)
+          ? supabase.from('clientes').select('id, nome, apelido, codigo_identificador, cnpj, tipo, momento_faturamento, dia_cobranca, dia_vencimento_mensal, telefone, email, nome_contador, valor_base, desconto_progressivo, valor_limite_desconto, nome_contato_financeiro, telefone_financeiro, score_pagamento, atraso_medio_dias').in('id', clienteIds)
           : { data: [], error: null },
         processoIds.length > 0
           ? supabase.from('valores_adicionais').select('processo_id, valor').in('processo_id', processoIds)
@@ -417,6 +422,8 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
             etapa_predominante: 'solicitacao_criada',
             extrato_mais_recente: null,
             cobranca_visualizada_em: null,
+            cliente_score_pagamento: cliente?.score_pagamento ?? null,
+            cliente_atraso_medio_dias: cliente?.atraso_medio_dias ?? null,
           });
         }
 
