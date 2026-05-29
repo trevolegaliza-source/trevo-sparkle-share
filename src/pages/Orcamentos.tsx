@@ -8,6 +8,7 @@ import { normalizeItem, DEFAULT_SECOES } from '@/components/orcamentos/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,6 +45,8 @@ export default function Orcamentos() {
   const { data: kpis } = useOrcamentoKPIs();
   const deleteMutation = useDeleteOrcamento();
   const converterMutation = useConverterOrcamentoEmProcesso();
+  // AUDIT-015 (29/05): AlertDialog substitui window.confirm
+  const [confirm, ConfirmDialog] = useConfirmDialog();
   const { podeCriar } = usePermissions();
 
   // Status counts — audit-sprint-3.6 (13/05/2026 noite): antes fazia 6
@@ -137,13 +140,14 @@ export default function Orcamentos() {
       toast.error('Vincule o prospect a um cliente antes de converter (edite o orçamento e selecione o cliente).');
       return;
     }
-    const ok = window.confirm(
-      `Converter "${orc.prospect_nome}" (R$ ${orc.valor_final.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) em processo no Financeiro?\n\n`
-      + `Vai criar:\n`
-      + `• 1 processo (tipo "avulso") pro cliente vinculado\n`
-      + `• 1 lançamento JÁ PAGO no Financeiro\n\n`
-      + `Isso é idempotente — se já converteu antes, nada é duplicado.`
-    );
+    const ok = await confirm({
+      title: `Converter "${orc.prospect_nome}" em processo?`,
+      description:
+        `Valor R$ ${orc.valor_final.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. ` +
+        `Vai criar 1 processo (tipo "avulso") + 1 lançamento JÁ PAGO no Financeiro. ` +
+        `Idempotente — se já converteu antes, nada é duplicado.`,
+      confirmLabel: 'Converter',
+    });
     if (!ok) return;
     converterMutation.mutate(orc.id, {
       onSuccess: (data) => {
@@ -589,6 +593,7 @@ export default function Orcamentos() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <ConfirmDialog />
     </div>
   );
 }

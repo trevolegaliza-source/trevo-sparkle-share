@@ -25,6 +25,7 @@ import { SkeletonList } from '@/components/ui/skeleton-patterns';
 import { EmptyState } from '@/components/ui/empty-state';
 import { copyToClipboard } from '@/lib/clipboard';
 import { MODALIDADE_LABEL } from '@/lib/terceirizacao-engine';
+import { useConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 const getPropostaPublicUrl = (token: string) => `${window.location.origin}/proposta/${token}`;
 import { toast } from 'sonner';
@@ -58,6 +59,8 @@ export default function PropostasComerciais() {
   const { data: kpis } = useOrcamentoKPIs('terceirizacao');
   const { data: orcamentos = [], isLoading } = useOrcamentos(tab, 'terceirizacao');
   const deleteMutation = useDeleteOrcamento();
+  // AUDIT-015 (29/05): AlertDialog substitui window.confirm
+  const [confirm, ConfirmDialog] = useConfirmDialog();
 
   // Contadores por categoria pra mostrar nos tabs
   const { data: emAndamento = [] } = useOrcamentos('em_andamento', 'terceirizacao');
@@ -262,10 +265,14 @@ export default function PropostasComerciais() {
                             )}
                             {podeExcluir('orcamentos') && (
                               <DropdownMenuItem
-                                onClick={() => {
-                                  if (window.confirm(`Excluir proposta PROP-${String(orc.numero).padStart(4, '0')}?`)) {
-                                    deleteMutation.mutate(orc.id);
-                                  }
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: `Excluir proposta PROP-${String(orc.numero).padStart(4, '0')}?`,
+                                    description: 'Esta ação não pode ser desfeita.',
+                                    confirmLabel: 'Excluir',
+                                    destructive: true,
+                                  });
+                                  if (ok) deleteMutation.mutate(orc.id);
                                 }}
                                 className="text-destructive"
                               >
@@ -283,6 +290,7 @@ export default function PropostasComerciais() {
           )}
         </TabsContent>
       </Tabs>
+      <ConfirmDialog />
     </div>
   );
 }

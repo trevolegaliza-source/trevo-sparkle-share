@@ -29,6 +29,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { useConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface ProcessoPendente {
   processo_id: string;
@@ -81,6 +82,8 @@ export default function TrelloCardsPendentes() {
   const [modalCards, setModalCards] = useState<CardTrello[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [linking, setLinking] = useState<string | null>(null);
+  // AUDIT-015 (29/05): AlertDialog substitui window.confirm
+  const [confirm, ConfirmDialog] = useConfirmDialog();
 
   async function load() {
     setLoading(true);
@@ -126,9 +129,12 @@ export default function TrelloCardsPendentes() {
   async function linkar(card: CardTrello) {
     if (!modalProcesso || linking) return;
     if (card.ja_linkado_a) {
-      const ok = window.confirm(
-        `Esse card já está linkado a outro processo (${card.ja_linkado_a.razao_social}). Quer trocar o link mesmo assim?`
-      );
+      const ok = await confirm({
+        title: 'Trocar link do card?',
+        description: `Esse card já está linkado a outro processo (${card.ja_linkado_a.razao_social}). Quer trocar o link mesmo assim?`,
+        confirmLabel: 'Trocar',
+        destructive: true,
+      });
       if (!ok) return;
     }
     setLinking(card.id);
@@ -382,6 +388,8 @@ export default function TrelloCardsPendentes() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog />
     </div>
   );
 }
