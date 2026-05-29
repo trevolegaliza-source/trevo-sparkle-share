@@ -86,13 +86,26 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-async function verifySignature(req: Request, rawBody: string): Promise<boolean> {
+// DEBUG MODE 29/05/2026: retorna info detalhada em vez de só boolean,
+// pra diagnosticar HMAC failing silencioso. Quando confirmado, restaurar.
+interface SignatureCheck {
+  valid: boolean;
+  reason: string;
+  expected_hash_prefix?: string;
+  received_hash_prefix?: string;
+  callback_url_used?: string;
+  secret_present?: boolean;
+}
+
+async function verifySignature(req: Request, rawBody: string): Promise<SignatureCheck> {
   if (!TRELLO_SECRET) {
     console.error("[trello-cards-events] CRITICAL: TRELLO_SECRET ausente; rejeitando webhook");
-    return false;
+    return { valid: false, reason: "secret_ausente", secret_present: false };
   }
   const signature = req.headers.get("x-trello-webhook");
-  if (!signature) return false;
+  if (!signature) {
+    return { valid: false, reason: "header_x-trello-webhook_ausente", secret_present: true };
+  }
   const callbackUrl = `${SUPABASE_URL}/functions/v1/trello-cards-events`;
   const content = rawBody + callbackUrl;
   const key = await crypto.subtle.importKey(
@@ -108,7 +121,15 @@ async function verifySignature(req: Request, rawBody: string): Promise<boolean> 
     new TextEncoder().encode(content),
   );
   const expected = btoa(String.fromCharCode(...new Uint8Array(sigBuf)));
-  return timingSafeEqual(expected, signature);
+  const valid = timingSafeEqual(expected, signature);
+  return {
+    valid,
+    reason: valid ? "ok" : "hmac_mismatch",
+    expected_hash_prefix: expected.substring(0, 8),
+    received_hash_prefix: signature.substring(0, 8),
+    callback_url_used: callbackUrl,
+    secret_present: true,
+  };
 }
 
 // ────────────────────────────────────────────────
@@ -472,9 +493,26 @@ Deno.serve(async (req) => {
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
-  const valid = await verifySignature(req, rawBody);
-  if (!valid) {
-    console.warn("[trello-cards-events] invalid signature");
+  const sigCheck = await verifySignature(req, rawBody);
+  if (!sigCheck.valid) {
+    // DEBUG MODE: registra detalhes do que recebeu pra diagnosticar HMAC fail.
+    // Não bloqueia o processamento — segue adiante pra ver se o resto da
+    // lógica funciona. Quando HMAC for resolvido, restaurar `return 200` early.
+    console.warn("[trello-cards-events] HMAC FAIL — registrando pra debug:", sigCheck);
+    try {
+      await admin.from("trello_card_events").insert({
+        action_id: `debug_hmac_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        action_type: payload?.action?.type ?? "unknown",
+        card_id: payload?.action?.data?.card?.id ?? null,
+        card_name: payload?.action?.data?.card?.name ?? null,
+        board_id: payload?.action?.data?.board?.id ?? null,
+        raw_action: payload?.action ?? { debug_raw_body_first_200: rawBody.substring(0, 200) },
+        acao_aplicada: "invalid_signature_debug",
+        acao_detalhe: JSON.stringify(sigCheck),
+      } as any);
+    } catch (e) {
+      console.error("[trello-cards-events] failed to log HMAC debug:", e);
+    }
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
