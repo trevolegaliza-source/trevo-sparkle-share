@@ -201,10 +201,29 @@ async function processarMovimentoLista(eventBase: any, action: any): Promise<{ a
     .maybeSingle();
 
   if (!processo) {
+    // 29/05/2026: além do audit, notifica master pra cadastrar o processo
+    // OU linkar o card a um processo existente. Resolve empresa via board_id.
+    const boardId = action.data?.board?.id as string | undefined;
+    if (boardId) {
+      const { data: cliente } = await admin
+        .from("clientes")
+        .select("id, nome, apelido, empresa_id")
+        .eq("trello_board_id", boardId)
+        .maybeSingle();
+      if (cliente) {
+        const cardName = (action.data?.card?.name as string) || "(sem nome)";
+        await notificarMaster(
+          cliente.empresa_id,
+          "trello_card_sem_processo",
+          `Card sem processo movido pra deferimento — ${cliente.apelido || cliente.nome}`,
+          `Card "${cardName}" foi movido pra "${TARGET_LIST_DEFERIMENTO}" no Trello mas não está linkado a nenhum processo do ERP. Cadastre o processo (se ainda não existe) ou linke o card via /admin/trello-cards-pendentes.`,
+        );
+      }
+    }
     await admin.from("trello_card_events").insert({
       ...eventBase,
       acao_aplicada: "card_sem_processo",
-      acao_detalhe: `nenhum processo com trello_card_id=${cardId}`,
+      acao_detalhe: `nenhum processo com trello_card_id=${cardId} — master notificado`,
     } as any);
     return { acao: "card_sem_processo" };
   }
@@ -456,8 +475,9 @@ async function processAction(payload: any): Promise<{ acao: string }> {
     return await processarMovimentoLista(eventBase, action);
   }
 
-  // Rota 2: createCard → criação automática
-  if (actionType === "createCard") {
+  // Rota 2: createCard OU copyCard → criação automática
+  // (copyCard: Letícia copia card existente — gera card novo com id novo)
+  if (actionType === "createCard" || actionType === "copyCard") {
     return await processarCriacaoCard(eventBase, action);
   }
 
