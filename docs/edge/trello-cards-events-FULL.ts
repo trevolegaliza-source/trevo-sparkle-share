@@ -493,46 +493,18 @@ Deno.serve(async (req) => {
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
-  // DEBUG MODE 29/05/2026 (Thales movendo card no CBS): HMAC bypassed +
-  // log MUITO verboso pra entender por que INSERTs estão silenciando.
-  // Restaurar HMAC quando entender o root cause.
-  console.log("[trello-cards-events DEBUG] req received", {
-    bodyLen: rawBody.length,
-    payloadValid: !!payload,
-    actionType: payload?.action?.type,
-    actionId: payload?.action?.id,
-    cardId: payload?.action?.data?.card?.id,
-  });
+  const sigCheck = await verifySignature(req, rawBody);
+  if (!sigCheck.valid) {
+    console.warn("[trello-cards-events] invalid signature:", sigCheck.reason);
+    return new Response("ok", { status: 200, headers: corsHeaders });
+  }
 
-  // INSERT crú direto, sem processar — só pra confirmar que o INSERT funciona
-  const debugActionId = `dbg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-  const insertPayload = {
-    action_id: payload?.action?.id || debugActionId,
-    action_type: payload?.action?.type || "DEBUG_NO_ACTION_TYPE",
-    card_id: payload?.action?.data?.card?.id || null,
-    card_name: payload?.action?.data?.card?.name || null,
-    board_id: payload?.action?.data?.board?.id || null,
-    list_after_name: payload?.action?.data?.listAfter?.name || payload?.action?.data?.list?.name || null,
-    list_before_name: payload?.action?.data?.listBefore?.name || null,
-    member_username: payload?.action?.memberCreator?.username || null,
-    raw_action: payload?.action || { __raw_body_first_500: rawBody.substring(0, 500) },
-    acao_aplicada: "DEBUG_RAW_INSERT",
-    acao_detalhe: `bodyLen=${rawBody.length} hasAction=${!!payload?.action}`,
-  };
-
-  try {
-    const { data: insertData, error: insertError } = await admin
-      .from("trello_card_events")
-      .insert(insertPayload as any)
-      .select("id");
-    console.log("[trello-cards-events DEBUG] INSERT result", {
-      data: insertData,
-      error: insertError?.message,
-      errorCode: insertError?.code,
-      errorDetails: insertError?.details,
-    });
-  } catch (e: any) {
-    console.error("[trello-cards-events DEBUG] INSERT THREW:", e?.message ?? e);
+  // @ts-ignore EdgeRuntime existe no Supabase Edge Runtime
+  if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+    // @ts-ignore
+    EdgeRuntime.waitUntil(processAction(payload));
+  } else {
+    processAction(payload).catch((e) => console.error("[trello-cards-events] async error:", e));
   }
 
   return new Response("ok", { status: 200, headers: corsHeaders });
