@@ -31,6 +31,10 @@ export interface ClienteFinanceiro {
   qtd_nao_auditados: number;
   etapa_predominante: string;
   extrato_mais_recente: { id: string; pdf_url: string; filename: string; created_at: string } | null;
+  /** FIN-001 (27/05 noite): timestamp da última visualização do link público da
+   *  cobrança ativa do cliente. NULL = cliente ainda não abriu. UI mostra badge
+   *  "📬 Cliente abriu há Xh" pra Letícia ligar no momento certo. */
+  cobranca_visualizada_em: string | null;
 }
 
 export interface LancamentoFinanceiro {
@@ -340,11 +344,11 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
         processoIds.length > 0
           ? supabase.from('valores_adicionais').select('processo_id, valor').in('processo_id', processoIds)
           : { data: [], error: null },
-        // Share token da cobrança vinculada a cada lançamento (pra link "Ver cobrança" no histórico)
+        // Share token + visualizada_em da cobrança vinculada (FIN-001 27/05 noite)
         lancamentos.length > 0
           ? supabase
               .from('cobrancas_lancamentos')
-              .select('lancamento_id, cobrancas!inner(share_token)')
+              .select('lancamento_id, cobrancas!inner(share_token, visualizada_em, asaas_pago_em)')
               .in('lancamento_id', lancamentos.map(l => l.id))
           : { data: [], error: null },
       ]);
@@ -358,9 +362,19 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
       }
 
       const tokenMap = new Map<string, string>();
+      // FIN-001: lancamento_id → visualizada_em da cobrança (mais recente)
+      const visualizadaMap = new Map<string, string>();
       for (const row of ((cobrancaTokensRes as any).data || [])) {
-        const tok = row.cobrancas?.share_token;
+        const cob = row.cobrancas;
+        const tok = cob?.share_token;
         if (tok) tokenMap.set(row.lancamento_id, tok);
+        // Só conta se NÃO foi paga (cobranças pagas não interessam pra "abriu mas não pagou")
+        if (cob?.visualizada_em && !cob?.asaas_pago_em) {
+          const existing = visualizadaMap.get(row.lancamento_id);
+          if (!existing || cob.visualizada_em > existing) {
+            visualizadaMap.set(row.lancamento_id, cob.visualizada_em);
+          }
+        }
       }
 
       const result = new Map<string, ClienteFinanceiro>();
@@ -402,10 +416,17 @@ export function useFinanceiroClientes(dataInicio?: string, dataFim?: string) {
             qtd_nao_auditados: 0,
             etapa_predominante: 'solicitacao_criada',
             extrato_mais_recente: null,
+            cobranca_visualizada_em: null,
           });
         }
 
         const c = result.get(effectiveClienteId)!;
+
+        // FIN-001: mantém visualização mais recente do cliente (qualquer cobrança)
+        const visEm = visualizadaMap.get(l.id);
+        if (visEm && (!c.cobranca_visualizada_em || visEm > c.cobranca_visualizada_em)) {
+          c.cobranca_visualizada_em = visEm;
+        }
 
         const etiquetas: string[] = processo?.etiquetas || [];
         const totalVA = l.processo_id ? (vaMap.get(l.processo_id) || 0) : 0;

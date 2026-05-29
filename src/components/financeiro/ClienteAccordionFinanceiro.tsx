@@ -267,6 +267,21 @@ export function buildMensagemFromLancamentos({ lancamentos, vaMap, vaDetalhadoMa
 
 
 
+// FIN-001 (27/05 noite): formata "há Xh / há X dias" relativo a NOW.
+function fmtTempoAtras(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return 'agora';
+  if (min < 60) return `há ${min}min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return 'ontem';
+  if (d < 7) return `há ${d}d`;
+  if (d < 30) return `há ${Math.floor(d / 7)}sem`;
+  return `há ${Math.floor(d / 30)}m`;
+}
+
 function fmtDate(d: string | null | undefined) {
   if (!d) return '-';
   // BUG 18/05/2026: new Date('2026-05-18') interpreta UTC midnight; toLocaleDateString
@@ -1302,6 +1317,14 @@ function EnviarItem({ cliente }: { cliente: ClienteFinanceiro }) {
               ) : (
                 <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-[10px] sm:text-xs whitespace-nowrap">
                   Sem extrato
+                </Badge>
+              )}
+              {/* FIN-001 (27/05 noite): badge mostra quando cliente abriu o link.
+                  Útil pra Letícia ligar no momento certo (cliente JÁ viu mas ainda
+                  não pagou). */}
+              {cliente.cobranca_visualizada_em && (
+                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] sm:text-xs whitespace-nowrap">
+                  📬 Aberto {fmtTempoAtras(cliente.cobranca_visualizada_em)}
                 </Badge>
               )}
             </div>
