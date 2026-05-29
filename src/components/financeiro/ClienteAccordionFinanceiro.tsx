@@ -88,6 +88,11 @@ export type ExtratoGeradoPayload = {
   lancamentos: LancamentoFinanceiro[];
   cobrancaUrl?: string;
   cobrancaId?: string;
+  /** 27/05 noite: true quando o ERP disparou asaas-gerar-cobranca em background.
+   *  Popup mostra spinner "Gerando Boleto/PIX..." no lugar do botão até o
+   *  useCobrancaAsaas detectar asaas_payment_id (via invalidateQueries).
+   *  Quando false ou Asaas falhou, popup mostra botão manual de retry. */
+  asaasGerandoAuto?: boolean;
   cleanup?: () => void;
 };
 
@@ -819,6 +824,36 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
 
       toast.success('Extrato gerado com sucesso!');
 
+      // 27/05 noite: dispara asaas-gerar-cobranca AUTOMATICAMENTE em background
+      // logo após extrato sair OK. Popup abre imediato (sem bloquear), mostra
+      // spinner no botão Asaas, e atualiza pra "Boleto/PIX gerado ✓" quando o
+      // edge function retornar — via invalidateQueries. Se Asaas falhar, o popup
+      // volta pro botão manual e mostra warning toast.
+      let asaasGerandoAuto = false;
+      if (cobrancaId) {
+        asaasGerandoAuto = true;
+        const cobrancaIdLocal = cobrancaId; // capture pro closure
+        supabase.functions
+          .invoke('asaas-gerar-cobranca', {
+            body: { cobranca_id: cobrancaIdLocal, data_vencimento: dataVencimento },
+          })
+          .then((res: any) => {
+            if (res.error || res.data?.error) {
+              console.warn('[asaas auto] falhou:', res.error || res.data?.error);
+              toast.warning('Boleto Asaas não gerou automaticamente. Use o botão "Gerar Boleto/PIX" no popup.');
+            } else {
+              // Sucesso — invalida queries pra popup re-renderizar
+              queryClient.invalidateQueries({ queryKey: ['cobranca-asaas', cobrancaIdLocal] });
+              queryClient.invalidateQueries({ queryKey: ['financeiro_clientes'] });
+              toast.success('Boleto/PIX Asaas gerado automaticamente.');
+            }
+          })
+          .catch((err: any) => {
+            console.warn('[asaas auto] exception:', err);
+            toast.warning('Boleto Asaas não gerou automaticamente. Use o botão "Gerar Boleto/PIX" no popup.');
+          });
+      }
+
       onExtratoGerado({
         blob: pdfBlob,
         filename,
@@ -829,6 +864,7 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
         lancamentos: selecionados,
         cobrancaUrl,
         cobrancaId,
+        asaasGerandoAuto,
         cleanup: () => {
           setSelected(new Set());
           setGenerating(false);
@@ -2150,16 +2186,31 @@ export function ModalPosExtrato({
                 <LinkIcon className="h-4 w-4" /> Copiar Link da Cobrança
               </Button>
             )}
-            {extratoGerado.cobrancaId && (
-              <Button
-                variant={asaasInfo?.payment_id ? 'outline' : 'default'}
-                className="w-full gap-2 h-11"
-                onClick={() => setAsaasModalOpen(true)}
-              >
-                <FileBadge className="h-4 w-4" />
-                {asaasInfo?.payment_id ? 'Boleto/PIX gerado ✓ — Ver detalhes' : 'Gerar Boleto / PIX (Asaas)'}
-              </Button>
-            )}
+            {extratoGerado.cobrancaId && (() => {
+              // 27/05 noite: 3 estados visuais.
+              // 1) asaas_payment_id já existe → "gerado ✓ — Ver detalhes" (outline)
+              // 2) asaasGerandoAuto=true E sem payment_id → "Gerando Boleto/PIX..." disabled com spinner
+              // 3) caso contrário → botão padrão "Gerar Boleto/PIX (Asaas)"
+              const jaGerou = !!asaasInfo?.payment_id;
+              const gerandoAuto = extratoGerado.asaasGerandoAuto && !jaGerou;
+              return (
+                <Button
+                  variant={jaGerou ? 'outline' : 'default'}
+                  className="w-full gap-2 h-11"
+                  onClick={() => setAsaasModalOpen(true)}
+                  disabled={gerandoAuto}
+                >
+                  {gerandoAuto
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <FileBadge className="h-4 w-4" />}
+                  {jaGerou
+                    ? 'Boleto/PIX gerado ✓ — Ver detalhes'
+                    : gerandoAuto
+                    ? 'Gerando Boleto/PIX no Asaas...'
+                    : 'Gerar Boleto / PIX (Asaas)'}
+                </Button>
+              );
+            })()}
             <a
               href={whatsappHref}
               target="_blank"
