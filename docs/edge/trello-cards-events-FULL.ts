@@ -377,17 +377,26 @@ async function processAction(payload: any): Promise<{ acao: string }> {
     return await processarMovimentoLista(eventBase, action);
   }
 
-  // Rota 2: chegada em RECÉM CHEGADOS por QUALQUER caminho
-  // O Apps Script da Trevo cria card em outra lista E DEPOIS move pra cá
-  // (sequencia: createCard noutra lista + updateCard movendo). Precisamos
-  // capturar AMBOS os caminhos pra notificação chegar.
-  const chegouEmRecemChegados =
-    ((actionType === "createCard" || actionType === "copyCard") &&
-      list?.name === TARGET_LIST_NOVO) ||
-    (actionType === "updateCard" && listAfter?.name === TARGET_LIST_NOVO);
+  // Rota 2: chegada em RECÉM CHEGADOS — robusta pra fluxo Apps Script
+  // O Apps Script da Trevo NÃO emite createCard explícito (cria via API),
+  // só emite updateCard/addLabel/addMember depois. Solução: trigger se
+  // QUALQUER evento mostra o card em RECÉM CHEGADOS E o card_id ainda
+  // não foi notificado (idempotência via DB).
+  const cardListName =
+    listAfter?.name ?? list?.name ?? null;
+  const cardId = card?.id;
 
-  if (chegouEmRecemChegados) {
-    return await processarCriacaoCard(eventBase, action);
+  if (cardListName === TARGET_LIST_NOVO && cardId) {
+    const { data: jaNotificado } = await admin
+      .from("trello_card_events")
+      .select("id")
+      .eq("card_id", cardId)
+      .eq("acao_aplicada", "master_notificado")
+      .maybeSingle();
+
+    if (!jaNotificado) {
+      return await processarCriacaoCard(eventBase, action);
+    }
   }
 
   // Outros eventos: só audit log
