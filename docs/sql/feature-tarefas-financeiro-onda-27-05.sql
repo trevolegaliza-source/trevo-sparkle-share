@@ -22,7 +22,10 @@ WITH ctx AS (
 INSERT INTO public.tarefas (
   empresa_id, titulo, descricao, categoria, prioridade, status, origem, created_by
 )
-SELECT empresa_id, titulo, descricao, 'financeiro', prioridade, 'pendente', 'claude', user_id
+-- Categoria 'feature' porque o CHECK constraint da tabela tarefas só aceita:
+-- bug / feature / teste / auditoria / manutencao / investigacao / outro.
+-- Os 15 itens carregam prefixo FIN-XXX no título pra filtro mental.
+SELECT empresa_id, titulo, descricao, 'feature', prioridade, 'pendente', 'claude', user_id
 FROM ctx, (VALUES
   -- ─── CRÍTICAS (quick wins) ──────────────────────────────────────────────
   (1, 'critica',
@@ -239,7 +242,7 @@ SELECT
   END as prioridade,
   COUNT(*) as total
 FROM public.tarefas
-WHERE categoria = 'financeiro'
+WHERE categoria = 'feature'
   AND created_at > NOW() - INTERVAL '1 minute'
 GROUP BY prioridade
 ORDER BY MIN(CASE prioridade
