@@ -83,8 +83,8 @@ function normalize(s: string): string {
     .trim();
 }
 
-// Similaridade básica por palavras em comum (não é Levenshtein full
-// mas é eficiente o suficiente pra nomes curtos de empresa)
+// Similaridade básica por palavras em comum (fallback quando match por
+// código não existe)
 function similarity(a: string, b: string): number {
   const na = normalize(a);
   const nb = normalize(b);
@@ -100,6 +100,21 @@ function similarity(a: string, b: string): number {
   return inter / Math.max(setA.size, setB.size);
 }
 
+// FEATURE 29/05/2026 — Thales descobriu que o nome do board sempre tem o
+// codigo_identificador do cliente (XXX.XXX no ERP vira XXXXXX no board).
+// Match por código é 100% confiável vs heurística fuzzy por nome.
+// Regex: sequências isoladas de 5-7 dígitos (cobre 6 dig do padrão atual
+// + tolerância pra códigos que possam variar).
+function extractCodigosFromBoard(boardName: string): string[] {
+  const matches = boardName.match(/\b\d{5,7}\b/g) || [];
+  return matches;
+}
+
+// Codigo limpo (só dígitos) pra comparar com extracted
+function codigoSomenteDigitos(codigo: string | null | undefined): string {
+  return (codigo ?? "").replace(/\D/g, "");
+}
+
 // ────────────────────────────────────────────────
 // Modo: dry_run
 // ────────────────────────────────────────────────
@@ -110,15 +125,54 @@ async function modeDryRun() {
     fields: "id,name,url,idOrganization",
   });
 
-  // 2) Clientes do ERP
+  // 2) Clientes do ERP (com codigo_identificador pra match por código)
   const { data: clientes } = await admin
     .from("clientes")
-    .select("id, nome, apelido, trello_board_id");
+    .select("id, nome, apelido, codigo_identificador, trello_board_id");
   const clientesArr = (clientes || []) as any[];
 
-  // 3) Propor match por nome
+  // Index pra lookup rápido por código (digits only)
+  const clientesPorCodigo = new Map<string, any>();
+  for (const c of clientesArr) {
+    const cod = codigoSomenteDigitos(c.codigo_identificador);
+    if (cod) clientesPorCodigo.set(cod, c);
+  }
+
+  // 3) Propor match (prioridade: código exato > nome similar)
   const propostas: any[] = [];
   for (const b of boards) {
+    const codigosDoBoard = extractCodigosFromBoard(b.name);
+
+    // PRIORIDADE 1: match por código (100% confiável)
+    let matchCodigo: any = null;
+    for (const cod of codigosDoBoard) {
+      const cli = clientesPorCodigo.get(cod);
+      if (cli) {
+        matchCodigo = {
+          cliente_id: cli.id,
+          cliente_nome: cli.nome,
+          cliente_apelido: cli.apelido,
+          codigo_identificador: cli.codigo_identificador,
+          codigo_encontrado: cod,
+          ja_linkado_outro: cli.trello_board_id && cli.trello_board_id !== b.id,
+        };
+        break;
+      }
+    }
+
+    if (matchCodigo) {
+      propostas.push({
+        board_id: b.id,
+        board_name: b.name,
+        board_url: b.url,
+        metodo_match: "codigo_identificador",
+        match: matchCodigo,
+        sugestao: { cliente_id: matchCodigo.cliente_id, confianca: "altissima" },
+      });
+      continue;
+    }
+
+    // PRIORIDADE 2: fallback fuzzy por nome (versão antiga)
     const candidatos = clientesArr
       .map((c) => ({
         cliente_id: c.id,
@@ -137,6 +191,8 @@ async function modeDryRun() {
       board_id: b.id,
       board_name: b.name,
       board_url: b.url,
+      metodo_match: "fuzzy_nome",
+      codigos_extraidos: codigosDoBoard,
       candidatos_top3: candidatos,
       sugestao: candidatos[0] && candidatos[0].score >= 0.85
         ? { cliente_id: candidatos[0].cliente_id, confianca: "alta" }
@@ -146,13 +202,71 @@ async function modeDryRun() {
     });
   }
 
+  const matchsCodigo = propostas.filter((p) => p.metodo_match === "codigo_identificador").length;
+  const matchsNome = propostas.filter((p) => p.metodo_match === "fuzzy_nome" && p.sugestao).length;
+  const semMatch = propostas.filter((p) => !p.sugestao).length;
+
   return {
     mode: "dry_run",
     total_boards_trello: boards.length,
     total_clientes_erp: clientesArr.length,
     clientes_ja_linkados: clientesArr.filter((c) => c.trello_board_id).length,
+    resumo: {
+      por_codigo_100pct: matchsCodigo,
+      por_nome_fuzzy: matchsNome,
+      sem_match: semMatch,
+    },
     propostas,
-    proximo_passo: 'Revise as propostas. Pra aplicar: POST com {mode:"link_boards", board_to_cliente:{"board_id":"cliente_uuid", ...}}',
+    proximo_passo: 'Pra aplicar TODOS os matches "altissima" (código exato), use {mode:"link_boards_auto"}. Pra escolher manualmente, use {mode:"link_boards", board_to_cliente:{...}}.',
+  };
+}
+
+// ────────────────────────────────────────────────
+// Modo: link_boards_auto (aplica só matches altissima — código exato)
+// ────────────────────────────────────────────────
+async function modeLinkBoardsAuto() {
+  // Reutiliza dryRun pra encontrar matches por código
+  const dryRun: any = await modeDryRun();
+  const altissimas = (dryRun.propostas as any[]).filter(
+    (p) => p.sugestao?.confianca === "altissima" && !p.match?.ja_linkado_outro,
+  );
+
+  const results: any[] = [];
+  for (const p of altissimas) {
+    try {
+      const { error } = await admin
+        .from("clientes")
+        .update({
+          trello_board_id: p.board_id,
+          trello_board_url: p.board_url,
+          trello_provisionado_em: new Date().toISOString(),
+        } as any)
+        .eq("id", p.match.cliente_id);
+
+      results.push({
+        board_id: p.board_id,
+        board_name: p.board_name,
+        cliente_id: p.match.cliente_id,
+        cliente_nome: p.match.cliente_apelido || p.match.cliente_nome,
+        codigo: p.match.codigo_encontrado,
+        status: error ? "erro" : "linkado",
+        erro: error?.message,
+      });
+    } catch (e: any) {
+      results.push({
+        board_id: p.board_id,
+        cliente_id: p.match.cliente_id,
+        status: "erro",
+        erro: String(e?.message ?? e),
+      });
+    }
+  }
+
+  return {
+    mode: "link_boards_auto",
+    total_aplicado: results.filter((r) => r.status === "linkado").length,
+    total_erros: results.filter((r) => r.status === "erro").length,
+    results,
   };
 }
 
@@ -401,6 +515,9 @@ Deno.serve(async (req) => {
         }
         result = await modeLinkBoards(body.board_to_cliente);
         break;
+      case "link_boards_auto":
+        result = await modeLinkBoardsAuto();
+        break;
       case "link_cards":
         result = await modeLinkCards();
         break;
@@ -410,7 +527,7 @@ Deno.serve(async (req) => {
       default:
         return new Response(JSON.stringify({
           error: "mode inválido",
-          modos_validos: ["dry_run", "link_boards", "link_cards", "register_webhooks"],
+          modos_validos: ["dry_run", "link_boards", "link_boards_auto", "link_cards", "register_webhooks"],
         }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
