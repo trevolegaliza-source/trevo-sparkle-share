@@ -10,6 +10,7 @@ import type { LancamentoReceber, ValorAdicionalSimple } from '@/hooks/useContasR
 import { diasAtraso, useMarcarRecebidoLote } from '@/hooks/useContasReceber';
 import { downloadCSV, formatBRLPlain, formatDateBR } from '@/lib/export-utils';
 import { toast } from 'sonner';
+import { useConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface Props {
   lancamentos: LancamentoReceber[];
@@ -28,6 +29,8 @@ export default function ContasReceberLista({ lancamentos, taxasPorProcesso, onMa
   const [ordenacao, setOrdenacao] = useState<Ordenacao>('venc_asc');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const marcarLote = useMarcarRecebidoLote();
+  // AUDIT-015 (29/05): AlertDialog substitui window.confirm
+  const [confirm, ConfirmDialog] = useConfirmDialog();
 
   const hoje = new Date().toISOString().split('T')[0];
 
@@ -85,16 +88,15 @@ export default function ContasReceberLista({ lancamentos, taxasPorProcesso, onMa
     toast.success('CSV exportado!');
   };
 
-  const handleMarcarLote = () => {
+  const handleMarcarLote = async () => {
     const pendentes = selectedItems.filter(l => l.status === 'pendente');
     if (!pendentes.length) { toast.error('Nenhum pendente selecionado'); return; }
-    // UX-015 (13/05/2026): confirmação antes de marcar N pagos.
-    // Antes: 1 clique → N lancamentos viram pagos com data=hoje, sem
-    // janela de retrocesso. Agora pede confirmação. Data customizada
-    // fica pra modal dedicada num próximo round.
-    const ok = window.confirm(
-      `Marcar ${pendentes.length} cobrança${pendentes.length > 1 ? 's' : ''} como paga${pendentes.length > 1 ? 's' : ''} com data de HOJE?\n\nSe precisar de outra data, use o modal "Marcar como pago" em cada processo individualmente.`
-    );
+    // UX-015 (13/05/2026) + AUDIT-015 (29/05): AlertDialog em vez de window.confirm
+    const ok = await confirm({
+      title: `Marcar ${pendentes.length} cobrança${pendentes.length > 1 ? 's' : ''} como paga${pendentes.length > 1 ? 's' : ''}?`,
+      description: 'Data: HOJE. Se precisar de outra data, use o modal "Marcar como pago" em cada processo individualmente.',
+      confirmLabel: 'Marcar como pago',
+    });
     if (!ok) return;
     marcarLote.mutate({ ids: pendentes.map(l => l.id), data_pagamento: new Date().toISOString().split('T')[0] }, {
       onSuccess: () => setSelected(new Set()),
@@ -201,6 +203,7 @@ export default function ContasReceberLista({ lancamentos, taxasPorProcesso, onMa
           </div>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   );
 }

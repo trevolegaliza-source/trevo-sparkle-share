@@ -24,6 +24,7 @@ import { useHighlightOnModal } from '@/hooks/useHighlightOnModal';
 import { TIPO_PROCESSO_LABELS } from '@/types/financial';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { clienteTemContatoCobranca } from '@/lib/contato-cobranca';

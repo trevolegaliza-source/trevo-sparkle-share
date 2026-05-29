@@ -14,6 +14,7 @@ import { Users, Loader2, UserPlus, MoreHorizontal, UserX, UserCheck, Shield, Mai
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 import { ROLES, MODULOS_DISPONIVEIS, GRUPOS_MODULOS, getRoleInfo, type RoleValue } from '@/constants/roles';
 import { MfaEnroll } from '@/components/auth/MfaEnroll';
@@ -83,6 +84,8 @@ export default function GestaoUsuarios() {
   const [roleTemplates, setRoleTemplates] = useState<RoleTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [empresaId, setEmpresaId] = useState('');
+  // AUDIT-015 (29/05): AlertDialog substitui window.confirm
+  const [confirm, ConfirmDialog] = useConfirmDialog();
 
   // Edit modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -241,9 +244,14 @@ export default function GestaoUsuarios() {
   })();
 
   // Tenta fechar o modal: se há mudanças não salvas, pede confirmação.
-  const tryCloseEditModal = () => {
+  const tryCloseEditModal = async () => {
     if (editHasChanges) {
-      const ok = window.confirm('Você tem alterações não salvas. Fechar mesmo assim e perder as mudanças?');
+      const ok = await confirm({
+        title: 'Descartar alterações?',
+        description: 'Você tem alterações não salvas. Fechar mesmo assim e perder as mudanças?',
+        confirmLabel: 'Descartar',
+        destructive: true,
+      });
       if (!ok) return;
     }
     setEditModalOpen(false);
@@ -403,14 +411,16 @@ export default function GestaoUsuarios() {
     }
   };
 
-  // SEC-012 (12/05/2026): aprovar/rejeitar mudam acesso ao sistema — clique
-  // errado libera quem não devia ou bloqueia legítimo. Confirm explícito.
+  // SEC-012 (12/05/2026) + AUDIT-015 (29/05): AlertDialog substitui window.confirm
   const handleApprove = async (profile: Profile) => {
     const nome = profile.nome || profile.email || 'este usuário';
     const role = getRoleInfo(profile.role).label;
-    if (!window.confirm(`Aprovar acesso de ${nome} como ${role}?\n\nApós aprovar, o usuário pode entrar no sistema imediatamente.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Aprovar acesso de ${nome} como ${role}?`,
+      description: 'Após aprovar, o usuário pode entrar no sistema imediatamente.',
+      confirmLabel: 'Aprovar',
+    });
+    if (!ok) return;
     try {
       await supabase
         .from('profiles')
@@ -430,7 +440,13 @@ export default function GestaoUsuarios() {
 
   const handleReject = async (profile: Profile) => {
     const nome = profile.nome || profile.email || 'este usuário';
-    if (!window.confirm(`Rejeitar acesso de ${nome}?\n\nO usuário NÃO poderá entrar no sistema. Você pode reativar depois se mudar de ideia.`)) {
+    const ok = await confirm({
+      title: `Rejeitar acesso de ${nome}?`,
+      description: 'O usuário NÃO poderá entrar no sistema. Você pode reativar depois se mudar de ideia.',
+      confirmLabel: 'Rejeitar',
+      destructive: true,
+    });
+    if (!ok) {
       return;
     }
     try {
@@ -1364,6 +1380,7 @@ export default function GestaoUsuarios() {
           setMfaFactors(prev => ({ ...prev, [user?.id || '']: true }));
         }}
       />
+      <ConfirmDialog />
     </>
   );
 }
