@@ -321,9 +321,8 @@ export default function PropostaComercialNova() {
           .then((res: any) => {
             if (res.error) {
               console.warn('[pre-gerar-pdf] dispatch falhou (nao bloqueia o envio):', res.error);
-            } else {
-              console.log('[pre-gerar-pdf] disparado:', res.data);
             }
+            // AUDIT-020 (29/05): success path não loga mais (ruído em prod)
           });
       }
 

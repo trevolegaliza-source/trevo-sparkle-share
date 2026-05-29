@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle, Download, FileText, Lock as LockIcon, Lightbulb, AlertTriangle, GitBranch, ListChecks, Package, Sparkles, ChevronRight, Send, Hash, Clock, ShieldCheck, ArrowLeft, CreditCard, MessageCircle } from 'lucide-react';
 import { normalizeItem, type OrcamentoItem, type CenarioOrcamento } from '@/components/orcamentos/types';
-import DOMPurify from 'dompurify';
+import { sanitizeRichText } from '@/lib/sanitize-html';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY as SUPABASE_KEY } from '@/integrations/supabase/client';
 import logoTrevo from '@/assets/logo-trevo-legaliza.png';
 import daniAvatar from '@/assets/dani-avatar.png';
@@ -826,7 +826,7 @@ export default function PropostaPublica() {
             </div>
             <span style="font-size:14px;font-weight:700;color:#1e293b;">${fmt(valorTotal)}</span>
           </div>
-          ${item.detalhes ? `<div style="padding:8px 14px;font-size:12px;color:#475569;border-top:1px solid #f1f5f9;">${DOMPurify.sanitize(item.detalhes)}</div>` : ''}
+          ${item.detalhes ? `<div style="padding:8px 14px;font-size:12px;color:#475569;border-top:1px solid #f1f5f9;">${sanitizeRichText(item.detalhes)}</div>` : ''}
         </div>`;
     }).join('');
     const totalClienteStr = fmt(totalContador);
@@ -848,7 +848,7 @@ export default function PropostaPublica() {
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:14px;">Serviços Incluídos</div>
     ${itensHtml}
   </div>
-  ${orc.observacoes ? `<div style="padding:18px 30px;border-top:1px solid #f1f5f9;background:#fffbeb;font-size:13px;color:#92400e;">${DOMPurify.sanitize(orc.observacoes)}</div>` : ''}
+  ${orc.observacoes ? `<div style="padding:18px 30px;border-top:1px solid #f1f5f9;background:#fffbeb;font-size:13px;color:#92400e;">${sanitizeRichText(orc.observacoes)}</div>` : ''}
   <div style="padding:24px 30px;border-top:1px solid #f1f5f9;text-align:center;font-size:11px;color:#94a3b8;">
     ${nomeEscritorio}${orc.escritorio_cnpj ? ` · CNPJ ${orc.escritorio_cnpj}` : ''}
   </div>
@@ -1200,7 +1200,7 @@ export default function PropostaPublica() {
                 </div>
                 <div className="pp-card-body">
                   {orc.headline_cenario && <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--pp-fg-1)', marginBottom: 10 }}>{orc.headline_cenario}</p>}
-                  <div style={{ fontSize: 14, lineHeight: 1.65, color: 'var(--pp-fg-1)' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(orc.contexto || '') }} />
+                  <div style={{ fontSize: 14, lineHeight: 1.65, color: 'var(--pp-fg-1)' }} dangerouslySetInnerHTML={{ __html: sanitizeRichText(orc.contexto) }} />
                 </div>
               </section>
             )}
@@ -1288,7 +1288,7 @@ export default function PropostaPublica() {
                               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--pp-fg-1)', marginBottom: 4 }}>{item.descricao}</div>
                               {item.detalhes && (
                                 <div style={{ fontSize: 12, color: 'var(--pp-fg-2)', lineHeight: 1.5, marginBottom: 6 }}
-                                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.detalhes) }} />
+                                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(item.detalhes) }} />
                               )}
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                 {isObrig
@@ -1362,7 +1362,7 @@ export default function PropostaPublica() {
                             <span className="pp-svc-price">{fmt(valorExibido * item.quantidade)}</span>
                           </div>
                           {item.detalhes && (
-                            <div className="pp-svc-desc" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.detalhes) }} />
+                            <div className="pp-svc-desc" dangerouslySetInnerHTML={{ __html: sanitizeRichText(item.detalhes) }} />
                           )}
                           {(item as any).observacoes_financeiro && (
                             <p className="pp-svc-obs">{(item as any).observacoes_financeiro}</p>
@@ -1409,7 +1409,7 @@ export default function PropostaPublica() {
                             <span className="pp-svc-price">{fmt(valorExibido * item.quantidade)}</span>
                           </div>
                           {item.detalhes && (
-                            <div className="pp-svc-desc" style={{ paddingLeft: 30 }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.detalhes) }} />
+                            <div className="pp-svc-desc" style={{ paddingLeft: 30 }} dangerouslySetInnerHTML={{ __html: sanitizeRichText(item.detalhes) }} />
                           )}
                           {(item.prazo || hasTaxa) && (
                             <div className="pp-svc-meta" style={{ paddingLeft: 30 }}>
@@ -1544,7 +1544,7 @@ export default function PropostaPublica() {
                   <div className="pp-cond-item"><div className="pp-cond-lbl">Pagamento</div><div className="pp-cond-val">{orc?.pagamento || 'A combinar'}</div></div>
                 </div>
                 {orc?.observacoes && (
-                  <div className="pp-obs-box" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(orc.observacoes || '') }} />
+                  <div className="pp-obs-box" dangerouslySetInnerHTML={{ __html: sanitizeRichText(orc.observacoes) }} />
                 )}
               </div>
             </section>

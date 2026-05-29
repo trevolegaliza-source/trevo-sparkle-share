@@ -2,6 +2,18 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { getEtapaSimplificada } from '@/types/process';
 
+// AUDIT-043 (29/05/2026): escape HTML pra prevenir XSS via dados do banco
+// (razão social com `<script>` executaria no contexto do app antes de
+// virar canvas). Mesma técnica usada em contrato-pdf.ts e extrato-pdf.ts.
+function esc(s: string | null | undefined): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // DECISION-001 Fase 3 (13/05/2026 noite): PDF de status simplificado.
 // Antes: progress bar sequencial em 17 etapas (calcularProgresso + barra
 // colorida por percentual). Etapa virou binária no banco — barra perdeu
@@ -36,9 +48,9 @@ function buildRelatorioHTML(data: RelatorioData): string {
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div style="flex: 1;">
-            <div style="font-size: 14px; font-weight: 700; color: #1a1a2e;">${p.razao_social}</div>
+            <div style="font-size: 14px; font-weight: 700; color: #1a1a2e;">${esc(p.razao_social)}</div>
             <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-              ${p.tipo.charAt(0).toUpperCase() + p.tipo.slice(1)} · Iniciado em ${new Date(p.created_at).toLocaleDateString('pt-BR')}
+              ${esc(p.tipo.charAt(0).toUpperCase() + p.tipo.slice(1))} · Iniciado em ${new Date(p.created_at).toLocaleDateString('pt-BR')}
             </div>
           </div>
           <div style="background: ${bgStatus}; color: ${corStatus}; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.4px;">
@@ -53,8 +65,8 @@ function buildRelatorioHTML(data: RelatorioData): string {
     <div style="font-family: Arial, sans-serif; width: 794px; background: white; padding: 0;">
       <div style="background: #0f1f0f; padding: 24px 32px;">
         <div style="font-size: 10px; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Relatório de Andamento</div>
-        <div style="font-size: 22px; font-weight: 800; color: #fff;">${data.cliente_nome}</div>
-        <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">${data.cliente_cnpj || ''} · Emitido em ${data.data_emissao}</div>
+        <div style="font-size: 22px; font-weight: 800; color: #fff;">${esc(data.cliente_nome)}</div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">${esc(data.cliente_cnpj || '')} · Emitido em ${esc(data.data_emissao)}</div>
       </div>
       <div style="height: 3px; background: linear-gradient(90deg, #22c55e, #86efac);"></div>
       <div style="padding: 24px 32px;">

@@ -1136,8 +1136,7 @@ export function TerceirizacaoPublicaView({ orc, token }: Props) {
             // Se marcou interesse, RPC já foi chamada. Independente, segue pra
             // modal de confirmação do aceite.
             setConfirmOpen(true);
-            // Log local pra debug (não afeta funcionalidade)
-            if (quisMensal) console.log('[upsell] cliente marcou interesse mensal');
+            // AUDIT-020 (29/05): console.log removido (página pública não deve logar)
           }}
         />
       )}

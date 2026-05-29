@@ -22,6 +22,17 @@ const LOGO_URL = 'https://aahhauquuicvtwtrxyan.supabase.co/storage/v1/object/pub
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('pt-BR');
 
+// AUDIT-043 (29/05/2026): escape pra prevenir XSS em descrição/razão social
+// que vem do banco (master pode injetar markup que executa antes do canvas).
+function esc(s: string | null | undefined): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export interface RelatorioPrepagoDados {
   cliente: {
     nome: string;
@@ -48,7 +59,7 @@ function buildHTML(dados: RelatorioPrepagoDados): string {
   const movRows = movimentacoes.map(m => `
     <tr>
       <td class="td-date">${fmtDate(m.created_at)}</td>
-      <td class="td-desc">${m.descricao}</td>
+      <td class="td-desc">${esc(m.descricao)}</td>
       <td class="td-val" style="color:#ef4444;">${m.tipo === 'consumo' ? fmt(m.valor) : '—'}</td>
       <td class="td-val" style="color:#22c55e;">${m.tipo === 'recarga' ? fmt(m.valor) : '—'}</td>
       <td class="td-val">${fmt(m.saldo_posterior)}</td>
@@ -62,7 +73,7 @@ function buildHTML(dados: RelatorioPrepagoDados): string {
         <span style="font-size:14px; font-weight:800; color:#dc2626; text-transform:uppercase;">Saldo Insuficiente para Novo Processo</span>
       </div>
       <table style="width:100%; font-size:11px; color:#1a1a2e;">
-        <tr><td style="padding:4px 0; color:#64748b;">Processo solicitado:</td><td style="font-weight:600;">${saldoInsuficiente.tipoProcesso} — ${saldoInsuficiente.razaoSocial}</td></tr>
+        <tr><td style="padding:4px 0; color:#64748b;">Processo solicitado:</td><td style="font-weight:600;">${esc(saldoInsuficiente.tipoProcesso)} — ${esc(saldoInsuficiente.razaoSocial)}</td></tr>
         <tr><td style="padding:4px 0; color:#64748b;">Valor do serviço:</td><td style="font-weight:700;">${fmt(saldoInsuficiente.valorServico)}</td></tr>
         <tr><td style="padding:4px 0; color:#64748b;">Saldo disponível:</td><td style="font-weight:700;">${fmt(saldoAtual)}</td></tr>
         <tr><td style="padding:4px 0; color:#64748b;">Diferença:</td><td style="font-weight:800; color:#dc2626;">${fmt(saldoInsuficiente.diferenca)}</td></tr>
@@ -119,7 +130,7 @@ function buildHTML(dados: RelatorioPrepagoDados): string {
       <div class="gradient-bar"></div>
       <div class="client-block">
         <div class="client-tag">Extrato de Saldo Pré-Pago</div>
-        <div class="client-name">${cliente.apelido || cliente.nome}</div>
+        <div class="client-name">${esc(cliente.apelido || cliente.nome)}</div>
         ${cliente.cnpj ? `<div class="client-cnpj">CNPJ: ${cliente.cnpj}</div>` : ''}
         <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Data de emissão: ${hoje}</div>
       </div>

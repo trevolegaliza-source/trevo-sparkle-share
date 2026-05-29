@@ -231,8 +231,16 @@ const App = () => (
                     </RequirePermission>
                   } />
                   {/* 25/05/2026: Tarefas — checklist sem gate de modulo
-                      (qualquer perfil ativo da empresa pode ver/criar). */}
-                  <Route path="/tarefas" element={<Tarefas />} />
+                      (qualquer perfil ativo da empresa pode ver/criar).
+                      AUDIT-045 (29/05/2026): adicionado RequirePermission
+                      modulo='configuracoes' (master/gerente). Vendedor/estagiário
+                      não precisa ver pendências internas — só vaza prioridade
+                      comercial. */}
+                  <Route path="/tarefas" element={
+                    <RequirePermission modulo="configuracoes">
+                      <Tarefas />
+                    </RequirePermission>
+                  } />
                   <Route path="/configuracoes" element={
                     <RequirePermission modulo="configuracoes">
                       <Configuracoes />
