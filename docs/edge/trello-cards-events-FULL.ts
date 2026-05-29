@@ -306,139 +306,49 @@ async function processarCriacaoCard(eventBase: any, action: any): Promise<{ acao
     return { acao: "erro" };
   }
 
-  // 1) Resolve cliente via clientes.trello_board_id
+  // Resolve cliente via clientes.trello_board_id
   const { data: cliente } = await admin
     .from("clientes")
-    .select("id, nome, apelido, empresa_id, valor_base")
+    .select("id, nome, apelido, empresa_id")
     .eq("trello_board_id", boardId)
     .maybeSingle();
 
   if (!cliente) {
-    // Cliente NOVO — board não linkado ao ERP. Notifica pra cadastrar manual.
+    // Board não linkado ao ERP — só audit log (sem empresa_id, sem notif)
     await admin.from("trello_card_events").insert({
       ...eventBase,
       acao_aplicada: "board_sem_cliente",
-      acao_detalhe: `board=${board.name} sem cliente no ERP — cadastre manual`,
+      acao_detalhe: `board=${board.name} sem cliente no ERP`,
     } as any);
-    // Não dá pra notificar sem empresa_id; client cadastrar via /clientes
-    // (sem empresa_id, não temos pra quem notificar; fica só audit log)
     return { acao: "board_sem_cliente" };
   }
 
-  // 2) Idempotência: processo já existe pra esse card?
-  const { data: jaExiste } = await admin
-    .from("processos")
-    .select("id")
-    .eq("trello_card_id", cardId)
-    .maybeSingle();
-
-  if (jaExiste) {
-    await admin.from("trello_card_events").insert({
-      ...eventBase,
-      acao_aplicada: "processo_ja_existe",
-      acao_detalhe: `processo_id=${jaExiste.id}`,
-      processo_id: jaExiste.id,
-    } as any);
-    return { acao: "processo_ja_existe", processo_id: jaExiste.id };
-  }
-
-  // 3) Pega cor da capa do card via API Trello
-  let coverColor: string | null = null;
-  try {
-    const cardFull = await trelloGet<any>(`/1/cards/${cardId}`, {
-      fields: "cover,name,desc,url",
-    });
-    coverColor = cardFull?.cover?.color || null;
-  } catch (e: any) {
-    console.error("[trello-cards-events] erro fetch card:", e);
-    await admin.from("trello_card_events").insert({
-      ...eventBase,
-      acao_aplicada: "erro",
-      acao_detalhe: `fetch card cover: ${e?.message ?? e}`,
-    } as any);
-    return { acao: "erro", detalhe: String(e?.message ?? e) };
-  }
-
-  if (!coverColor) {
-    // Capa ainda não foi definida — Letícia provavelmente vai pintar depois.
-    // Audit + aguarda futuro updateCard com cover.
-    await admin.from("trello_card_events").insert({
-      ...eventBase,
-      acao_aplicada: "aguardando_cor",
-      acao_detalhe: `card=${cardName} ainda sem cor de capa`,
-    } as any);
-    return { acao: "aguardando_cor" };
-  }
-
-  const mapping = COR_PARA_TIPO[coverColor];
-  if (!mapping) {
-    // Cor desconhecida (azul, amarelo, etc) — não é processo. Ignora.
-    await admin.from("trello_card_events").insert({
-      ...eventBase,
-      acao_aplicada: "cor_irrelevante",
-      acao_detalhe: `cover=${coverColor} não mapeia pra tipo conhecido`,
-    } as any);
-    return { acao: "cor_irrelevante" };
-  }
-
-  // 4) Cria processo no ERP
-  const hojeBr = new Date().toLocaleDateString("pt-BR");
-  const notaPartes: string[] = [`[AUTO-TRELLO ${hojeBr}] Card criado em "${TARGET_LIST_NOVO}" no Trello. Tipo deduzido pela cor da capa (${coverColor}).`];
-  if (mapping.nota_extra) {
-    notaPartes.push(`⚠️ ${mapping.nota_extra}`);
-  }
-  notaPartes.push("Revise valor, prioridade e detalhes.");
-
+  // 29/05/2026 simplificação após feedback Thales:
+  // Não tenta criar processo automaticamente. Apenas notifica o master
+  // que algo apareceu no quadro do cliente. Master decide o que fazer.
+  // Robusto: funciona com card sem cor, com cópia, com qualquer createCard.
+  const apelido = cliente.apelido || cliente.nome;
   const cardUrl = action.data?.card?.shortLink
     ? `https://trello.com/c/${action.data.card.shortLink}`
     : null;
+  const acaoLabel = actionType === "copyCard" ? "Card copiado" : "Card novo";
+  const mensagem = `${acaoLabel} "${cardName}" apareceu em "${TARGET_LIST_NOVO}" no quadro Trello de ${apelido}${cardUrl ? ` — ${cardUrl}` : ""}`;
 
-  const { data: novoProcesso, error: insErr } = await admin
-    .from("processos")
-    .insert({
-      cliente_id: cliente.id,
-      razao_social: cardName,
-      tipo: mapping.tipo,
-      prioridade: "alta",
-      valor: Number(cliente.valor_base) || 0,
-      etapa: "ativo",
-      empresa_id: cliente.empresa_id,
-      notas: notaPartes.join("\n"),
-      trello_card_id: cardId,
-      trello_card_url: cardUrl,
-      trello_card_linked_em: new Date().toISOString(),
-    } as any)
-    .select("id")
-    .single();
-
-  if (insErr || !novoProcesso) {
-    await admin.from("trello_card_events").insert({
-      ...eventBase,
-      acao_aplicada: "erro",
-      acao_detalhe: `INSERT processo: ${insErr?.message ?? "sem detalhe"}`,
-    } as any);
-    return { acao: "erro", detalhe: insErr?.message };
-  }
-
-  // 5) Notifica master pra revisão
-  const apelido = cliente.apelido || cliente.nome;
   await notificarMaster(
     cliente.empresa_id,
-    "processo_criado",
-    `Processo ${mapping.tipo.toUpperCase()} criado automaticamente — ${apelido}`,
-    `Card "${cardName}" foi criado no Trello (${apelido}) — ERP criou processo ${mapping.tipo.toUpperCase()} com prioridade ALTA. Revise valor e detalhes em /processos.`,
-    novoProcesso.id,
+    "trello_card_recem_chegado",
+    `Trello: novo card em ${apelido}`,
+    mensagem,
   );
 
   await admin.from("trello_card_events").insert({
     ...eventBase,
-    acao_aplicada: "processo_criado_auto",
-    acao_detalhe: `tipo=${mapping.tipo} cor=${coverColor}${mapping.nota_extra ? " +" + mapping.nota_extra : ""}`,
-    processo_id: novoProcesso.id,
+    acao_aplicada: "master_notificado",
+    acao_detalhe: `cliente=${apelido} ${acaoLabel.toLowerCase()}=${cardName}`,
   } as any);
 
-  console.log(`[trello-cards-events] processo criado auto: ${novoProcesso.id} (${mapping.tipo}, ${cardName})`);
-  return { acao: "processo_criado_auto", processo_id: novoProcesso.id };
+  console.log(`[trello-cards-events] notificou master sobre card "${cardName}" em ${apelido}`);
+  return { acao: "master_notificado" };
 }
 
 // ────────────────────────────────────────────────
@@ -515,22 +425,7 @@ Deno.serve(async (req) => {
 
   const sigCheck = await verifySignature(req, rawBody);
   if (!sigCheck.valid) {
-    // DEBUG: agora que GRANT está OK, grava info detalhada do HMAC fail
-    console.warn("[trello-cards-events] HMAC fail:", JSON.stringify(sigCheck));
-    try {
-      await admin.from("trello_card_events").insert({
-        action_id: `hmacfail_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-        action_type: payload?.action?.type ?? "unknown",
-        card_id: payload?.action?.data?.card?.id ?? null,
-        card_name: payload?.action?.data?.card?.name ?? null,
-        board_id: payload?.action?.data?.board?.id ?? null,
-        raw_action: { sigCheck, action: payload?.action ?? null },
-        acao_aplicada: "hmac_fail_debug",
-        acao_detalhe: `expected=${sigCheck.expected_hash_prefix} received=${sigCheck.received_hash_prefix} url=${sigCheck.callback_url_used}`,
-      } as any);
-    } catch (e) {
-      console.error("[trello-cards-events] failed to log hmac fail:", e);
-    }
+    console.warn("[trello-cards-events] invalid signature:", sigCheck.reason);
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
