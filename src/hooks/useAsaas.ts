@@ -28,6 +28,40 @@ interface GerarAsaasResponse {
   message?: string;
 }
 
+/**
+ * 27/05 noite: cancela uma cobrança Asaas (DELETE /v3/payments/:id).
+ * Chama edge function `asaas-cancelar-cobranca`. Atualiza asaas_status=
+ * 'DELETED' + timestamp. Idempotente (já cancelada → sucesso).
+ * Não funciona em cobranças pagas — Asaas rejeita (refund deve ser manual).
+ */
+export function useCancelarAsaasCobranca() {
+  const qc = useQueryClient();
+  return useMutation<{ ok: boolean; already_cancelled?: boolean }, Error, { cobrancaId: string }>({
+    mutationFn: async ({ cobrancaId }) => {
+      const { data, error } = await supabase.functions.invoke<{ ok?: boolean; already_cancelled?: boolean; error?: string }>(
+        'asaas-cancelar-cobranca',
+        { body: { cobranca_id: cobrancaId } }
+      );
+      if (error) throw new Error(error.message || 'Erro inesperado.');
+      if (!data) throw new Error('Resposta vazia da função.');
+      if (data.error) throw new Error(data.error);
+      return { ok: !!data.ok, already_cancelled: data.already_cancelled };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['cobranca-asaas'] });
+      qc.invalidateQueries({ queryKey: ['financeiro_clientes'] });
+      if (data.already_cancelled) {
+        toast.info('Cobrança Asaas já estava cancelada.');
+      } else {
+        toast.success('Cobrança Asaas cancelada — cliente não receberá mais notificações dela.');
+      }
+    },
+    onError: (e) => {
+      toast.error(e.message);
+    },
+  });
+}
+
 export function useGerarAsaasCobranca() {
   const qc = useQueryClient();
   return useMutation<GerarAsaasResponse, Error, { cobrancaId: string; dataVencimento?: string }>({
