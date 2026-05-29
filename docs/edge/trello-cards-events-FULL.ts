@@ -283,16 +283,8 @@ async function processarCriacaoCard(eventBase: any, action: any): Promise<{ acao
   const card = action.data?.card ?? {};
   const board = action.data?.board ?? {};
 
-  // Filtro: só lista TARGET_LIST_NOVO dispara criação automática
-  if (list.name !== TARGET_LIST_NOVO) {
-    await admin.from("trello_card_events").insert({
-      ...eventBase,
-      acao_aplicada: "createCard_lista_irrelevante",
-      acao_detalhe: `list=${list.name}`,
-    } as any);
-    return { acao: "createCard_lista_irrelevante" };
-  }
-
+  // Filtro removido aqui — o ROTEADOR já filtra antes de chamar essa função.
+  // Aceita chegada via createCard/copyCard direto OU updateCard movendo.
   const cardId = card.id as string | undefined;
   const cardName = (card.name as string) || "(sem nome)";
   const boardId = board.id as string | undefined;
@@ -380,14 +372,21 @@ async function processAction(payload: any): Promise<{ acao: string }> {
     raw_action: action,
   };
 
-  // Rota 1: updateCard com movimento de lista → deferimento
-  if (actionType === "updateCard" && listAfter) {
+  // Rota 1: updateCard movido pra INSCRIÇÃO MUNICIPAL E ESTADUAL → deferimento
+  if (actionType === "updateCard" && listAfter?.name === TARGET_LIST_DEFERIMENTO) {
     return await processarMovimentoLista(eventBase, action);
   }
 
-  // Rota 2: createCard OU copyCard → criação automática
-  // (copyCard: Letícia copia card existente — gera card novo com id novo)
-  if (actionType === "createCard" || actionType === "copyCard") {
+  // Rota 2: chegada em RECÉM CHEGADOS por QUALQUER caminho
+  // O Apps Script da Trevo cria card em outra lista E DEPOIS move pra cá
+  // (sequencia: createCard noutra lista + updateCard movendo). Precisamos
+  // capturar AMBOS os caminhos pra notificação chegar.
+  const chegouEmRecemChegados =
+    ((actionType === "createCard" || actionType === "copyCard") &&
+      list?.name === TARGET_LIST_NOVO) ||
+    (actionType === "updateCard" && listAfter?.name === TARGET_LIST_NOVO);
+
+  if (chegouEmRecemChegados) {
     return await processarCriacaoCard(eventBase, action);
   }
 
