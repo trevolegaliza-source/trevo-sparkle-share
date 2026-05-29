@@ -13,7 +13,54 @@
 // =============================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
+
+// =============================================
+// CORS helper inline (não temos _shared/cors.ts disponível ao criar function
+// nova pelo Dashboard — só vai o index.ts). Mesma lógica do _shared/cors.ts
+// usado pelo asaas-gerar-cobranca: allowlist por regex pra Lovable/localhost.
+// =============================================
+const STATIC_ALLOWED_PATTERNS: Array<RegExp> = [
+  /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i,
+  /^https:\/\/[a-z0-9-]+\.lovable\.dev$/i,
+  /^https:\/\/[a-z0-9-]+\.lovable\.app$/i,
+  /^https?:\/\/localhost(:\d+)?$/i,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/i,
+];
+const EXTRA_ALLOWED = (Deno.env.get("ALLOWED_ORIGINS_EXTRA") ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter((s) => s.length > 0);
+const FALLBACK_OPEN =
+  (Deno.env.get("CORS_FALLBACK_OPEN") ?? "").toLowerCase() === "true";
+
+function isAllowedOrigin(origin: string | null): boolean {
+  if (FALLBACK_OPEN) return true;
+  if (!origin) return false;
+  if (EXTRA_ALLOWED.includes(origin)) return true;
+  return STATIC_ALLOWED_PATTERNS.some((re) => re.test(origin));
+}
+
+function buildCorsHeaders(origin: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Vary": "Origin",
+  };
+  if (isAllowedOrigin(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin ?? "*";
+  }
+  return headers;
+}
+
+function handlePreflight(req: Request): Response | null {
+  if (req.method !== "OPTIONS") return null;
+  const origin = req.headers.get("Origin");
+  if (!isAllowedOrigin(origin)) {
+    return new Response(null, { status: 403 });
+  }
+  return new Response(null, { status: 204, headers: buildCorsHeaders(origin) });
+}
 
 const ASAAS_FETCH_TIMEOUT_MS = 15_000;
 
