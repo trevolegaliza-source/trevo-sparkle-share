@@ -25,6 +25,7 @@ import {
   ExternalLink,
   Loader2,
   RotateCcw,
+  Share2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,6 +43,13 @@ interface Props {
   clienteNome: string;
   clienteTelefone?: string | null;
   total: number;
+  /** 27/05 noite: callbacks pra ações que antes eram botões soltos no grid.
+   *  Quando passados, o modal renderiza esses botões na seção "Mais ações".
+   *  Mantemos opcionais pra retrocompatibilidade — modal funciona sem. */
+  onCompartilhar?: () => void;
+  onCopiarMensagemWhatsapp?: () => void;
+  onBaixarExtrato?: () => void;
+  baixarLoading?: boolean;
 }
 
 const fmtBRL = (v: number) =>
@@ -49,6 +57,7 @@ const fmtBRL = (v: number) =>
 
 export default function DetalhesCobrancaModal({
   open, onOpenChange, cobrancaId, clienteNome, clienteTelefone, total,
+  onCompartilhar, onCopiarMensagemWhatsapp, onBaixarExtrato, baixarLoading,
 }: Props) {
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [dataExpiracao, setDataExpiracao] = useState<string | null>(null);
@@ -306,6 +315,44 @@ export default function DetalhesCobrancaModal({
                 </button>
               )}
             </div>
+
+            {/* 27/05 noite: Mais ações — consolidado dos botões antes soltos no grid */}
+            {(onCompartilhar || onCopiarMensagemWhatsapp || onBaixarExtrato) && (
+              <div className="space-y-1.5 pt-3 border-t border-zinc-800">
+                <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
+                  Mais ações
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  {onCopiarMensagemWhatsapp && (
+                    <button
+                      onClick={onCopiarMensagemWhatsapp}
+                      className="w-full h-11 rounded-md border border-zinc-700 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-100 text-sm font-medium inline-flex items-center justify-center gap-2"
+                    >
+                      <Copy className="h-4 w-4" /> Copiar mensagem completa pro WhatsApp
+                    </button>
+                  )}
+                  {onCompartilhar && (
+                    <button
+                      onClick={onCompartilhar}
+                      className="w-full h-11 rounded-md border border-zinc-700 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-100 text-sm font-medium inline-flex items-center justify-center gap-2"
+                    >
+                      <Share2 className="h-4 w-4" /> Compartilhar (Share API)
+                    </button>
+                  )}
+                  {onBaixarExtrato && (
+                    <button
+                      onClick={onBaixarExtrato}
+                      disabled={baixarLoading}
+                      className="w-full h-11 rounded-md border border-zinc-700 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-100 text-sm font-medium inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {baixarLoading
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Baixando...</>
+                        : <><Download className="h-4 w-4" /> Baixar extrato (PDF)</>}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* WhatsApp */}
             {publicUrl && clienteTelefone && (

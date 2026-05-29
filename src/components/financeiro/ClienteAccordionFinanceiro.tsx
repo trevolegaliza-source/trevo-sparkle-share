@@ -1325,6 +1325,9 @@ function EnviarItem({ cliente }: { cliente: ClienteFinanceiro }) {
             </div>
           )}
           {cliente.lancamentos.map(l => <LancamentoRow key={l.id} lancamento={l} />)}
+          {/* 27/05 noite: grid principal enxuto. 4 botoes essenciais.
+              "Compartilhar", "Copiar WhatsApp", "Baixar", "Editar vencimento"
+              moveram pra dentro do "Ver cobranca" pra reduzir poluicao visual. */}
           <div className="grid grid-cols-2 sm:flex gap-2 mt-3 sm:flex-wrap">
             <WhatsappLinkButton
               phone={cliente.cliente_telefone || ''}
@@ -1335,10 +1338,10 @@ function EnviarItem({ cliente }: { cliente: ClienteFinanceiro }) {
             />
             <Button
               size="sm"
-              variant="outline"
+              variant="default"
               onClick={() => setDetalhesOpen(true)}
               disabled={!cobrancaIdAtiva}
-              className="h-11 sm:h-9 text-primary border-primary/40 hover:bg-primary/10"
+              className="h-11 sm:h-9 bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               <Eye className="h-4 w-4 mr-1" />
               <span className="hidden sm:inline">Ver cobrança</span>
@@ -1346,26 +1349,6 @@ function EnviarItem({ cliente }: { cliente: ClienteFinanceiro }) {
             </Button>
             <Button size="sm" variant="outline" onClick={handleCopiarLinkCobranca} className="h-11 sm:h-9">
               <LinkIcon className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Copiar Link</span><span className="sm:hidden">Link</span>
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleCompartilhar} className="gap-1 h-11 sm:h-9">
-              <Share2 className="h-4 w-4" /> <span className="hidden sm:inline">Compartilhar</span><span className="sm:hidden">Enviar</span>
-            </Button>
-            <EditarVencimentoButton
-              cobrancaId={cobrancaIdAtiva}
-              dataAtual={cliente.lancamentos[0]?.data_vencimento || null}
-              className="h-11 sm:h-9"
-            />
-            {hasExtratoNoSistema && (
-              <Button size="sm" variant="outline" onClick={handleBaixarExtrato} disabled={loadingExtrato} className="h-11 sm:h-9">
-                {loadingExtrato ? (
-                  <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Baixando</>
-                ) : (
-                  <><Download className="h-4 w-4 mr-1" /> Baixar</>
-                )}
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={handleCopiarMensagem} className="h-11 sm:h-9">
-              <Copy className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Copiar WhatsApp</span><span className="sm:hidden">Copiar</span>
             </Button>
             <Button size="sm" onClick={handleMarcarEnviado} className="bg-blue-600 hover:bg-blue-700 text-white col-span-2 h-11 sm:h-9">
               <Send className="h-4 w-4 mr-1" /> Marcar como Enviado
@@ -1380,6 +1363,10 @@ function EnviarItem({ cliente }: { cliente: ClienteFinanceiro }) {
         clienteNome={cliente.cliente_apelido || cliente.cliente_nome}
         clienteTelefone={cliente.cliente_telefone}
         total={cliente.total_faturado}
+        onCompartilhar={handleCompartilhar}
+        onCopiarMensagemWhatsapp={handleCopiarMensagem}
+        onBaixarExtrato={hasExtratoNoSistema ? handleBaixarExtrato : undefined}
+        baixarLoading={loadingExtrato}
       />
     </AccordionItem>
   );
