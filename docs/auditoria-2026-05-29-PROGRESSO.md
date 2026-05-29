@@ -1,6 +1,11 @@
 # PROGRESSO AUDITORIA — 29/05/2026 (sessão autônoma)
 
-Status enquanto Thales fora: **25 dos 48 achados resolvidos** (~52%).
+Status enquanto Thales fora: **30 dos 48 achados resolvidos** (~63%).
+
+🎉 **ONDA 4 COMPLETA — 3/3 componentes monstro refatorados:**
+- TerceirizacaoPublicaView: 2055 → 477 LOC + 23 sub-componentes
+- ClienteAccordionFinanceiro: 2599 → 15 LOC (shim) + 14 sub-componentes
+- ClienteDetalhe: 2734 → 590 LOC + 16 sub-componentes/hooks
 
 ---
 
@@ -43,9 +48,9 @@ Status enquanto Thales fora: **25 dos 48 achados resolvidos** (~52%).
 ### Onda 4 — Componentes Monstro (2 de 3)
 | ID | O que foi feito |
 |---|---|
-| AUDIT-013 #1 | TerceirizacaoPublicaView 2056 LOC → ~600 + 13 sub-componentes em `src/components/orcamentos/publico/terceirizacao/` |
+| AUDIT-013 #1 | TerceirizacaoPublicaView 2055 LOC → 477 + 23 sub-componentes em `src/components/orcamentos/publico/terceirizacao/` |
 | AUDIT-013 #2 | ClienteAccordionFinanceiro 2599 LOC → 15 (shim) + 14 sub-componentes em `src/components/financeiro/cliente-accordion/` |
-| AUDIT-013 #3 | ClienteDetalhe 2734 LOC → AGENTE AINDA RODANDO em background |
+| AUDIT-013 #3 | ClienteDetalhe 2734 LOC → 590 + 16 sub-componentes/hooks em `src/components/clientes/detalhe/` |
 
 ### Onda 5 — Polimento (4 itens completos + 1 parcial)
 | ID | O que foi feito |
@@ -68,7 +73,7 @@ Status enquanto Thales fora: **25 dos 48 achados resolvidos** (~52%).
 ## ⏳ PENDENTES — pra próxima sessão
 
 ### Críticos restantes
-- **AUDIT-013 #3** ClienteDetalhe (agente rodando — vai terminar em background)
+- ✅ TODOS resolvidos!
 
 ### Médios pendentes
 - **AUDIT-014** — 593 `as any` em mutações (massivo, tipar progressivamente)
@@ -146,13 +151,43 @@ Pra ativar mudanças frontend.
 
 ---
 
-## 📊 Numérico
+## 📊 Numérico FINAL
 
 | Categoria | Total | Resolvido | Pendente |
 |---|---|---|---|
-| Crítico | 12 | 11 | 1 (componente monstro #3 - agente rodando) |
-| Médio | 30 | 12 | 18 |
-| Baixo | 6 | 5 | 1 |
-| **TOTAL** | **48** | **28** | **20** |
+| Crítico | 12 | **12** | 0 ✅ |
+| Médio | 30 | **13** | 17 |
+| Baixo | 6 | **5** | 1 |
+| **TOTAL** | **48** | **30** | **18** |
 
-**Commits feitos**: 7 (a766404, 1a15d64, 914a642, fb668d7, 57adced, 2ff3fa5, b0840b8, d9dc028)
+**Commits da sessão autônoma**: 12
+- a766404 (doc auditoria inicial + 48 tarefas)
+- 1a15d64 (ondas 1+3+5 parciais)
+- 914a642 (auth nas 6 edges)
+- fb668d7 (TerceirizacaoPublicaView refactor inicial)
+- 57adced (consolidar policies)
+- 2ff3fa5 (ClienteAccordionFinanceiro refactor)
+- b0840b8 (AUDIT-015 expandido)
+- d9dc028 (trello-guard 401)
+- 603d9d3 (doc PROGRESSO inicial)
+- 5d71731 (ClienteDetalhe refactor)
+- ecf3449 (TerceirizacaoPublicaView refactor estendido)
+
+## 🎯 O que sobrou pra próxima sessão (18 médios+1 baixo)
+
+**Recomendados (alta ROI):**
+- AUDIT-014 — Tipar mutations (eliminar 593 `as any`)
+- AUDIT-015 — 9 window.confirm restantes em ClientesAuditoria
+- AUDIT-016 — Auditar 67 mutations sem invalidateQueries
+- AUDIT-018 — Quebrar hooks useFinanceiro (947) e useFinanceiroClientes (891)
+- AUDIT-019 — Cobertura Label em forms = 40% → ~80%
+
+**WONTFIX por design:**
+- AUDIT-032 — CORS asaas-cancelar (comentário explica)
+- AUDIT-038 — Unused indexes (custo manutenção zero em prod pequena)
+- AUDIT-048 — Asaas webhook CORS * (server-to-server)
+
+**Dependem de você:**
+- AUDIT-022 — Números/depoimentos reais em AutoridadeBlocks
+- AUDIT-046 — Migrar master_password env→hash (procedimento documentado)
+- AUDIT-009 — Decisão sobre reconciliação das 11 cobranças órfãs
