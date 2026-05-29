@@ -830,7 +830,8 @@ function FaturarItem({ cliente, isDeferimento = false, onExtratoGerado }: {
       // edge function retornar — via invalidateQueries. Se Asaas falhar, o popup
       // volta pro botão manual e mostra warning toast.
       let asaasGerandoAuto = false;
-      if (cobrancaId) {
+      // Só dispara Asaas se tem cobrancaId E valor > 0 (Asaas rejeita value=0).
+      if (cobrancaId && result.totalGeral > 0) {
         asaasGerandoAuto = true;
         const cobrancaIdLocal = cobrancaId; // capture pro closure
         supabase.functions
@@ -2058,6 +2059,23 @@ export function ModalPosExtrato({
   const [asaasModalOpen, setAsaasModalOpen] = useState(false);
   const { data: asaasInfo } = useCobrancaAsaas(extratoGerado.cobrancaId);
 
+  // 27/05 noite: timeout pro spinner "Gerando Boleto/PIX". Asaas leve normalmente
+  // 1-3s. 25s é folga generosa pra acomodar retry/rate limit. Se passar disso,
+  // assume falha e libera botão manual.
+  const [aindaGerandoAsaas, setAindaGerandoAsaas] = useState(
+    !!extratoGerado.asaasGerandoAuto && !asaasInfo?.payment_id,
+  );
+  useEffect(() => {
+    if (!extratoGerado.asaasGerandoAuto) return;
+    if (asaasInfo?.payment_id) {
+      setAindaGerandoAsaas(false);
+      return;
+    }
+    setAindaGerandoAsaas(true);
+    const t = setTimeout(() => setAindaGerandoAsaas(false), 25_000);
+    return () => clearTimeout(t);
+  }, [extratoGerado.asaasGerandoAuto, asaasInfo?.payment_id]);
+
   useEffect(() => {
     let active = true;
 
@@ -2189,10 +2207,10 @@ export function ModalPosExtrato({
             {extratoGerado.cobrancaId && (() => {
               // 27/05 noite: 3 estados visuais.
               // 1) asaas_payment_id já existe → "gerado ✓ — Ver detalhes" (outline)
-              // 2) asaasGerandoAuto=true E sem payment_id → "Gerando Boleto/PIX..." disabled com spinner
+              // 2) aindaGerandoAsaas=true E sem payment_id → "Gerando..." disabled com spinner (max 25s)
               // 3) caso contrário → botão padrão "Gerar Boleto/PIX (Asaas)"
               const jaGerou = !!asaasInfo?.payment_id;
-              const gerandoAuto = extratoGerado.asaasGerandoAuto && !jaGerou;
+              const gerandoAuto = aindaGerandoAsaas && !jaGerou;
               return (
                 <Button
                   variant={jaGerou ? 'outline' : 'default'}
