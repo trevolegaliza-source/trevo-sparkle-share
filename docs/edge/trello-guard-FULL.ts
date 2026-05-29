@@ -242,8 +242,15 @@ Deno.serve(async (req) => {
 
   const valid = await verifySignature(req, rawBody);
   if (!valid) {
+    // AUDIT-026 (29/05/2026): retorna 401 em HMAC inválido (antes 200
+    // mascarava incidentes). Trello pode desabilitar webhook após 3 falhas
+    // consecutivas — isso é DESEJADO se houver ataque ativo. Master pode
+    // re-registrar manualmente via trello-setup-boards.
     console.warn("Invalid Trello webhook signature");
-    return new Response("ok", { status: 200, headers: corsHeaders });
+    return new Response(
+      JSON.stringify({ error: "invalid_signature" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   processAction(payload).catch((e) => console.error("async processAction:", e));
